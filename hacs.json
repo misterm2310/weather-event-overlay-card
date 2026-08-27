@@ -1,5 +1,5 @@
 {
-  "name": "Wetter & Event Overlay Card",
+  "name": "Weather Event Overlay Card",
   "content_in_root": true,
   "filename": "weather-event-overlay-card.js"
 }
