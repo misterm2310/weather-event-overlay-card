@@ -14,7 +14,7 @@ Eine benutzerdefinierte Lovelace-Karte für Home Assistant, die dynamische Anima
 ### Manuell
 
 1. Lade die Datei `weather-event-overlay-card.js` herunter.
-2. Kopiere sie in deinen Home Assistant Ordner: `/config/www/weather-event-overlay-card.js`.
+2. Kopiere sie in deinen Home Assistant Ordner: `/config/www/weather-event-overlay-card`.
 3. Gehe in Home Assistant zu **Einstellungen -> Dashboards -> Drei Punkte oben rechts -> Ressourcen**.
 4. Füge eine neue Ressource hinzu:
    - **URL:** `/local/weather-event-overlay-card.js`
