@@ -1,4 +1,6 @@
 {
-  "name": "Weather Event Overlay Card",
-  "filename": "weather-event-overlay-card.js"
+  "name": "Weather & Event Overlay Card",
+  "render_readme": true,
+  "filename": "weather-event-overlay-card.js",
+  "content_in_root": true
 }
