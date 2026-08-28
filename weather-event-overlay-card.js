@@ -13,6 +13,7 @@ function fireEvent(node, type, detail) {
 }
 
 function spreadSample(arr, count) {
+  if (!arr || !arr.length) return [];
   const sorted = [...arr].sort((a, b) => a.l - b.l);
   if (count >= sorted.length) return sorted;
   const result = [];
@@ -24,10 +25,11 @@ function spreadSample(arr, count) {
 
 function hexToRgb(hex) {
   let h = (hex || "").trim();
+  if (h === "auto" || !h) h = "#ffffff";
   if (h.startsWith("#")) h = h.slice(1);
   if (h.length === 3) h = h.split("").map((c) => c + c).join("");
   const num = parseInt(h, 16);
-  if (h.length !== 6 || Number.isNaN(num)) return { r: 200, g: 160, b: 60 };
+  if (h.length !== 6 || Number.isNaN(num)) return { r: 255, g: 255, b: 255 };
   return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
 }
 
@@ -40,7 +42,8 @@ function lerp(a, b, t) {
 }
 
 function gradientColor(colors, t) {
-  const [c0, c1, c2] = colors.map(hexToRgb);
+  const safeColors = (colors && colors.length === 3) ? colors : ["#c9a227", "#a83232", "#d9812c"];
+  const [c0, c1, c2] = safeColors.map(hexToRgb);
   const seg = t < 0.5 ? [c0, c1, t * 2] : [c1, c2, (t - 0.5) * 2];
   const [from, to, localT] = seg;
   return rgbToCss({
@@ -51,30 +54,27 @@ function gradientColor(colors, t) {
 }
 
 function getParticleCount(preset, eventType) {
-  let max = 50;
+  let max = 60;
   if (eventType === "balloons") max = 30;
   if (eventType === "lights") max = 25;
   if (eventType === "shooting_stars") {
     switch (preset) {
       case "low": return 3;
       case "high": return 8;
-      case "medium":
-      default: return 5;
+      case "medium": default: return 5;
     }
   }
   if (eventType === "lightning") {
     switch (preset) {
       case "low": return 2;
       case "high": return 6;
-      case "medium":
-      default: return 4;
+      case "medium": default: return 4;
     }
   }
   switch (preset) {
     case "low": return Math.round(max * 0.33);
     case "high": return max;
-    case "medium":
-    default: return Math.round(max * 0.66);
+    case "medium": default: return Math.round(max * 0.66);
   }
 }
 
@@ -82,9 +82,44 @@ function getOpacityValue(preset) {
   switch (preset) {
     case "low": return 0.3;
     case "high": return 1.0;
-    case "medium":
-    default: return 0.6;
+    case "medium": default: return 0.6;
   }
+}
+
+// Erkennung des Hell/Dunkel Modus
+function isDarkModeActive(hassInstance) {
+  try {
+    if (hassInstance && hassInstance.themes) {
+      if (hassInstance.themes.darkMode !== undefined) {
+        return hassInstance.themes.darkMode;
+      }
+    }
+    
+    const rootStyles = getComputedStyle(document.documentElement);
+    const bgColor = rootStyles.getPropertyValue('--primary-background-color').trim();
+    if (bgColor) {
+      const rgbMatch = bgColor.match(/\d+/g);
+      if (rgbMatch && rgbMatch.length >= 3) {
+        const brightness = (parseInt(rgbMatch[0]) * 299 + parseInt(rgbMatch[1]) * 587 + parseInt(rgbMatch[2]) * 114) / 1000;
+        return brightness < 128;
+      }
+    }
+
+    const haEl = document.querySelector('home-assistant');
+    if (haEl) {
+      if (haEl.hasAttribute('dark-mode') || haEl.classList.contains('dark')) return true;
+    }
+
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  } catch (e) {
+    return true;
+  }
+}
+
+function resolveDynamicColor(cfgColor, hassInstance, defaultLight = "#1e3a8a", defaultDark = "#a0c4ff") {
+  if (cfgColor && cfgColor !== "auto") return cfgColor;
+  const dark = isDarkModeActive(hassInstance);
+  return dark ? defaultDark : defaultLight;
 }
 
 /* ============================ STATISCHE DATEN ============================ */
@@ -116,74 +151,80 @@ const BALLOONS = Array.from({ length: 30 }, (_, i) => ({
   sway: Math.floor(Math.random() * 25 + 15),
 }));
 
-const DROPS = Array.from({ length: 50 }, (_, i) => ({
-  l: (i * 2) + 1,
+const DROPS = Array.from({ length: 60 }, (_, i) => ({
+  l: (i * 1.6) + 1,
   size: Math.floor(Math.random() * 14) + 16,
   dur: (Math.random() * 0.3 + 0.4).toFixed(2),
   d: (Math.random() * -2).toFixed(2),
   op: (Math.random() * 0.5 + 0.4).toFixed(2),
 }));
 
-const FLAKES_DATA = [
-  { l: 2, s: 9, ex: -25, dur: 20, d: 0.02, op: 0.5, rs: 0, re: 360 },
-  { l: 6, s: 15, ex: 30, dur: 28, d: 0.13, op: 0.8, rs: 360, re: -360 },
-  { l: 10, s: 11, ex: -20, dur: 18, d: 0.21, op: 0.6, rs: 45, re: -405 },
-  { l: 14, s: 17, ex: 35, dur: 26, d: 0.34, op: 0.9, rs: -30, re: 330 },
-  { l: 18, s: 13, ex: -28, dur: 24, d: 0.40, op: 0.4, rs: -360, re: 360 },
-  { l: 22, s: 19, ex: 24, dur: 22, d: 0.47, op: 0.7, rs: 90, re: -270 },
-  { l: 26, s: 7, ex: -35, dur: 32, d: 0.51, op: 0.3, rs: -90, re: 270 },
-  { l: 30, s: 14, ex: 24, dur: 20, d: 0.62, op: 0.6, rs: 180, re: -180 },
-  { l: 34, s: 21, ex: -15, dur: 30, d: 0.68, op: 0.5, rs: -120, re: 240 },
-  { l: 38, s: 12, ex: 18, dur: 24, d: 0.70, op: 0.8, rs: 60, re: -300 },
-];
+const FLAKES_DATA = Array.from({ length: 50 }, (_, i) => ({
+  l: (i * 1.95) + 1,
+  s: Math.floor(Math.random() * 12) + 8,
+  ex: Math.floor(Math.random() * 60) - 30,
+  dur: Math.floor(Math.random() * 12) + 18,
+  d: (Math.random() * 1).toFixed(2),
+  op: (Math.random() * 0.6 + 0.3).toFixed(2),
+}));
 
 /* ============================ RENDER-FUNKTIONEN ============================ */
 
-function renderRain(cfg) {
-  const color = cfg.color || "#a0c4ff";
+function renderRain(cfg, hass) {
+  const color = resolveDynamicColor(cfg.color, hass, "#1e3a8a", "#a0c4ff");
   const count = getParticleCount(cfg.count_preset || "medium", "rain");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const drops = spreadSample(DROPS, count);
 
   const dropHTML = drops.map((d) => {
     const op = (d.op * opacity).toFixed(2);
-    return `<div class="drop" style="left:${d.l}%; height:${d.size}px; animation-duration:${d.dur}s; animation-delay:${d.d}s; opacity:${op};"></div>`;
+    return `<div class="drop" style="left:${d.l}vw; height:${d.size}px; animation-duration:${d.dur}s; animation-delay:${d.d}s; opacity:${op};"></div>`;
   }).join("\n");
 
   const css = `
-    .rain { position: fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:999; }
-    .rain .drop { position:absolute; top:-20%; width:1.5px; background:linear-gradient(transparent, ${color}); border-radius:50%; animation: rainfall linear infinite; }
-    @keyframes rainfall { 0% { transform: translateY(0vh) translateX(0px); } 100% { transform: translateY(120vh) translateX(-15px); } }
-    @media (prefers-reduced-motion: reduce) { .rain { display:none; } }
+    .rain { 
+      position: fixed; top:0; left:50%; transform:translateX(-50%); width:100vw; height:100vh; pointer-events:none; z-index:9999; overflow:hidden; 
+    }
+    .rain .drop { 
+      position: absolute; 
+      top: -20%; 
+      width: 2px; 
+      background: linear-gradient(180deg, rgba(255,255,255,0) 0%, ${color} 100%) !important; 
+      border-radius: 50%; 
+      animation: rainfall linear infinite; 
+    }
+    @keyframes rainfall { 
+      0% { transform: translateY(0vh) translateX(0px); } 
+      100% { transform: translateY(120vh) translateX(-15px); } 
+    }
   `;
   return { css, html: `<div class="rain">${dropHTML}</div>` };
 }
 
-function renderSnow(cfg) {
-  const color = cfg.color || "#ffffff";
+function renderSnow(cfg, hass) {
+  const color = resolveDynamicColor(cfg.color, hass, "#222222", "#ffffff");
   const count = getParticleCount(cfg.count_preset || "medium", "snow");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const flakes = spreadSample(FLAKES_DATA, count);
 
   const flakeHTML = flakes.map((f) => {
     const op = (f.op * opacity).toFixed(2);
-    return `<i class="snowflake" style="left:${f.l}%; font-size:${f.s}px; --start-x:0px; --end-x:${f.ex}px; animation-duration:${f.dur}s; animation-delay:calc(-20s * ${f.d}); opacity:${op}; color:${color};">❄</i>`;
+    return `<i class="snowflake" style="left:${f.l}vw; font-size:${f.s}px; --start-x:0px; --end-x:${f.ex}px; animation-duration:${f.dur}s; animation-delay:calc(-20s * ${f.d}); opacity:${op}; color:${color};">❄</i>`;
   }).join("\n");
 
   const css = `
-    .snowflakes { position: fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:999; }
+    .snowflakes { position: fixed; top:0; left:50%; transform:translateX(-50%); width:100vw; height:100vh; pointer-events:none; z-index:9999; overflow:hidden; }
     .snowflake { position:absolute; top:-10%; font-style:normal; animation:wander-fall linear infinite; }
     @keyframes wander-fall {
       0%   { transform: translate(var(--start-x), -10%); }
       50%  { transform: translate(var(--end-x), 60vh); }
       100% { transform: translate(var(--end-x), 120vh); }
     }
-    @media (prefers-reduced-motion: reduce) { .snowflakes { display:none; } }
   `;
   return { css, html: `<div class="snowflakes">${flakeHTML}</div>` };
 }
 
-function renderLeaves(cfg) {
+function renderLeaves(cfg, hass) {
   const leafColors = Array.isArray(cfg.leaf_colors) && cfg.leaf_colors.length === 3 ? cfg.leaf_colors : ["#c9a227", "#a83232", "#d9812c"];
   const count = getParticleCount(cfg.count_preset || "medium", "leaves");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
@@ -194,25 +235,24 @@ function renderLeaves(cfg) {
     const op = (f.op * opacity).toFixed(2);
     const color = gradientColor(leafColors, i / leaves.length);
     const px = `${f.s * 1.6}px`;
-    return `<i class="leaf" style="left:${f.l}%; width:${px}; height:${px}; animation-duration:${f.dur}s; opacity:${op}; color:${color};"><svg viewBox="0 0 100 100" width="100%" height="100%">${leafShape}</svg></i>`;
+    return `<i class="leaf" style="left:${f.l}vw; width:${px}; height:${px}; animation-duration:${f.dur}s; animation-delay:calc(-20s * ${f.d}); opacity:${op}; color:${color};"><svg viewBox="0 0 100 100" width="100%" height="100%">${leafShape}</svg></i>`;
   }).join("\n");
 
   const css = `
-    .leaves { position: fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:999; }
+    .leaves { position: fixed; top:0; left:50%; transform:translateX(-50%); width:100vw; height:100vh; pointer-events:none; z-index:9999; overflow:hidden; }
     .leaf { position:absolute; top:-10%; animation:leaf-fall linear infinite; }
     @keyframes leaf-fall { 0% { transform: translateY(0) rotate(0deg); } 100% { transform: translateY(120vh) rotate(360deg); } }
-    @media (prefers-reduced-motion: reduce) { .leaves { display:none; } }
   `;
   return { css, html: `<div class="leaves">${leafHTML}</div>` };
 }
 
-function renderBalloons(cfg) {
+function renderBalloons(cfg, hass) {
   const count = getParticleCount(cfg.count_preset || "medium", "balloons");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const balloons = spreadSample(BALLOONS, count);
 
   const balloonHTML = balloons.map((b) => `
-    <div class="balloon-wrapper" style="left:${b.l}%; animation-duration:${b.dur}s; animation-delay:${b.d}s; opacity:${opacity};">
+    <div class="balloon-wrapper" style="left:${b.l}vw; animation-duration:${b.dur}s; animation-delay:${b.d}s; opacity:${opacity};">
       <div class="balloon" style="width:${b.size}px; height:${(b.size * 1.6)}px; color:${b.color};">
         ${BALLOON_SVG}
       </div>
@@ -220,17 +260,16 @@ function renderBalloons(cfg) {
   `).join("\n");
 
   const css = `
-    .balloons-container { position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:999; }
+    .balloons-container { position:fixed; top:0; left:50%; transform:translateX(-50%); width:100vw; height:100vh; pointer-events:none; z-index:9999; overflow:hidden; }
     .balloon-wrapper { position:absolute; bottom:-20%; animation:balloon-rise linear infinite; }
     .balloon { display:flex; align-items:center; justify-content:center; }
     .balloon svg { width:100%; height:100%; filter:drop-shadow(2px 4px 6px rgba(0,0,0,0.25)); }
     @keyframes balloon-rise { 0% { transform: translateY(10vh); } 100% { transform: translateY(-120vh); } }
-    @media (prefers-reduced-motion: reduce) { .balloons-container { display:none; } }
   `;
   return { css, html: `<div class="balloons-container">${balloonHTML}</div>` };
 }
 
-function renderLights(cfg) {
+function renderLights(cfg, hass) {
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const bulbCount = getParticleCount(cfg.count_preset || "medium", "lights");
   const colors = ["#ff3333", "#33cc33", "#3399ff", "#ffff33", "#ff9933", "#cc33cc"];
@@ -244,8 +283,8 @@ function renderLights(cfg) {
   const html = `<div class="lights-string" style="opacity:${opacity};">${bulbsHtml}</div>`;
   const css = `
     .lights-string {
-      position: fixed; top: 0; left: 0; width: 100%; height: 25px;
-      pointer-events: none; z-index: 999; display: flex; justify-content: space-around; padding: 0 10px;
+      position: fixed; top: 0; left: 50%; transform: translateX(-50%); width: 100vw; height: 25px;
+      pointer-events: none; z-index: 9999; display: flex; justify-content: space-around; padding: 0 10px; box-sizing: border-box;
     }
     .bulb {
       width: 10px; height: 14px; border-radius: 50%;
@@ -253,15 +292,14 @@ function renderLights(cfg) {
       animation: bulb-blink 1.2s ease-in-out infinite alternate;
     }
     @keyframes bulb-blink { 0% { opacity: 0.3; transform: scale(0.85); } 100% { opacity: 1; transform: scale(1.1); } }
-    @media (prefers-reduced-motion: reduce) { .lights-string { display:none; } }
   `;
   return { css, html };
 }
 
-function renderShootingStars(cfg) {
+function renderShootingStars(cfg, hass) {
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const count = getParticleCount(cfg.count_preset || "medium", "shooting_stars");
-  const color = cfg.color || "#ffffff";
+  const color = resolveDynamicColor(cfg.color, hass, "#ffffff", "#ffffff");
 
   let starsHtml = "";
   for (let i = 0; i < count; i++) {
@@ -269,14 +307,14 @@ function renderShootingStars(cfg) {
     const left = Math.random() * 100;
     const dur = (Math.random() * 3 + 2).toFixed(2);
     const delay = (Math.random() * 5).toFixed(2);
-    starsHtml += `<div class="shooting-star" style="top:${top}vh; left:${left}%; animation-duration:${dur}s; animation-delay:${delay}s; color:${color};"></div>\n`;
+    starsHtml += `<div class="shooting-star" style="top:${top}vh; left:${left}vw; animation-duration:${dur}s; animation-delay:${delay}s; color:${color};"></div>\n`;
   }
 
   const html = `<div class="shooting-stars-container" style="opacity:${opacity};">${starsHtml}</div>`;
   const css = `
     .shooting-stars-container {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      pointer-events: none; z-index: 999; overflow: hidden;
+      position: fixed; top: 0; left: 50%; transform: translateX(-50%); width: 100vw; height: 100vh;
+      pointer-events: none; z-index: 9999; overflow: hidden;
     }
     .shooting-star {
       position: absolute; width: 100px; height: 2px;
@@ -288,12 +326,11 @@ function renderShootingStars(cfg) {
       0% { transform: translateX(0) translateY(0) rotate(-45deg); opacity: 1; }
       100% { transform: translateX(-300px) translateY(300px) rotate(-45deg); opacity: 0; }
     }
-    @media (prefers-reduced-motion: reduce) { .shooting-stars-container { display:none; } }
   `;
   return { css, html };
 }
 
-function renderLightning(cfg) {
+function renderLightning(cfg, hass) {
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const speedFactor = getParticleCount(cfg.count_preset || "medium", "lightning");
   const dur = (6 / speedFactor).toFixed(1);
@@ -301,8 +338,8 @@ function renderLightning(cfg) {
   const html = `<div class="lightning-flash" style="opacity:${opacity}; animation-duration:${dur}s;"></div>`;
   const css = `
     .lightning-flash {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      pointer-events: none; z-index: 999; background: rgba(255, 255, 255, 0.85);
+      position: fixed; top: 0; left: 50%; transform: translateX(-50%); width: 100vw; height: 100vh;
+      pointer-events: none; z-index: 9999; background: rgba(255, 255, 255, 0.85);
       opacity: 0; animation: flash-anim ease-in-out infinite;
     }
     @keyframes flash-anim {
@@ -312,7 +349,6 @@ function renderLightning(cfg) {
       94% { opacity: 0.8; }
       96% { opacity: 0; }
     }
-    @media (prefers-reduced-motion: reduce) { .lightning-flash { display:none; } }
   `;
   return { css, html };
 }
@@ -333,6 +369,23 @@ class WeatherEventOverlayCard extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
+    this._onThemeChange = this._onThemeChange.bind(this);
+  }
+
+  connectedCallback() {
+    window.addEventListener("set-theme", this._onThemeChange);
+    window.addEventListener("resize", this._onThemeChange);
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", this._onThemeChange);
+  }
+
+  disconnectedCallback() {
+    window.removeEventListener("set-theme", this._onThemeChange);
+    window.removeEventListener("resize", this._onThemeChange);
+    window.matchMedia("(prefers-color-scheme: dark)").removeEventListener("change", this._onThemeChange);
+  }
+
+  _onThemeChange() {
+    this._render();
   }
 
   setConfig(config) {
@@ -340,7 +393,8 @@ class WeatherEventOverlayCard extends HTMLElement {
       event: "off",
       count_preset: "medium",
       opacity_preset: "medium",
-      color: "#a0c4ff",
+      color: "auto",
+      color_mode: "auto",
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
       ...config,
     };
@@ -348,7 +402,13 @@ class WeatherEventOverlayCard extends HTMLElement {
   }
 
   set hass(hass) {
+    const oldTheme = this._hass?.themes?.darkMode;
     this._hass = hass;
+    
+    if (!this._hasRenderedOnce || (oldTheme !== undefined && oldTheme !== hass?.themes?.darkMode)) {
+      this._render();
+      this._hasRenderedOnce = true;
+    }
   }
 
   _resolveEvent() {
@@ -358,7 +418,7 @@ class WeatherEventOverlayCard extends HTMLElement {
   getCardSize() { return 0; }
 
   static getStubConfig() {
-    return { event: "lightning", count_preset: "medium", opacity_preset: "medium", color: "#a0c4ff" };
+    return { event: "lightning", count_preset: "medium", opacity_preset: "medium", color: "auto" };
   }
 
   static getConfigElement() {
@@ -369,14 +429,14 @@ class WeatherEventOverlayCard extends HTMLElement {
     if (!this._config) return;
     const event = this._resolveEvent();
     const renderer = RENDERERS[event];
-    const baseStyle = `:host { display: block; position: absolute; top: -20px; left: 0; width: 0; height: 0; overflow: visible; pointer-events: none; background: none !important; }`;
+    const baseStyle = `:host { display: block; position: absolute; top: 0; left: 0; width: 0; height: 0; overflow: visible; pointer-events: none; background: none !important; }`;
 
     if (!renderer) {
       this.shadowRoot.innerHTML = `<style>${baseStyle}</style>`;
       return;
     }
 
-    const { css, html } = renderer(this._config);
+    const { css, html } = renderer(this._config, this._hass);
     this.shadowRoot.innerHTML = `<style>${baseStyle}${css}</style>${html}`;
   }
 }
@@ -389,7 +449,8 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
       event: "off",
       count_preset: "medium",
       opacity_preset: "medium",
-      color: "#a0c4ff",
+      color: "auto",
+      color_mode: "auto",
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
       ...config,
     };
@@ -411,6 +472,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     if (!this._config) return;
     const c = this._config;
     const leafColors = Array.isArray(c.leaf_colors) && c.leaf_colors.length === 3 ? c.leaf_colors : ["#c9a227", "#a83232", "#d9812c"];
+    const colorMode = c.color_mode || (c.color === "auto" ? "auto" : "custom");
 
     this.innerHTML = `
       <div style="padding:8px 16px;">
@@ -443,7 +505,17 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
           </select>
         `)}
 
-        ${this._row("Farbe (Regen/Schnee/Sterne)", `<input id="color" type="color" value="${c.color}" style="width:100%; height:36px;" />`)}
+        ${this._row("Farbmodus", `
+          <select id="color_mode" style="width:100%; padding:6px;">
+            <option value="auto" ${colorMode === "auto" ? "selected" : ""}>🌗 Auto (Hell/Dunkel Modus)</option>
+            <option value="custom" ${colorMode === "custom" ? "selected" : ""}>🎨 Manuelle Farbe</option>
+          </select>
+        `)}
+
+        <div id="custom_color_picker" style="display:${colorMode === "custom" ? "block" : "none"};">
+          ${this._row("Farbe (Regen / Schnee / Sterne)", `<input id="color" type="color" value="${c.color === "auto" ? "#ffffff" : c.color}" style="width:100%; height:36px;" />`)}
+        </div>
+
         ${this._row("Laubfarbe 1", `<input id="leaf_color_0" type="color" value="${leafColors[0]}" style="width:100%; height:36px;" />`)}
         ${this._row("Laubfarbe 2", `<input id="leaf_color_1" type="color" value="${leafColors[1]}" style="width:100%; height:36px;" />`)}
         ${this._row("Laubfarbe 3", `<input id="leaf_color_2" type="color" value="${leafColors[2]}" style="width:100%; height:36px;" />`)}
@@ -453,7 +525,21 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     this.querySelector("#event").addEventListener("change", (e) => this._update("event", e.target.value, true));
     this.querySelector("#count_preset").addEventListener("change", (e) => this._update("count_preset", e.target.value, true));
     this.querySelector("#opacity_preset").addEventListener("change", (e) => this._update("opacity_preset", e.target.value, true));
-    this.querySelector("#color").addEventListener("change", (e) => this._update("color", e.target.value));
+
+    this.querySelector("#color_mode").addEventListener("change", (e) => {
+      const mode = e.target.value;
+      if (mode === "auto") {
+        this._updateConfig({ color_mode: "auto", color: "auto" }, true);
+      } else {
+        this._updateConfig({ color_mode: "custom", color: "#ffffff" }, true);
+      }
+    });
+
+    const colorPicker = this.querySelector("#color");
+    if (colorPicker) {
+      colorPicker.addEventListener("change", (e) => this._update("color", e.target.value, true));
+    }
+
     this.querySelector("#leaf_color_0").addEventListener("change", (e) => this._updateLeafColor(0, e.target.value));
     this.querySelector("#leaf_color_1").addEventListener("change", (e) => this._updateLeafColor(1, e.target.value));
     this.querySelector("#leaf_color_2").addEventListener("change", (e) => this._updateLeafColor(2, e.target.value));
@@ -462,6 +548,13 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
   _update(key, value, rerender) {
     this._suppressNextRender = !rerender;
     this._config = { ...this._config, [key]: value };
+    fireEvent(this, "config-changed", { config: this._config });
+    if (rerender) this._render();
+  }
+
+  _updateConfig(newValues, rerender) {
+    this._suppressNextRender = !rerender;
+    this._config = { ...this._config, ...newValues };
     fireEvent(this, "config-changed", { config: this._config });
     if (rerender) this._render();
   }
