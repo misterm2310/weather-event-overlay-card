@@ -1,15 +1,17 @@
 # Weather & Event Overlay Card for Home Assistant
 
-Eine benutzerdefinierte Lovelace-Karte für Home Assistant, die dynamische Animationen (Regen, Schnee, Herbstlaub, Luftballons, Lichterketten, Sternschnuppen & Blitze) über dein Dashboard legt. Inklusive visueller GUI-Editor-Unterstützung!
+Eine benutzerdefinierte Lovelace-Karte für Home Assistant, die dynamische Animationen (Regen, Schnee, Herbstlaub, Luftballons, Lichterketten, Sternschnuppen & Blitze) über dein Dashboard legt. Inklusive vollständiger visueller GUI-Editor-Unterstützung und automatischer Theme-Anpassung!
 
 ---
 
 ## 🎨 Features
 
 * **Vielfältige Events:** Regen, Schnee, Laubfall, Luftballons, Lichterkette, Sternschnuppen & Blitze (Gewitter).
+* **🌗 Auto-Theme-Modus:** Erkennt automatisch den Hell- oder Dunkel-Modus von Home Assistant (sowie System-Themes) und passt die Farben (z. B. für Regen und Schnee) dynamisch an.
+* **🍂 Sofortige Verteilung:** Partikel wie Schnee und Laub rieseln direkt von der ersten Sekunde an gleichmäßig herunter – ganz ohne störenden Start-Schwung.
 * **GUI-Editor:** Vollständig und komfortabel über die Home Assistant Benutzeroberfläche konfigurierbar.
-* **Feinjustierung:** Anzahl/Frequenz, Deckkraft und Farben direkt anpassbar.
-* **Performance-Schonend:** Basiert auf reinen CSS3-Animationen für minimale Systembelastung.
+* **Feinjustierung:** Frequenz/Anzahl, Deckkraft, Moduswahl (Auto/Manuell) und individuelle Farben (z. B. 3-Farben-Verlauf für Herbstlaub) direkt im Editor anpassbar.
+* **Performance-Schonend:** Basiert auf leichten CSS3-Animationen für minimale System- und Akkubelastung auf Tablets und Smartphones.
 
 ---
 
@@ -29,7 +31,7 @@ Eine benutzerdefinierte Lovelace-Karte für Home Assistant, die dynamische Anima
 
 ### Manuelle Installation
 
-1. Lade die Datei `weather-event-overlay-card.js` aus dem letzten Release herunter.
+1. Lade die Datei `weather-event-overlay-card.js` aus dem aktuellen Release herunter.
 2. Kopiere die Datei in deinen Home Assistant Ordner: `/config/www/weather-event-overlay-card.js`.
 3. Gehe in Home Assistant zu **Einstellungen $\rightarrow$ Dashboards $\rightarrow$ Drei Punkte oben rechts $\rightarrow$ Ressourcen**.
 4. Füge eine neue Ressource hinzu:
@@ -41,11 +43,13 @@ Eine benutzerdefinierte Lovelace-Karte für Home Assistant, die dynamische Anima
 
 ## ⚙️ Verwendung (YAML)
 
-Du kannst die Karte direkt über den GUI-Editor hinzufügen oder manuell folgenden YAML-Code nutzen:
+Du kannst die Karte ganz einfach über den **visuellen GUI-Editor** konfigurieren. Wenn du lieber YAML nutzt, findest du hier Beispiele:
 
+### Automatischer Farbmodus (Empfohlen)
 ```yaml
 type: custom:weather-event-overlay-card
 event: rain
 count_preset: medium
 opacity_preset: medium
-color: '#a0c4ff'
+color_mode: auto
+color: auto
