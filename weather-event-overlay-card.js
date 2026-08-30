@@ -122,6 +122,54 @@ function resolveDynamicColor(cfgColor, hassInstance, defaultLight = "#1e3a8a", d
   return dark ? defaultDark : defaultLight;
 }
 
+// Verbesserung (Aufräumen): zentrale Basis-CSS für alle Overlay-Container,
+// statt in jeder render*-Funktion dieselben 6 Zeilen zu wiederholen.
+// z_index ist jetzt über cfg.z_index konfigurierbar (Standard 9999).
+function overlayBaseCss(className, cfg, extraProps = "") {
+  const zIndex = Number.isFinite(cfg?.z_index) ? cfg.z_index : 9999;
+  return `
+    .${className} {
+      position: fixed; top:0; left:50%; transform:translateX(-50%);
+      width:100vw; height:100vh; pointer-events:none; z-index:${zIndex}; overflow:hidden;
+      ${extraProps}
+    }
+  `;
+}
+
+// Verbesserung (Sicherheit): sehr einfache Whitelist für benutzerdefinierte
+// Laub-SVG-Pfade, damit über die Config kein beliebiges HTML/JS eingeschleust
+// werden kann (z. B. <script> oder onerror-Attribute). Erlaubt nur die
+// üblichen SVG-Zeichenelemente und ihre gängigen Attribute.
+function sanitizeLeafShape(input) {
+  if (typeof input !== "string" || !input.trim()) return null;
+  const trimmed = input.trim();
+
+  // Verbotene Muster sofort ablehnen (Scripts, Event-Handler, externe Referenzen)
+  const forbidden = /<script|javascript:|on\w+\s*=|<iframe|<object|<embed|xlink:href|href\s*=/i;
+  if (forbidden.test(trimmed)) return null;
+
+  // Nur erlaubte Tags zulassen (path, polygon, circle, line, g, rect)
+  const allowedTagPattern = /<\/?(path|polygon|circle|line|g|rect)\b[^>]*>/gi;
+  const strippedOfAllowed = trimmed.replace(allowedTagPattern, "");
+  // Wenn nach Entfernen aller erlaubten Tags noch ein < übrig ist, steckt
+  // ein nicht erlaubtes Element drin -> ablehnen.
+  if (strippedOfAllowed.includes("<")) return null;
+
+  return trimmed;
+}
+
+// Verbesserung (Performance): einmalig zufällig erzeugte Positionsdaten für
+// Sternschnuppen und Blitz-Timing zwischenspeichern, damit ein Resize oder
+// Theme-Wechsel nicht bei jedem Re-Render neue Zufallswerte (= Flackern) erzeugt.
+const _randomCache = new Map();
+function getCachedRandomSet(key, count, factory) {
+  const cacheKey = `${key}:${count}`;
+  if (!_randomCache.has(cacheKey)) {
+    _randomCache.set(cacheKey, Array.from({ length: count }, factory));
+  }
+  return _randomCache.get(cacheKey);
+}
+
 /* ============================ STATISCHE DATEN ============================ */
 
 const BALLOON_COLORS = ["#FF4B4B", "#FF851B", "#FFDC00", "#2ECC40", "#0074D9", "#B10DC9", "#F012BE"];
@@ -182,23 +230,22 @@ function renderRain(cfg, hass) {
   }).join("\n");
 
   const css = `
-    .rain { 
-      position: fixed; top:0; left:50%; transform:translateX(-50%); width:100vw; height:100vh; pointer-events:none; z-index:9999; overflow:hidden; 
-    }
+    ${overlayBaseCss("rain", cfg)}
     .rain .drop { 
       position: absolute; 
       top: -20%; 
       width: 2px; 
       background: linear-gradient(180deg, rgba(255,255,255,0) 0%, ${color} 100%) !important; 
       border-radius: 50%; 
-      animation: rainfall linear infinite; 
+      animation: rainfall linear infinite;
+      will-change: transform;
     }
     @keyframes rainfall { 
       0% { transform: translateY(0vh) translateX(0px); } 
       100% { transform: translateY(120vh) translateX(-15px); } 
     }
   `;
-  return { css, html: `<div class="rain">${dropHTML}</div>` };
+  return { css, html: `<div class="rain" aria-hidden="true">${dropHTML}</div>` };
 }
 
 function renderSnow(cfg, hass) {
@@ -213,22 +260,25 @@ function renderSnow(cfg, hass) {
   }).join("\n");
 
   const css = `
-    .snowflakes { position: fixed; top:0; left:50%; transform:translateX(-50%); width:100vw; height:100vh; pointer-events:none; z-index:9999; overflow:hidden; }
-    .snowflake { position:absolute; top:-10%; font-style:normal; animation:wander-fall linear infinite; }
+    ${overlayBaseCss("snowflakes", cfg)}
+    .snowflake { position:absolute; top:-10%; font-style:normal; animation:wander-fall linear infinite; will-change: transform; }
     @keyframes wander-fall {
       0%   { transform: translate(var(--start-x), -10%); }
       50%  { transform: translate(var(--end-x), 60vh); }
       100% { transform: translate(var(--end-x), 120vh); }
     }
   `;
-  return { css, html: `<div class="snowflakes">${flakeHTML}</div>` };
+  return { css, html: `<div class="snowflakes" aria-hidden="true">${flakeHTML}</div>` };
 }
 
 function renderLeaves(cfg, hass) {
   const leafColors = Array.isArray(cfg.leaf_colors) && cfg.leaf_colors.length === 3 ? cfg.leaf_colors : ["#c9a227", "#a83232", "#d9812c"];
   const count = getParticleCount(cfg.count_preset || "medium", "leaves");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
-  const leafShape = typeof cfg.leaf_shape === "string" && cfg.leaf_shape.trim() ? cfg.leaf_shape : DEFAULT_LEAF_SHAPE;
+  // Verbesserung (Sicherheit): benutzerdefinierte leaf_shape wird jetzt
+  // durch die Whitelist geprüft. Fällt sie durch, greift automatisch die
+  // sichere Standardform statt irgendwas Ungefiltertes zu rendern.
+  const leafShape = sanitizeLeafShape(cfg.leaf_shape) || DEFAULT_LEAF_SHAPE;
   const leaves = spreadSample(FLAKES_DATA, count);
 
   const leafHTML = leaves.map((f, i) => {
@@ -239,11 +289,11 @@ function renderLeaves(cfg, hass) {
   }).join("\n");
 
   const css = `
-    .leaves { position: fixed; top:0; left:50%; transform:translateX(-50%); width:100vw; height:100vh; pointer-events:none; z-index:9999; overflow:hidden; }
-    .leaf { position:absolute; top:-10%; animation:leaf-fall linear infinite; }
+    ${overlayBaseCss("leaves", cfg)}
+    .leaf { position:absolute; top:-10%; animation:leaf-fall linear infinite; will-change: transform; }
     @keyframes leaf-fall { 0% { transform: translateY(0) rotate(0deg); } 100% { transform: translateY(120vh) rotate(360deg); } }
   `;
-  return { css, html: `<div class="leaves">${leafHTML}</div>` };
+  return { css, html: `<div class="leaves" aria-hidden="true">${leafHTML}</div>` };
 }
 
 function renderBalloons(cfg, hass) {
@@ -260,13 +310,13 @@ function renderBalloons(cfg, hass) {
   `).join("\n");
 
   const css = `
-    .balloons-container { position:fixed; top:0; left:50%; transform:translateX(-50%); width:100vw; height:100vh; pointer-events:none; z-index:9999; overflow:hidden; }
-    .balloon-wrapper { position:absolute; bottom:-20%; animation:balloon-rise linear infinite; }
+    ${overlayBaseCss("balloons-container", cfg)}
+    .balloon-wrapper { position:absolute; bottom:-20%; animation:balloon-rise linear infinite; will-change: transform; }
     .balloon { display:flex; align-items:center; justify-content:center; }
     .balloon svg { width:100%; height:100%; filter:drop-shadow(2px 4px 6px rgba(0,0,0,0.25)); }
     @keyframes balloon-rise { 0% { transform: translateY(10vh); } 100% { transform: translateY(-120vh); } }
   `;
-  return { css, html: `<div class="balloons-container">${balloonHTML}</div>` };
+  return { css, html: `<div class="balloons-container" aria-hidden="true">${balloonHTML}</div>` };
 }
 
 function renderLights(cfg, hass) {
@@ -280,16 +330,18 @@ function renderLights(cfg, hass) {
     bulbsHtml += `<div class="bulb" style="background:${col}; animation-delay:${(i * 0.2).toFixed(1)}s;"></div>\n`;
   }
 
-  const html = `<div class="lights-string" style="opacity:${opacity};">${bulbsHtml}</div>`;
+  const zIndex = Number.isFinite(cfg?.z_index) ? cfg.z_index : 9999;
+  const html = `<div class="lights-string" style="opacity:${opacity};" aria-hidden="true">${bulbsHtml}</div>`;
   const css = `
     .lights-string {
       position: fixed; top: 0; left: 50%; transform: translateX(-50%); width: 100vw; height: 25px;
-      pointer-events: none; z-index: 9999; display: flex; justify-content: space-around; padding: 0 10px; box-sizing: border-box;
+      pointer-events: none; z-index: ${zIndex}; display: flex; justify-content: space-around; padding: 0 10px; box-sizing: border-box;
     }
     .bulb {
       width: 10px; height: 14px; border-radius: 50%;
       box-shadow: 0 0 8px currentColor;
       animation: bulb-blink 1.2s ease-in-out infinite alternate;
+      will-change: opacity, transform;
     }
     @keyframes bulb-blink { 0% { opacity: 0.3; transform: scale(0.85); } 100% { opacity: 1; transform: scale(1.1); } }
   `;
@@ -301,26 +353,29 @@ function renderShootingStars(cfg, hass) {
   const count = getParticleCount(cfg.count_preset || "medium", "shooting_stars");
   const color = resolveDynamicColor(cfg.color, hass, "#ffffff", "#ffffff");
 
-  let starsHtml = "";
-  for (let i = 0; i < count; i++) {
-    const top = Math.random() * 50;
-    const left = Math.random() * 100;
-    const dur = (Math.random() * 3 + 2).toFixed(2);
-    const delay = (Math.random() * 5).toFixed(2);
-    starsHtml += `<div class="shooting-star" style="top:${top}vh; left:${left}vw; animation-duration:${dur}s; animation-delay:${delay}s; color:${color};"></div>\n`;
-  }
+  // Verbesserung (Performance): Positionen/Timing einmalig würfeln und
+  // zwischenspeichern, damit ein Resize oder Theme-Wechsel nicht jedes Mal
+  // ein neues Sternenmuster (= Flackern) erzeugt.
+  const stars = getCachedRandomSet("shooting_stars", count, () => ({
+    top: (Math.random() * 50).toFixed(2),
+    left: (Math.random() * 100).toFixed(2),
+    dur: (Math.random() * 3 + 2).toFixed(2),
+    delay: (Math.random() * 5).toFixed(2),
+  }));
 
-  const html = `<div class="shooting-stars-container" style="opacity:${opacity};">${starsHtml}</div>`;
+  const starsHtml = stars.map((s) =>
+    `<div class="shooting-star" style="top:${s.top}vh; left:${s.left}vw; animation-duration:${s.dur}s; animation-delay:${s.delay}s; color:${color};"></div>`
+  ).join("\n");
+
+  const html = `<div class="shooting-stars-container" style="opacity:${opacity};" aria-hidden="true">${starsHtml}</div>`;
   const css = `
-    .shooting-stars-container {
-      position: fixed; top: 0; left: 50%; transform: translateX(-50%); width: 100vw; height: 100vh;
-      pointer-events: none; z-index: 9999; overflow: hidden;
-    }
+    ${overlayBaseCss("shooting-stars-container", cfg)}
     .shooting-star {
       position: absolute; width: 100px; height: 2px;
       background: linear-gradient(90deg, currentColor, transparent);
       transform: rotate(-45deg); opacity: 0;
       animation: shooting-star-anim linear infinite;
+      will-change: transform, opacity;
     }
     @keyframes shooting-star-anim {
       0% { transform: translateX(0) translateY(0) rotate(-45deg); opacity: 1; }
@@ -335,12 +390,14 @@ function renderLightning(cfg, hass) {
   const speedFactor = getParticleCount(cfg.count_preset || "medium", "lightning");
   const dur = (6 / speedFactor).toFixed(1);
 
-  const html = `<div class="lightning-flash" style="opacity:${opacity}; animation-duration:${dur}s;"></div>`;
+  const zIndex = Number.isFinite(cfg?.z_index) ? cfg.z_index : 9999;
+  const html = `<div class="lightning-flash" style="opacity:${opacity}; animation-duration:${dur}s;" aria-hidden="true"></div>`;
   const css = `
     .lightning-flash {
       position: fixed; top: 0; left: 50%; transform: translateX(-50%); width: 100vw; height: 100vh;
-      pointer-events: none; z-index: 9999; background: rgba(255, 255, 255, 0.85);
+      pointer-events: none; z-index: ${zIndex}; background: rgba(255, 255, 255, 0.85);
       opacity: 0; animation: flash-anim ease-in-out infinite;
+      will-change: opacity;
     }
     @keyframes flash-anim {
       0%, 90%, 100% { opacity: 0; }
@@ -370,22 +427,44 @@ class WeatherEventOverlayCard extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this._onThemeChange = this._onThemeChange.bind(this);
+    this._onVisibilityChange = this._onVisibilityChange.bind(this);
   }
 
   connectedCallback() {
     window.addEventListener("set-theme", this._onThemeChange);
     window.addEventListener("resize", this._onThemeChange);
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", this._onThemeChange);
+    document.addEventListener("visibilitychange", this._onVisibilityChange);
   }
 
   disconnectedCallback() {
     window.removeEventListener("set-theme", this._onThemeChange);
     window.removeEventListener("resize", this._onThemeChange);
     window.matchMedia("(prefers-color-scheme: dark)").removeEventListener("change", this._onThemeChange);
+    document.removeEventListener("visibilitychange", this._onVisibilityChange);
   }
 
   _onThemeChange() {
     this._render();
+  }
+
+  // Verbesserung (Performance/Akku): pausiert alle CSS-Animationen, sobald
+  // das Browser-Tab im Hintergrund ist (Tablet an der Wand, Handy gesperrt
+  // etc.) - spart unnötig laufende Animationen, die eh keiner sieht.
+  _onVisibilityChange() {
+    if (!this.shadowRoot) return;
+    const hidden = document.hidden;
+    this.shadowRoot.host.style.setProperty(
+      "--overlay-animation-play-state",
+      hidden ? "paused" : "running"
+    );
+    let pauseStyle = this.shadowRoot.getElementById("pause-style");
+    if (!pauseStyle) {
+      pauseStyle = document.createElement("style");
+      pauseStyle.id = "pause-style";
+      this.shadowRoot.appendChild(pauseStyle);
+    }
+    pauseStyle.textContent = hidden ? "* { animation-play-state: paused !important; }" : "";
   }
 
   setConfig(config) {
@@ -396,6 +475,7 @@ class WeatherEventOverlayCard extends HTMLElement {
       color: "auto",
       color_mode: "auto",
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
+      z_index: 9999,
       ...config,
     };
     this._render();
@@ -438,6 +518,9 @@ class WeatherEventOverlayCard extends HTMLElement {
 
     const { css, html } = renderer(this._config, this._hass);
     this.shadowRoot.innerHTML = `<style>${baseStyle}${css}</style>${html}`;
+    // Pause-Status neu anwenden, da innerHTML gerade komplett ersetzt wurde
+    // (und damit auch ein zuvor gesetzter Pause-<style> verloren ging).
+    this._onVisibilityChange();
   }
 }
 
@@ -452,6 +535,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
       color: "auto",
       color_mode: "auto",
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
+      z_index: 9999,
       ...config,
     };
     if (this._suppressNextRender) {
@@ -519,6 +603,8 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
         ${this._row("Laubfarbe 1", `<input id="leaf_color_0" type="color" value="${leafColors[0]}" style="width:100%; height:36px;" />`)}
         ${this._row("Laubfarbe 2", `<input id="leaf_color_1" type="color" value="${leafColors[1]}" style="width:100%; height:36px;" />`)}
         ${this._row("Laubfarbe 3", `<input id="leaf_color_2" type="color" value="${leafColors[2]}" style="width:100%; height:36px;" />`)}
+
+        ${this._row("Ebene (z-index, für Experten)", `<input id="z_index" type="number" value="${Number.isFinite(c.z_index) ? c.z_index : 9999}" style="width:100%; padding:6px;" />`)}
       </div>
     `;
 
@@ -543,6 +629,11 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     this.querySelector("#leaf_color_0").addEventListener("change", (e) => this._updateLeafColor(0, e.target.value));
     this.querySelector("#leaf_color_1").addEventListener("change", (e) => this._updateLeafColor(1, e.target.value));
     this.querySelector("#leaf_color_2").addEventListener("change", (e) => this._updateLeafColor(2, e.target.value));
+
+    this.querySelector("#z_index").addEventListener("change", (e) => {
+      const val = parseInt(e.target.value, 10);
+      this._update("z_index", Number.isFinite(val) ? val : 9999, false);
+    });
   }
 
   _update(key, value, rerender) {
@@ -570,8 +661,14 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
 
 /* ============================== REGISTRIERUNG ============================== */
 
-customElements.define("weather-event-overlay-card", WeatherEventOverlayCard);
-customElements.define("weather-event-overlay-card-editor", WeatherEventOverlayCardEditor);
+// Verbesserung (Robustheit): Schutz gegen "already defined"-Fehler,
+// falls HA/HACS die Ressource mal doppelt nachlädt (z. B. nach einem Update).
+if (!customElements.get("weather-event-overlay-card")) {
+  customElements.define("weather-event-overlay-card", WeatherEventOverlayCard);
+}
+if (!customElements.get("weather-event-overlay-card-editor")) {
+  customElements.define("weather-event-overlay-card-editor", WeatherEventOverlayCardEditor);
+}
 
 window.customCards = window.customCards || [];
 window.customCards.push({
