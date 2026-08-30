@@ -124,13 +124,11 @@ function resolveDynamicColor(cfgColor, hassInstance, defaultLight = "#1e3a8a", d
 
 // Verbesserung (Aufräumen): zentrale Basis-CSS für alle Overlay-Container,
 // statt in jeder render*-Funktion dieselben 6 Zeilen zu wiederholen.
-// z_index ist jetzt über cfg.z_index konfigurierbar (Standard 9999).
-function overlayBaseCss(className, cfg, extraProps = "") {
-  const zIndex = Number.isFinite(cfg?.z_index) ? cfg.z_index : 9999;
+function overlayBaseCss(className, extraProps = "") {
   return `
     .${className} {
       position: fixed; top:0; left:50%; transform:translateX(-50%);
-      width:100vw; height:100vh; pointer-events:none; z-index:${zIndex}; overflow:hidden;
+      width:100vw; height:100vh; pointer-events:none; z-index:9999; overflow:hidden;
       ${extraProps}
     }
   `;
@@ -230,7 +228,7 @@ function renderRain(cfg, hass) {
   }).join("\n");
 
   const css = `
-    ${overlayBaseCss("rain", cfg)}
+    ${overlayBaseCss("rain")}
     .rain .drop { 
       position: absolute; 
       top: -20%; 
@@ -254,13 +252,19 @@ function renderSnow(cfg, hass) {
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const flakes = spreadSample(FLAKES_DATA, count);
 
+  // Verbesserung: bei "Kräftig" jede Flocke auf einen hohen Mindestwert
+  // anheben, statt nur den ohnehin schon zufälligen Wert (f.op) zu deckeln.
+  // Vorher blieben blasse Flocken (f.op ~0.3) auch bei "Kräftig" blass.
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
   const flakeHTML = flakes.map((f) => {
-    const op = (f.op * opacity).toFixed(2);
+    const op = isHigh
+      ? Math.min(1, Math.max(f.op, 0.85)).toFixed(2)
+      : (f.op * opacity).toFixed(2);
     return `<i class="snowflake" style="left:${f.l}vw; font-size:${f.s}px; --start-x:0px; --end-x:${f.ex}px; animation-duration:${f.dur}s; animation-delay:calc(-20s * ${f.d}); opacity:${op}; color:${color};">❄</i>`;
   }).join("\n");
 
   const css = `
-    ${overlayBaseCss("snowflakes", cfg)}
+    ${overlayBaseCss("snowflakes")}
     .snowflake { position:absolute; top:-10%; font-style:normal; animation:wander-fall linear infinite; will-change: transform; }
     @keyframes wander-fall {
       0%   { transform: translate(var(--start-x), -10%); }
@@ -289,7 +293,7 @@ function renderLeaves(cfg, hass) {
   }).join("\n");
 
   const css = `
-    ${overlayBaseCss("leaves", cfg)}
+    ${overlayBaseCss("leaves")}
     .leaf { position:absolute; top:-10%; animation:leaf-fall linear infinite; will-change: transform; }
     @keyframes leaf-fall { 0% { transform: translateY(0) rotate(0deg); } 100% { transform: translateY(120vh) rotate(360deg); } }
   `;
@@ -310,7 +314,7 @@ function renderBalloons(cfg, hass) {
   `).join("\n");
 
   const css = `
-    ${overlayBaseCss("balloons-container", cfg)}
+    ${overlayBaseCss("balloons-container")}
     .balloon-wrapper { position:absolute; bottom:-20%; animation:balloon-rise linear infinite; will-change: transform; }
     .balloon { display:flex; align-items:center; justify-content:center; }
     .balloon svg { width:100%; height:100%; filter:drop-shadow(2px 4px 6px rgba(0,0,0,0.25)); }
@@ -330,12 +334,11 @@ function renderLights(cfg, hass) {
     bulbsHtml += `<div class="bulb" style="background:${col}; animation-delay:${(i * 0.2).toFixed(1)}s;"></div>\n`;
   }
 
-  const zIndex = Number.isFinite(cfg?.z_index) ? cfg.z_index : 9999;
   const html = `<div class="lights-string" style="opacity:${opacity};" aria-hidden="true">${bulbsHtml}</div>`;
   const css = `
     .lights-string {
       position: fixed; top: 0; left: 50%; transform: translateX(-50%); width: 100vw; height: 25px;
-      pointer-events: none; z-index: ${zIndex}; display: flex; justify-content: space-around; padding: 0 10px; box-sizing: border-box;
+      pointer-events: none; z-index: 9999; display: flex; justify-content: space-around; padding: 0 10px; box-sizing: border-box;
     }
     .bulb {
       width: 10px; height: 14px; border-radius: 50%;
@@ -369,7 +372,7 @@ function renderShootingStars(cfg, hass) {
 
   const html = `<div class="shooting-stars-container" style="opacity:${opacity};" aria-hidden="true">${starsHtml}</div>`;
   const css = `
-    ${overlayBaseCss("shooting-stars-container", cfg)}
+    ${overlayBaseCss("shooting-stars-container")}
     .shooting-star {
       position: absolute; width: 100px; height: 2px;
       background: linear-gradient(90deg, currentColor, transparent);
@@ -390,12 +393,11 @@ function renderLightning(cfg, hass) {
   const speedFactor = getParticleCount(cfg.count_preset || "medium", "lightning");
   const dur = (6 / speedFactor).toFixed(1);
 
-  const zIndex = Number.isFinite(cfg?.z_index) ? cfg.z_index : 9999;
   const html = `<div class="lightning-flash" style="opacity:${opacity}; animation-duration:${dur}s;" aria-hidden="true"></div>`;
   const css = `
     .lightning-flash {
       position: fixed; top: 0; left: 50%; transform: translateX(-50%); width: 100vw; height: 100vh;
-      pointer-events: none; z-index: ${zIndex}; background: rgba(255, 255, 255, 0.85);
+      pointer-events: none; z-index: 9999; background: rgba(255, 255, 255, 0.85);
       opacity: 0; animation: flash-anim ease-in-out infinite;
       will-change: opacity;
     }
@@ -475,7 +477,6 @@ class WeatherEventOverlayCard extends HTMLElement {
       color: "auto",
       color_mode: "auto",
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
-      z_index: 9999,
       ...config,
     };
     this._render();
@@ -535,7 +536,6 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
       color: "auto",
       color_mode: "auto",
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
-      z_index: 9999,
       ...config,
     };
     if (this._suppressNextRender) {
@@ -603,8 +603,6 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
         ${this._row("Laubfarbe 1", `<input id="leaf_color_0" type="color" value="${leafColors[0]}" style="width:100%; height:36px;" />`)}
         ${this._row("Laubfarbe 2", `<input id="leaf_color_1" type="color" value="${leafColors[1]}" style="width:100%; height:36px;" />`)}
         ${this._row("Laubfarbe 3", `<input id="leaf_color_2" type="color" value="${leafColors[2]}" style="width:100%; height:36px;" />`)}
-
-        ${this._row("Ebene (z-index, für Experten)", `<input id="z_index" type="number" value="${Number.isFinite(c.z_index) ? c.z_index : 9999}" style="width:100%; padding:6px;" />`)}
       </div>
     `;
 
@@ -629,11 +627,6 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     this.querySelector("#leaf_color_0").addEventListener("change", (e) => this._updateLeafColor(0, e.target.value));
     this.querySelector("#leaf_color_1").addEventListener("change", (e) => this._updateLeafColor(1, e.target.value));
     this.querySelector("#leaf_color_2").addEventListener("change", (e) => this._updateLeafColor(2, e.target.value));
-
-    this.querySelector("#z_index").addEventListener("change", (e) => {
-      const val = parseInt(e.target.value, 10);
-      this._update("z_index", Number.isFinite(val) ? val : 9999, false);
-    });
   }
 
   _update(key, value, rerender) {
