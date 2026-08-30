@@ -222,8 +222,14 @@ function renderRain(cfg, hass) {
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const drops = spreadSample(DROPS, count);
 
+  // Verbesserung: bei "Kräftig" jeden Tropfen auf einen hohen Mindestwert
+  // anheben (gleiche Logik wie bei Schnee) - sonst bleiben zufällig blasse
+  // Tropfen auch bei "Kräftig" blass.
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
   const dropHTML = drops.map((d) => {
-    const op = (d.op * opacity).toFixed(2);
+    const op = isHigh
+      ? Math.min(1, Math.max(d.op, 0.85)).toFixed(2)
+      : (d.op * opacity).toFixed(2);
     return `<div class="drop" style="left:${d.l}vw; height:${d.size}px; animation-duration:${d.dur}s; animation-delay:${d.d}s; opacity:${op};"></div>`;
   }).join("\n");
 
@@ -285,8 +291,13 @@ function renderLeaves(cfg, hass) {
   const leafShape = sanitizeLeafShape(cfg.leaf_shape) || DEFAULT_LEAF_SHAPE;
   const leaves = spreadSample(FLAKES_DATA, count);
 
+  // Verbesserung: bei "Kräftig" jedes Blatt auf einen hohen Mindestwert
+  // anheben (gleiche Logik wie bei Schnee/Regen).
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
   const leafHTML = leaves.map((f, i) => {
-    const op = (f.op * opacity).toFixed(2);
+    const op = isHigh
+      ? Math.min(1, Math.max(f.op, 0.85)).toFixed(2)
+      : (f.op * opacity).toFixed(2);
     const color = gradientColor(leafColors, i / leaves.length);
     const px = `${f.s * 1.6}px`;
     return `<i class="leaf" style="left:${f.l}vw; width:${px}; height:${px}; animation-duration:${f.dur}s; animation-delay:calc(-20s * ${f.d}); opacity:${op}; color:${color};"><svg viewBox="0 0 100 100" width="100%" height="100%">${leafShape}</svg></i>`;
