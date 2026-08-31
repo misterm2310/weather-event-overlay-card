@@ -193,16 +193,16 @@ const EVENT_CAPABILITIES = {
 };
 
 function getPrecipitationValue(cfg, hass) {
-  if (!hass) return null;
+  if (!hass || !cfg) return null;
   
   // 1. Primär: Eigener Niederschlags-Sensor
-  if (cfg.precipitation_sensor && hass.states[cfg.precipitation_sensor]) {
+  if (cfg?.precipitation_sensor && hass.states?.[cfg.precipitation_sensor]) {
     const val = parseFloat(hass.states[cfg.precipitation_sensor].state);
     if (!isNaN(val)) return val;
   }
   
   // 2. Fallback: Niederschlags-Attribut der Wetter-Entity
-  if (cfg.weather_entity && hass.states[cfg.weather_entity]) {
+  if (cfg?.weather_entity && hass.states?.[cfg.weather_entity]) {
     const precip = hass.states[cfg.weather_entity].attributes?.precipitation;
     if (typeof precip === "number" && !isNaN(precip)) return precip;
   }
@@ -808,10 +808,10 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
 
   set hass(hass) {
     const oldKey = this._entityListKey || "";
-    const weatherEntity = this._config?.weather_entity;
-    const precipSensor = this._config?.precipitation_sensor;
+    const weatherEntity = this._config?.weather_entity || "";
+    const precipSensor = this._config?.precipitation_sensor || "";
 
-    const precipVal = getPrecipitationValue(this._config, hass);
+    const precipVal = getPrecipitationValue(this._config || {}, hass);
 
     const newWeatherEntities = hass && hass.states
       ? Object.keys(hass.states).filter((eid) => eid.startsWith("weather."))
@@ -844,7 +844,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
   }
 
   _renderIntensityStatus() {
-    const c = this._config;
+    const c = this._config || {};
     if (!c.weather_intensity_auto) return "";
 
     const precip = getPrecipitationValue(c, this._hass);
@@ -852,7 +852,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     if (precip !== null) {
       const level = getIntensityFromPrecipitation(precip);
       const levelNames = { low: "Wenig (low)", medium: "Mittel (medium)", high: "Stark (high)" };
-      const sourceInfo = c.precipitation_sensor && this._hass?.states[c.precipitation_sensor]
+      const sourceInfo = c.precipitation_sensor && this._hass?.states?.[c.precipitation_sensor]
         ? `Niederschlags-Sensor (<b>${c.precipitation_sensor}</b>)`
         : `Wetter-Entity (<b>${c.weather_entity}</b>)`;
 
