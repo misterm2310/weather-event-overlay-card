@@ -129,8 +129,6 @@ function resolveDynamicColor(cfgColor, hassInstance, defaultLight = "#1e3a8a", d
   return dark ? defaultDark : defaultLight;
 }
 
-// Verbesserung (Aufräumen): zentrale Basis-CSS für alle Overlay-Container,
-// statt in jeder render*-Funktion dieselben 6 Zeilen zu wiederholen.
 function overlayBaseCss(className, extraProps = "") {
   return `
     .${className} {
@@ -141,31 +139,19 @@ function overlayBaseCss(className, extraProps = "") {
   `;
 }
 
-// Verbesserung (Sicherheit): sehr einfache Whitelist für benutzerdefinierte
-// Laub-SVG-Pfade, damit über die Config kein beliebiges HTML/JS eingeschleust
-// werden kann (z. B. <script> oder onerror-Attribute). Erlaubt nur die
-// üblichen SVG-Zeichenelemente und ihre gängigen Attribute.
 function sanitizeLeafShape(input) {
   if (typeof input !== "string" || !input.trim()) return null;
   const trimmed = input.trim();
-
-  // Verbotene Muster sofort ablehnen (Scripts, Event-Handler, externe Referenzen)
   const forbidden = /<script|javascript:|on\w+\s*=|<iframe|<object|<embed|xlink:href|href\s*=/i;
   if (forbidden.test(trimmed)) return null;
 
-  // Nur erlaubte Tags zulassen (path, polygon, circle, line, g, rect)
   const allowedTagPattern = /<\/?(path|polygon|circle|line|g|rect)\b[^>]*>/gi;
   const strippedOfAllowed = trimmed.replace(allowedTagPattern, "");
-  // Wenn nach Entfernen aller erlaubten Tags noch ein < übrig ist, steckt
-  // ein nicht erlaubtes Element drin -> ablehnen.
   if (strippedOfAllowed.includes("<")) return null;
 
   return trimmed;
 }
 
-// Verbesserung (Performance): einmalig zufällig erzeugte Positionsdaten für
-// Sternschnuppen und Blitz-Timing zwischenspeichern, damit ein Resize oder
-// Theme-Wechsel nicht bei jedem Re-Render neue Zufallswerte (= Flackern) erzeugt.
 const _randomCache = new Map();
 function getCachedRandomSet(key, count, factory) {
   const cacheKey = `${key}:${count}`;
@@ -177,9 +163,6 @@ function getCachedRandomSet(key, count, factory) {
 
 /* ============================ STATISCHE DATEN ============================ */
 
-// Verbesserung (optionale Wetter-Automatik): übersetzt den Zustand einer
-// HA weather-Entity (z. B. weather.home) automatisch in einen Karten-Effekt.
-// Regnet's laut Home Assistant -> Regen an. Kein passender Effekt -> "off".
 const WEATHER_STATE_MAP = {
   "rainy": "rain",
   "pouring": "rain",
@@ -197,14 +180,8 @@ function mapWeatherStateToEvent(state) {
   return WEATHER_STATE_MAP[state] || "off";
 }
 
-// Verbesserung (GUI-Editor): Tabelle, welcher Effekt welche Regler
-// tatsächlich benutzt. Der Editor blendet Anzahl/Deckkraft/Farbmodus nur
-// ein, wenn der gewählte Effekt sie auch wirklich verwendet.
 const EVENT_CAPABILITIES = {
   off: { count: false, opacity: false, color: false },
-  // Automatik kann auf Regen/Schnee/Hagel/Nebel/Sturm (alle mit Farbe) oder
-  // Blitz (ohne Farbe) münden. Anzahl/Deckkraft wirken bei allen sechs,
-  // deshalb bleiben sie im Editor sichtbar - nur der Event-Typ wird ersetzt.
   weather_auto: { count: true, opacity: true, color: true },
   rain: { count: true, opacity: true, color: true },
   snow: { count: true, opacity: true, color: true },
@@ -270,9 +247,6 @@ function renderRain(cfg, hass) {
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const drops = spreadSample(DROPS, count);
 
-  // Verbesserung: bei "Kräftig" jeden Tropfen auf einen hohen Mindestwert
-  // anheben (gleiche Logik wie bei Schnee) - sonst bleiben zufällig blasse
-  // Tropfen auch bei "Kräftig" blass.
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const dropHTML = drops.map((d) => {
     const op = isHigh
@@ -306,9 +280,6 @@ function renderSnow(cfg, hass) {
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const flakes = spreadSample(FLAKES_DATA, count);
 
-  // Verbesserung: bei "Kräftig" jede Flocke auf einen hohen Mindestwert
-  // anheben, statt nur den ohnehin schon zufälligen Wert (f.op) zu deckeln.
-  // Vorher blieben blasse Flocken (f.op ~0.3) auch bei "Kräftig" blass.
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const flakeHTML = flakes.map((f) => {
     const op = isHigh
@@ -333,14 +304,9 @@ function renderLeaves(cfg, hass) {
   const leafColors = Array.isArray(cfg.leaf_colors) && cfg.leaf_colors.length === 3 ? cfg.leaf_colors : ["#c9a227", "#a83232", "#d9812c"];
   const count = getParticleCount(cfg.count_preset || "medium", "leaves");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
-  // Verbesserung (Sicherheit): benutzerdefinierte leaf_shape wird jetzt
-  // durch die Whitelist geprüft. Fällt sie durch, greift automatisch die
-  // sichere Standardform statt irgendwas Ungefiltertes zu rendern.
   const leafShape = sanitizeLeafShape(cfg.leaf_shape) || DEFAULT_LEAF_SHAPE;
   const leaves = spreadSample(FLAKES_DATA, count);
 
-  // Verbesserung: bei "Kräftig" jedes Blatt auf einen hohen Mindestwert
-  // anheben (gleiche Logik wie bei Schnee/Regen).
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const leafHTML = leaves.map((f, i) => {
     const op = isHigh
@@ -415,9 +381,6 @@ function renderShootingStars(cfg, hass) {
   const count = getParticleCount(cfg.count_preset || "medium", "shooting_stars");
   const color = resolveDynamicColor(cfg.color, hass, "#ffffff", "#ffffff");
 
-  // Verbesserung (Performance): Positionen/Timing einmalig würfeln und
-  // zwischenspeichern, damit ein Resize oder Theme-Wechsel nicht jedes Mal
-  // ein neues Sternenmuster (= Flackern) erzeugt.
   const stars = getCachedRandomSet("shooting_stars", count, () => ({
     top: (Math.random() * 50).toFixed(2),
     left: (Math.random() * 100).toFixed(2),
@@ -472,15 +435,11 @@ function renderLightning(cfg, hass) {
 }
 
 function renderFog(cfg, hass) {
-  // Nebel bekommt genau wie die anderen Effekte eine Auto-Farbe: hell im
-  // Lightmode (dezentes Grauweiß), heller/dichter im Darkmode.
   const color = resolveDynamicColor(cfg.color, hass, "#c7c7c7", "#e8e8e8");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const count = getParticleCount(cfg.count_preset || "medium", "fog");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
 
-  // Verbesserung (Performance): Positionen/Timing der Schwaden cachen,
-  // damit ein Resize/Theme-Wechsel nicht bei jedem Re-Render neu würfelt.
   const banks = getCachedRandomSet("fog", count, () => ({
     top: (Math.random() * 80).toFixed(2),
     width: Math.floor(Math.random() * 40) + 60,
@@ -492,8 +451,6 @@ function renderFog(cfg, hass) {
   }));
 
   const fogHTML = banks.map((b) => {
-    // Bei "Kräftig" auch hier einen Mindestwert anheben, damit Nebel spürbar
-    // dichter wirkt statt nur gedeckelt zu werden (gleiche Logik wie Regen/Schnee/Laub).
     const bankOp = isHigh ? Math.max(b.baseOp, 0.7) : (b.baseOp * opacity);
     const dir = b.reverse ? "fog-drift-reverse" : "fog-drift";
     return `<div class="fog-bank" style="top:${b.top}vh; width:${b.width}vw; height:${b.height}vh; animation-duration:${b.dur}s; animation-delay:${b.delay}s; animation-name:${dir}; opacity:${bankOp.toFixed(2)}; background:radial-gradient(ellipse at center, ${color} 0%, transparent 70%);"></div>`;
@@ -521,7 +478,6 @@ function renderFog(cfg, hass) {
 }
 
 function renderHail(cfg, hass) {
-  // Hagel: wie Regen, aber härtere, kleinere, schnellere Punkte statt Streifen.
   const color = resolveDynamicColor(cfg.color, hass, "#8fa3b3", "#e8eef2");
   const count = getParticleCount(cfg.count_preset || "medium", "hail");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
@@ -533,7 +489,6 @@ function renderHail(cfg, hass) {
       ? Math.min(1, Math.max(d.op, 0.85)).toFixed(2)
       : (d.op * opacity).toFixed(2);
     const size = Math.max(3, Math.round(d.size / 3));
-    // Hagel fällt schneller und härter als Regen (kürzere Animationsdauer).
     const dur = (parseFloat(d.dur) * 0.55).toFixed(2);
     return `<div class="hailstone" style="left:${d.l}vw; width:${size}px; height:${size}px; animation-duration:${dur}s; animation-delay:${d.d}s; opacity:${op}; background:${color};"></div>`;
   }).join("\n");
@@ -555,8 +510,6 @@ function renderHail(cfg, hass) {
 }
 
 function renderStorm(cfg, hass) {
-  // Sturm/Windböen: Partikel schießen schräg und schnell durchs Bild,
-  // statt gerade nach unten zu fallen wie bei Regen/Schnee.
   const color = resolveDynamicColor(cfg.color, hass, "#556270", "#c8d2da");
   const count = getParticleCount(cfg.count_preset || "medium", "storm");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
@@ -586,7 +539,6 @@ function renderStorm(cfg, hass) {
   `;
   return { css, html: `<div class="storm-container" aria-hidden="true">${gustHTML}</div>` };
 }
-
 
 const RENDERERS = {
   rain: renderRain,
@@ -629,9 +581,6 @@ class WeatherEventOverlayCard extends HTMLElement {
     this._render();
   }
 
-  // Verbesserung (Performance/Akku): pausiert alle CSS-Animationen, sobald
-  // das Browser-Tab im Hintergrund ist (Tablet an der Wand, Handy gesperrt
-  // etc.) - spart unnötig laufende Animationen, die eh keiner sieht.
   _onVisibilityChange() {
     if (!this.shadowRoot) return;
     const hidden = document.hidden;
@@ -679,9 +628,6 @@ class WeatherEventOverlayCard extends HTMLElement {
     }
   }
 
-  // Verbesserung (optionale Wetter-Automatik): "weather_auto" ist ein
-  // eigener Eintrag im Event-Dropdown statt eines separaten Schalters -
-  // so gibt's nur eine Stelle, die entscheidet, kein Widerspruchspotenzial.
   _resolveEvent() {
     const cfg = this._config || {};
     if (cfg.event === "weather_auto") {
@@ -709,18 +655,33 @@ class WeatherEventOverlayCard extends HTMLElement {
   _render() {
     if (!this._config) return;
     const event = this._resolveEvent();
-    const renderer = RENDERERS[event];
     const baseStyle = `:host { display: block; position: absolute; top: 0; left: 0; width: 0; height: 0; overflow: visible; pointer-events: none; background: none !important; }`;
 
-    if (!renderer) {
+    if (!event || event === "off") {
       this.shadowRoot.innerHTML = `<style>${baseStyle}</style>`;
       return;
     }
 
-    const { css, html } = renderer(this._config, this._hass);
-    this.shadowRoot.innerHTML = `<style>${baseStyle}${css}</style>${html}`;
-    // Pause-Status neu anwenden, da innerHTML gerade komplett ersetzt wurde
-    // (und damit auch ein zuvor gesetzter Pause-<style> verloren ging).
+    // Unterstützung für mehrere Effekte (z.B. "lightning, rain" oder "snow, rain")
+    const effectList = event.split(",").map((e) => e.trim());
+    let combinedCss = baseStyle;
+    let combinedHtml = "";
+
+    effectList.forEach((eff) => {
+      const renderer = RENDERERS[eff];
+      if (renderer) {
+        const { css, html } = renderer(this._config, this._hass);
+        combinedCss += css;
+        combinedHtml += html;
+      }
+    });
+
+    if (!combinedHtml) {
+      this.shadowRoot.innerHTML = `<style>${baseStyle}</style>`;
+      return;
+    }
+
+    this.shadowRoot.innerHTML = `<style>${combinedCss}</style>${combinedHtml}`;
     this._onVisibilityChange();
   }
 }
@@ -747,12 +708,6 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
   }
 
   set hass(hass) {
-    // Verbesserung (Bugfix): vorher wurde bei JEDEM Home-Assistant-Update
-    // (mehrmals pro Sekunde) komplett neu gerendert - dadurch klappte ein
-    // gerade geöffnetes Dropdown sofort wieder zu, bevor man auswählen
-    // konnte. Jetzt wird nur neu gerendert, wenn sich die Liste der
-    // verfügbaren weather.*-Entities tatsächlich verändert hat (z. B. beim
-    // allerersten Laden) - normale State-Updates lösen kein Re-Render aus.
     const oldKey = this._weatherEntityListKey || "";
     const newEntities = hass && hass.states
       ? Object.keys(hass.states).filter((eid) => eid.startsWith("weather."))
@@ -787,8 +742,6 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     const caps = EVENT_CAPABILITIES[c.event] || { count: false, opacity: false, color: false };
     const isWeatherAuto = c.event === "weather_auto";
 
-    // Verbesserung: alle weather.*-Entities aus HA einlesen und als echtes
-    // Dropdown anbieten, statt dass man die Entity-ID von Hand eintippen muss.
     const weatherEntities = this._hass && this._hass.states
       ? Object.keys(this._hass.states).filter((eid) => eid.startsWith("weather."))
       : [];
@@ -916,8 +869,6 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
 
 /* ============================== REGISTRIERUNG ============================== */
 
-// Verbesserung (Robustheit): Schutz gegen "already defined"-Fehler,
-// falls HA/HACS die Ressource mal doppelt nachlädt (z. B. nach einem Update).
 if (!customElements.get("weather-event-overlay-card")) {
   customElements.define("weather-event-overlay-card", WeatherEventOverlayCard);
 }
