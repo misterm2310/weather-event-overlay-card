@@ -202,6 +202,10 @@ function mapWeatherStateToEvent(state) {
 // ein, wenn der gewählte Effekt sie auch wirklich verwendet.
 const EVENT_CAPABILITIES = {
   off: { count: false, opacity: false, color: false },
+  // Automatik kann auf Regen/Schnee/Hagel/Nebel/Sturm (alle mit Farbe) oder
+  // Blitz (ohne Farbe) münden. Anzahl/Deckkraft wirken bei allen sechs,
+  // deshalb bleiben sie im Editor sichtbar - nur der Event-Typ wird ersetzt.
+  weather_auto: { count: true, opacity: true, color: true },
   rain: { count: true, opacity: true, color: true },
   snow: { count: true, opacity: true, color: true },
   hail: { count: true, opacity: true, color: true },
@@ -652,7 +656,6 @@ class WeatherEventOverlayCard extends HTMLElement {
       color: "auto",
       color_mode: "auto",
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
-      weather_automation: false,
       weather_entity: "",
       ...config,
     };
@@ -676,16 +679,19 @@ class WeatherEventOverlayCard extends HTMLElement {
     }
   }
 
-  // Verbesserung (optionale Wetter-Automatik): ist sie aktiv und die
-  // konfigurierte weather-Entity vorhanden, entscheidet ihr aktueller
-  // Zustand über den Effekt statt der manuellen Auswahl im Editor.
+  // Verbesserung (optionale Wetter-Automatik): "weather_auto" ist ein
+  // eigener Eintrag im Event-Dropdown statt eines separaten Schalters -
+  // so gibt's nur eine Stelle, die entscheidet, kein Widerspruchspotenzial.
   _resolveEvent() {
     const cfg = this._config || {};
-    if (cfg.weather_automation && cfg.weather_entity && this._hass) {
-      const entityState = this._hass.states?.[cfg.weather_entity];
-      if (entityState) {
-        return mapWeatherStateToEvent(entityState.state);
+    if (cfg.event === "weather_auto") {
+      if (cfg.weather_entity && this._hass) {
+        const entityState = this._hass.states?.[cfg.weather_entity];
+        if (entityState) {
+          return mapWeatherStateToEvent(entityState.state);
+        }
       }
+      return "off";
     }
     return cfg.event || "off";
   }
@@ -730,7 +736,6 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
       color: "auto",
       color_mode: "auto",
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
-      weather_automation: false,
       weather_entity: "",
       ...config,
     };
@@ -741,11 +746,25 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     this._render();
   }
 
-  set hass(hass) { this._hass = hass; }
+  set hass(hass) {
+    this._hass = hass;
+    // Neu eintreffende weather-Entities sollen im Dropdown auftauchen,
+    // ohne dass man den Editor neu öffnen muss.
+    this._render();
+  }
   connectedCallback() { this._render(); }
 
-  _row(labelText, inputHTML) {
-    return `<div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; gap:12px;"><label style="flex:1; color:var(--primary-text-color, #222);">${labelText}</label><div style="flex:1;">${inputHTML}</div></div>`;
+  _row(labelText, inputHTML, hint) {
+    const hintHtml = hint
+      ? `<div style="font-size:11px; opacity:0.65; margin-top:3px; line-height:1.4;">${hint}</div>`
+      : "";
+    return `<div style="padding:8px 0;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+        <label style="flex:1; color:var(--primary-text-color, #222);">${labelText}</label>
+        <div style="flex:1;">${inputHTML}</div>
+      </div>
+      ${hintHtml}
+    </div>`;
   }
 
   _render() {
@@ -753,13 +772,20 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     const c = this._config;
     const colorMode = c.color_mode || (c.color === "auto" ? "auto" : "custom");
     const caps = EVENT_CAPABILITIES[c.event] || { count: false, opacity: false, color: false };
-    const weatherOn = !!c.weather_automation;
+    const isWeatherAuto = c.event === "weather_auto";
+
+    // Verbesserung: alle weather.*-Entities aus HA einlesen und als echtes
+    // Dropdown anbieten, statt dass man die Entity-ID von Hand eintippen muss.
+    const weatherEntities = this._hass && this._hass.states
+      ? Object.keys(this._hass.states).filter((eid) => eid.startsWith("weather."))
+      : [];
 
     this.innerHTML = `
       <div style="padding:8px 16px;">
-        ${this._row("Event-Typ", `
+        ${this._row("Effekt", `
           <select id="event" style="width:100%; padding:6px;">
             <option value="off" ${c.event === "off" ? "selected" : ""}>Aus</option>
+            <option value="weather_auto" ${isWeatherAuto ? "selected" : ""}>🌦️ Automatisch (nach Wetter)</option>
             <option value="rain" ${c.event === "rain" ? "selected" : ""}>🌧️ Regen</option>
             <option value="snow" ${c.event === "snow" ? "selected" : ""}>❄️ Schnee</option>
             <option value="hail" ${c.event === "hail" ? "selected" : ""}>🧊 Hagel</option>
@@ -771,7 +797,24 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="balloons" ${c.event === "balloons" ? "selected" : ""}>🎈 Luftballons</option>
             <option value="lights" ${c.event === "lights" ? "selected" : ""}>💡 Lichterkette</option>
           </select>
-        `)}
+        `, isWeatherAuto
+          ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft."
+          : "Welcher Effekt manuell dauerhaft angezeigt wird."
+        )}
+
+        ${isWeatherAuto ? (
+          weatherEntities.length > 0
+            ? this._row("Wetter-Sensor", `
+                <select id="weather_entity" style="width:100%; padding:6px;">
+                  <option value="" ${!c.weather_entity ? "selected" : ""}>-- bitte wählen --</option>
+                  ${weatherEntities.map((eid) => {
+                    const friendly = this._hass.states[eid]?.attributes?.friendly_name || eid;
+                    return `<option value="${eid}" ${c.weather_entity === eid ? "selected" : ""}>${friendly}</option>`;
+                  }).join("")}
+                </select>
+              `, "Diese Wetter-Entity liefert den aktuellen Zustand (regnet, schneit, ...), nach dem sich der Effekt oben richtet.")
+            : this._row("Wetter-Sensor", `<input id="weather_entity" type="text" placeholder="weather.home" value="${c.weather_entity || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`, "Keine weather-Entity in HA gefunden - trag die Entity-ID hier manuell ein, z. B. weather.home.")
+        ) : ""}
 
         ${caps.count ? this._row("Anzahl / Frequenz", `
           <select id="count_preset" style="width:100%; padding:6px;">
@@ -779,7 +822,10 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="medium" ${c.count_preset === "medium" ? "selected" : ""}>🔷 Mittel</option>
             <option value="high" ${c.count_preset === "high" ? "selected" : ""}>🔷 Viel / Häufig</option>
           </select>
-        `) : ""}
+        `, isWeatherAuto
+          ? "⚠️ Ein Wert für ALLE automatisch erkannten Effekte gemeinsam (Regen, Schnee, Hagel, Blitz, Nebel, Sturm) - nicht einzeln pro Effekt einstellbar."
+          : "Wie viele Partikel gleichzeitig zu sehen sind."
+        ) : ""}
 
         ${caps.opacity ? this._row("Deckkraft / Helligkeit", `
           <select id="opacity_preset" style="width:100%; padding:6px;">
@@ -787,34 +833,34 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="medium" ${c.opacity_preset === "medium" ? "selected" : ""}>👁️ Dezent (60%)</option>
             <option value="high" ${c.opacity_preset === "high" ? "selected" : ""}>✨ Kräftig (100%)</option>
           </select>
-        `) : ""}
+        `, isWeatherAuto
+          ? "⚠️ Ebenfalls EIN Wert für ALLE automatisch erkannten Effekte gemeinsam."
+          : "Wie stark/deutlich der Effekt sichtbar ist."
+        ) : ""}
 
         ${caps.color ? this._row("Farbmodus", `
           <select id="color_mode" style="width:100%; padding:6px;">
             <option value="auto" ${colorMode === "auto" ? "selected" : ""}>🌗 Auto (Hell/Dunkel Modus)</option>
             <option value="custom" ${colorMode === "custom" ? "selected" : ""}>🎨 Manuelle Farbe</option>
           </select>
-        `) : ""}
+        `, isWeatherAuto
+          ? "Gilt nur, wenn gerade Regen, Schnee, Hagel, Nebel oder Sturm aktiv ist (nicht bei Blitz - der hat immer weißes Licht)."
+          : "Farbe automatisch nach Hell/Dunkel-Modus wählen oder selbst festlegen."
+        ) : ""}
 
         ${caps.color && colorMode === "custom" ? `
         <div id="custom_color_picker">
           ${this._row("Farbe", `<input id="color" type="color" value="${c.color === "auto" ? "#ffffff" : c.color}" style="width:100%; height:36px;" />`)}
         </div>` : ""}
-
-        <hr style="border:none; border-top:1px solid var(--divider-color, #444); margin:12px 0;" />
-
-        ${this._row("🌦️ Wetter-Automatik", `
-          <select id="weather_automation" style="width:100%; padding:6px;">
-            <option value="off" ${!weatherOn ? "selected" : ""}>Aus (manuelle Auswahl oben)</option>
-            <option value="on" ${weatherOn ? "selected" : ""}>An (folgt echter weather-Entity)</option>
-          </select>
-        `)}
-
-        ${weatherOn ? this._row("Wetter-Entity", `<input id="weather_entity" type="text" placeholder="weather.home" value="${c.weather_entity || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`) : ""}
       </div>
     `;
 
     this.querySelector("#event").addEventListener("change", (e) => this._update("event", e.target.value, true));
+
+    const weatherEntitySel = this.querySelector("#weather_entity");
+    if (weatherEntitySel) {
+      weatherEntitySel.addEventListener("change", (e) => this._update("weather_entity", e.target.value.trim(), false));
+    }
 
     const countSel = this.querySelector("#count_preset");
     if (countSel) countSel.addEventListener("change", (e) => this._update("count_preset", e.target.value, true));
@@ -837,15 +883,6 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     const colorPicker = this.querySelector("#color");
     if (colorPicker) {
       colorPicker.addEventListener("change", (e) => this._update("color", e.target.value, true));
-    }
-
-    this.querySelector("#weather_automation").addEventListener("change", (e) => {
-      this._update("weather_automation", e.target.value === "on", true);
-    });
-
-    const weatherEntityInput = this.querySelector("#weather_entity");
-    if (weatherEntityInput) {
-      weatherEntityInput.addEventListener("change", (e) => this._update("weather_entity", e.target.value.trim(), false));
     }
   }
 
