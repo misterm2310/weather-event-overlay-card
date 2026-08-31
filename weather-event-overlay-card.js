@@ -348,8 +348,7 @@ function renderLeaves(cfg, hass) {
 }
 
 function renderClearNight(cfg, hass) {
-  // Angepasst: Hell-Modus = Schwarz (#111111), Dunkel-Modus = Weiß (#ffffff)
-  const color = resolveDynamicColor(cfg.color, hass, "#111111", "#ffffff");
+  const color = resolveDynamicColor(cfg.color, hass, "#1e3a8a", "#a0c4ff");
   const count = getParticleCount(cfg.count_preset || "medium", "clear_night");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
 
