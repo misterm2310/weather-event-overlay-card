@@ -1,7 +1,7 @@
 /**
  * weather-event-overlay-card
  * Lovelace Custom Card — kombiniertes Wetter/Event-Overlay
- * (Regen, Schnee, Laub, Luftballons, Lichterkette, Sternschnuppen, Blitze, Haustier-Fliege, Spinnweben, Weihnachtsmann, Eiszapfen) mit visuellem GUI-Editor.
+ * (Regen, Schnee, Laub, Luftballons, Lichterkette, Sternschnuppen, Blitze, Spinnweben, Weihnachtsmann) mit visuellem GUI-Editor.
  */
 
 /* ============================== HELFER ============================== */
@@ -193,10 +193,8 @@ const EVENT_CAPABILITIES = {
   shooting_stars: { count: true, opacity: true, color: true },
   balloons: { count: true, opacity: true, color: false },
   lights: { count: true, opacity: true, color: false },
-  fly: { count: false, opacity: true, color: false },
   spider_web: { count: false, opacity: true, color: false },
   santa_sleigh: { count: false, opacity: true, color: false },
-  icicles: { count: false, opacity: true, color: false },
 };
 
 const BALLOON_COLORS = ["#FF4B4B", "#FF851B", "#FFDC00", "#2ECC40", "#0074D9", "#B10DC9", "#F012BE"];
@@ -367,7 +365,7 @@ function renderLights(cfg, hass) {
   const css = `
     .lights-string {
       position: fixed; top: 0; left: 50%; transform: translateX(-50%); width: 100vw; height: 25px;
-      pointer-events: none; z-index: 9999; display: flex; justify-content: space-around; padding: 0 10px; box-sizing: border-box;
+      pointer-events: none; z-index: 9999; display: flex; justify-space-around; padding: 0 10px; box-sizing: border-box;
     }
     .bulb {
       width: 10px; height: 14px; border-radius: 50%;
@@ -544,90 +542,6 @@ function renderStorm(cfg, hass) {
   return { css, html: `<div class="storm-container" aria-hidden="true">${gustHTML}</div>` };
 }
 
-function renderFly(cfg, hass) {
-  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
-
-  const css = `
-    .fly-container {
-      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      pointer-events: none; z-index: 9999; overflow: hidden;
-    }
-    .fly-box {
-      position: absolute; top: 20vh; left: 10vw; width: 28px; height: 28px;
-      animation: fly-around 18s ease-in-out infinite;
-      will-change: transform, top, left;
-    }
-    .fly-svg {
-      width: 100%; height: 100%;
-      filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.4));
-    }
-    .fly-wing-left {
-      transform-origin: 18px 15px;
-      animation: wing-buzz 0.08s infinite alternate;
-    }
-    .fly-wing-right {
-      transform-origin: 10px 15px;
-      animation: wing-buzz 0.08s infinite alternate-reverse;
-    }
-
-    /* Schnelles Flügelbrummen */
-    @keyframes wing-buzz {
-      0%   { transform: scaleX(1) scaleY(1); opacity: 0.9; }
-      100% { transform: scaleX(0.4) scaleY(1.2); opacity: 0.4; }
-    }
-
-    /* Verrückter Flugweg quer über das Dashboard mit Pausen zum Krabbeln */
-    @keyframes fly-around {
-      0%   { top: 15vh; left: 10vw; transform: rotate(45deg); }
-      15%  { top: 60vh; left: 25vw; transform: rotate(160deg); }
-      20%  { top: 60vh; left: 25vw; transform: rotate(180deg); } /* Pause / Sitzen */
-      25%  { top: 61vh; left: 26vw; transform: rotate(90deg); }  /* Kurzes Krabbeln */
-      35%  { top: 80vh; left: 70vw; transform: rotate(110deg); }
-      50%  { top: 20vh; left: 85vw; transform: rotate(-45deg); }
-      55%  { top: 20vh; left: 85vw; transform: rotate(-20deg); } /* Pause / Sitzen */
-      70%  { top: 10vh; left: 40vw; transform: rotate(-135deg); }
-      85%  { top: 45vh; left: 15vw; transform: rotate(200deg); }
-      100% { top: 15vh; left: 10vw; transform: rotate(45deg); }
-    }
-  `;
-
-  const flySvg = `
-    <svg class="fly-svg" viewBox="0 0 100 100">
-      <!-- Beine -->
-      <path d="M 30 40 L 10 25 M 30 50 L 5 50 M 30 60 L 10 75" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/>
-      <path d="M 70 40 L 90 25 M 70 50 L 95 50 M 70 60 L 90 75" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/>
-      
-      <!-- Flügel links -->
-      <ellipse class="fly-wing-left" cx="25" cy="25" rx="18" ry="28" fill="rgba(200, 230, 255, 0.65)" stroke="rgba(255,255,255,0.8)" stroke-width="2" transform="rotate(-30 25 25)"/>
-      <!-- Flügel rechts -->
-      <ellipse class="fly-wing-right" cx="75" cy="25" rx="18" ry="28" fill="rgba(200, 230, 255, 0.65)" stroke="rgba(255,255,255,0.8)" stroke-width="2" transform="rotate(30 75 25)"/>
-      
-      <!-- Körper & Hintern -->
-      <ellipse cx="50" cy="65" rx="20" ry="26" fill="#111111"/>
-      <!-- Brust -->
-      <circle cx="50" cy="42" r="16" fill="#2a2a2a"/>
-      <!-- Kopf -->
-      <circle cx="50" cy="26" r="11" fill="#111111"/>
-      
-      <!-- Riesige Fliegenaugen (Rot) -->
-      <circle cx="41" cy="22" r="7" fill="#cc0000"/>
-      <circle cx="59" cy="22" r="7" fill="#cc0000"/>
-      <circle cx="43" cy="20" r="2" fill="#ffffff"/>
-      <circle cx="61" cy="20" r="2" fill="#ffffff"/>
-    </svg>
-  `;
-
-  const html = `
-    <div class="fly-container" style="opacity:${opacity};" aria-hidden="true">
-      <div class="fly-box">
-        ${flySvg}
-      </div>
-    </div>
-  `;
-
-  return { css, html };
-}
-
 function renderSpiderWeb(cfg, hass) {
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
 
@@ -725,45 +639,6 @@ function renderSantaSleigh(cfg, hass) {
   return { css, html };
 }
 
-function renderIcicles(cfg, hass) {
-  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
-
-  const css = `
-    .icicles-container {
-      position: fixed; top: 0; left: 0; width: 100vw; height: 60px;
-      pointer-events: none; z-index: 9999; display: flex; justify-content: space-between;
-    }
-    .icicle-svg {
-      width: 100%; height: 100%;
-      filter: drop-shadow(0 2px 4px rgba(0,150,255,0.2));
-    }
-    .icicle-glimmer {
-      animation: icicle-shimmer 3s ease-in-out infinite alternate;
-    }
-
-    @keyframes icicle-shimmer {
-      0% { opacity: 0.4; }
-      100% { opacity: 0.9; }
-    }
-  `;
-
-  const html = `
-    <div class="icicles-container" style="opacity:${opacity};" aria-hidden="true">
-      <svg class="icicle-svg" viewBox="0 0 1000 60" preserveAspectRatio="none">
-        <path class="icicle-glimmer" d="
-          M 0 0 L 0 35 L 15 0 L 30 50 L 45 0 L 70 25 L 85 0 L 110 55 L 130 0 
-          L 160 40 L 180 0 L 210 20 L 230 0 L 260 60 L 285 0 L 310 30 L 330 0 
-          L 370 45 L 395 0 L 420 25 L 440 0 L 480 58 L 510 0 L 540 35 L 565 0 
-          L 600 48 L 625 0 L 660 20 L 680 0 L 720 52 L 750 0 L 780 30 L 805 0 
-          L 840 60 L 870 0 L 900 25 L 920 0 L 960 42 L 985 0 L 1000 30 L 1000 0 Z
-        " fill="rgba(200, 235, 255, 0.7)" />
-      </svg>
-    </div>
-  `;
-
-  return { css, html };
-}
-
 const RENDERERS = {
   rain: renderRain,
   snow: renderSnow,
@@ -775,10 +650,8 @@ const RENDERERS = {
   fog: renderFog,
   hail: renderHail,
   storm: renderStorm,
-  fly: renderFly,
   spider_web: renderSpiderWeb,
   santa_sleigh: renderSantaSleigh,
-  icicles: renderIcicles,
 };
 
 /* ============================== HAUPT-KARTE ============================== */
@@ -890,7 +763,6 @@ class WeatherEventOverlayCard extends HTMLElement {
       return;
     }
 
-    // Unterstützung für mehrere Effekte (z.B. "lightning, rain" oder "snow, rain")
     const effectList = event.split(",").map((e) => e.trim());
     let combinedCss = baseStyle;
     let combinedHtml = "";
@@ -990,10 +862,8 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="shooting_stars" ${c.event === "shooting_stars" ? "selected" : ""}>🌠 Sternschnuppen</option>
             <option value="balloons" ${c.event === "balloons" ? "selected" : ""}>🎈 Luftballons</option>
             <option value="lights" ${c.event === "lights" ? "selected" : ""}>💡 Lichterkette</option>
-            <option value="fly" ${c.event === "fly" ? "selected" : ""}>🪰 Haustier-Fliege</option>
             <option value="spider_web" ${c.event === "spider_web" ? "selected" : ""}>🕸️ Spinnweben & Spinne</option>
             <option value="santa_sleigh" ${c.event === "santa_sleigh" ? "selected" : ""}>🎅 Weihnachtsmann-Schlitten</option>
-            <option value="icicles" ${c.event === "icicles" ? "selected" : ""}>🧊 Eiszapfen-Rand</option>
           </select>
         `, isWeatherAuto
           ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft: 🌧️ Regen, ❄️ Schnee, 🧊 Hagel, ⚡ Blitz, 🌫️ Nebel oder 💨 Sturm - bei Sonne/Wolken/klarem Himmel läuft kein Effekt."
