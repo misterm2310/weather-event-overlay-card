@@ -348,7 +348,7 @@ function renderLeaves(cfg, hass) {
 }
 
 function renderClearNight(cfg, hass) {
-  const color = resolveDynamicColor(cfg.color, hass, "#1e3a8a", "#a0c4ff");
+  const color = resolveDynamicColor(cfg.color, hass, "#1e3a8a", "#ffffff");
   const count = getParticleCount(cfg.count_preset || "medium", "clear_night");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
 
