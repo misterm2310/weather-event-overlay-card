@@ -1,6 +1,6 @@
 # 🌦️ Weather & Event Overlay Card für Home Assistant
 
-Eine extrem flexible Lovelace Custom Card für Home Assistant zur Anzeige von dynamischen Wetter- und Event-Animations-Overlays (Regen, Schnee, Blitze, Sternschnuppen, Fliege, Spinnweben, Weihnachtsmann u.v.m.).
+Eine extrem flexible Lovelace Custom Card für Home Assistant zur Anzeige von dynamischen Wetter- und Event-Animations-Overlays (Regen, Schnee, Blitze, Sternschnuppen, Laub, Spinnweben, Weihnachtsmann u.v.m.).
 
 Die Karte rendert sich **ohne sichtbaren Rahmen oder Platzbedarf** direkt als transparentes Overlay über deinem Dashboard.
 
@@ -30,10 +30,8 @@ Die Karte rendert sich **ohne sichtbaren Rahmen oder Platzbedarf** direkt als tr
 | | 🌠 Sternschnuppen | Sternschnuppen am Nachthimmel |
 | | 🎈 Luftballons | Aufsteigende bunte Partyballons |
 | | 💡 Lichterkette | Blinkende Party-/Weihnachtslichterkette oben |
-| | 🪰 Haustier-Fliege | Eine Fliege krabbelt & fliegt über das Dashboard |
 | | 🕸️ Spinnweben & Spinne | Spinnweben oben rechts mit einer herabfallenden Spinne |
 | | 🎅 Weihnachtsmann | Santa-Schlitten fliegt über den Bildschirm |
-| | 🧊 Eiszapfen-Rand | Schimmernder Eiszapfen-Rand am oberen Bildschirmrand |
 
 ---
 
