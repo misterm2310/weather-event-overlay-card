@@ -147,7 +147,6 @@ function sanitizeLeafShape(input) {
   if (forbidden.test(trimmed)) return null;
 
   const allowedTagPattern = /&lt;\/?(path|polygon|circle|line|g|rect)\b[^&]*&gt;/gi;
-  // Fallback checks for standard angle brackets if passed raw
   const rawAllowedTagPattern = /<\/?(path|polygon|circle|line|g|rect)\b[^>]*>/gi;
   
   const strippedOfAllowed = trimmed.replace(rawAllowedTagPattern, "").replace(allowedTagPattern, "");
@@ -349,7 +348,8 @@ function renderLeaves(cfg, hass) {
 }
 
 function renderClearNight(cfg, hass) {
-  const color = resolveDynamicColor(cfg.color, hass, "#ffffff", "#ffffff");
+  // Anpassung: Nutzt nun resolveDynamicColor, standardmäßig dunkles Blau/Grau im Light-Modus und Weiß im Dark-Modus
+  const color = resolveDynamicColor(cfg.color, hass, "#2c3e50", "#ffffff");
   const count = getParticleCount(cfg.count_preset || "medium", "clear_night");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
 
@@ -438,7 +438,7 @@ function renderLights(cfg, hass) {
 function renderShootingStars(cfg, hass) {
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const count = getParticleCount(cfg.count_preset || "medium", "shooting_stars");
-  const color = resolveDynamicColor(cfg.color, hass, "#ffffff", "#ffffff");
+  const color = resolveDynamicColor(cfg.color, hass, "#2c3e50", "#ffffff");
 
   const stars = getCachedRandomSet("shooting_stars", count, () => ({
     top: (Math.random() * 50).toFixed(2),
