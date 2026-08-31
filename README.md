@@ -1,54 +1,65 @@
-# Weather & Event Overlay Card for Home Assistant
+# 🌦️ Weather & Event Overlay Card for Home Assistant (Lovelace)
 
-Eine benutzerdefinierte Lovelace-Karte für Home Assistant, die dynamische Animationen (Regen, Schnee mit Schneeansammlung, Hagel, Blitz, Nebel, Sturm, Herbstlaub, Sternschnuppen, Luftballons & Lichterkette) als elegantes Overlay über dein Dashboard legt. 
+Eine hochgradig anpassbare, performante und visuell ansprechende Custom Card für das Home Assistant Lovelace Dashboard. Sie legt sich transparent über deine Dashboard-Oberfläche und spielt dynamische Wetter- sowie Event-Animationen ab.
 
-Inklusive vollständiger visuelle GUI-Editor-Unterstützung mit Live-Status, automatischem Theme-Modus und einer universellen Wetter- & Intensitäts-Automatik!
+![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Custom%20Card-blue.svg)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
 
 ---
 
-## 🎨 Features
+## ✨ Features
 
-* **Zehn Animationseffekte:** Regen, Schnee, Hagel, Blitz (Gewitter), Nebel, Sturm/Windböen, Herbstlaub, Sternschnuppen, Luftballons & Lichterkette.
-* **🌦️ Universelle Wetter-Automatik:** Liest deine `weather.*`-Entity aus und aktiviert automatisch den passenden Effekt zum aktuellen Wetterzustand.
-* **🌧️ Automatische Intensitäts-Steuerung:** Wertet Niederschlagsdaten (`precipitation` in mm oder `data`-Arrays von Wetterdiensten wie z. B. DWD) aus und passt die Partikelmenge und Deckkraft vollautomatisch in Echtzeit an.
-* **❄️ Dynamische Schneeansammlung:** Bei aktivem Schnee-Effekt baut sich am unteren Bildschirmrand langsam eine sanfte, leicht leuchtende Schneedecke auf und bleibt liegen.
-* **🟢 Live-Status im GUI-Editor:** Der visuelle Editor zeigt über farbige Status-Boxen (Grün, Gelb, Rot) sofort an, ob deine Entität valide Daten liefert und welche Intensität aktuell berechnet wird.
-* **🌗 Auto-Theme-Modus:** Erkennt automatisch den Hell- oder Dunkel-Modus deines Home Assistant Themes und passt Partikelfarben dynamisch an.
-* **🔋 Performance-Optimiert:** Nutzt CSS3-Hardwarebeschleunigung für flüssige Animationen ohne hohe Systemlast[cite: 1].
+- **🌦️ Automatische Wetter-Erkennung (`weather_auto`):** Kopple die Karte einfach mit deiner `weather.`-Entität. Wenn es draußen regnet, schneit oder gewittert, wird der passende Effekt automatisch auf dem Dashboard gestartet.
+- **⚡ Kombinationseffekte:** Unterstützt parallele Effekte wie `lightning-rainy` (Blitze & Regen gleichzeitig).
+- **🎨 Visueller GUI-Editor:** Vollständig im Dashboard-Editor konfigurierbar – kein manuelles YAML-Schreiben nötig!
+- **🌗 Smart Dark-Mode Support:** Passt Farben (z. B. Schneeflocken oder Regentropfen) automatisch an das aktive Dark- oder Light-Theme an.
+- **🚀 Performance-optimiert:** 
+  - Nutzt GPU-beschleunigte CSS-Animationen (`will-change: transform`).
+  - Pausiert Animationen automatisch, wenn der Tab gewechselt oder im Hintergrund betrieben wird (spart Ressourcen auf Tablets/Raspberry Pi).
+
+---
+
+## 🎭 Verfügbare Effekte
+
+| Kategorie | Effekt | Beschreibung |
+| :--- | :--- | :--- |
+| **Wetter** | 🌧️ **Regen** (`rain`) | Fallende Tropfen mit sanftem Farbverlauf |
+| | ❄️ **Schnee** (`snow`) | Sanft schwebende Schneeflocken |
+| | 🧊 **Hagel** (`hail`) | Schneller fallende Hagelkörner |
+| | ⚡ **Blitz** (`lightning`) | Dynamische Bildschirm-Flashes bei Gewitter |
+| | 🌫️ **Nebel** (`fog`) | Vorbeiziehende, weiche Nebelbänke |
+| | 💨 **Sturm** (`storm`) | Windböen-Streifen über dem Bildschirm |
+| **Events** | 🍂 **Laub** (`leaves`) | Drehende Herbstblätter mit Farbverlauf |
+| | 🌠 **Sternschnuppen** (`shooting_stars`) | Vorbeiziehende Sternschnuppen |
+| | 🎈 **Luftballons** (`balloons`) | Aufsteigende bunte Ballons (z. B. für Geburtstage) |
+| | 💡 **Lichterkette** (`lights`) | Blinkende Lichterkette am oberen Bildschirmrand |
 
 ---
 
 ## 📦 Installation
 
-### Über HACS (Empfohlen)
+### Manuelle Installation
 
-1. Öffne **HACS** in deiner Home Assistant Seitenleiste.
-2. Klicke oben rechts auf die drei Punkte (`⋮`) → **Benutzerdefinierte Repositories**.
-3. Füge deine GitHub-Repository-URL ein:  
-   `https://github.com/DEIN_BENUTZERNAME/weather-event-overlay-card`
-4. Wähle als Kategorie **Lovelace**.
-5. Klicke auf **Hinzufügen** und anschließend auf **Herunterladen**.
-6. Lade dein Dashboard neu (`Strg` + `F5`).
-
----
-
-## 🖱️ Einrichtung über den GUI-Editor
-
-1. Füge eine neue Karte zu deinem Dashboard hinzu und wähle **Weather & Event Overlay Card**.
-2. **Effekt:** Wähle einen festen Effekt oder **"🌦️ Automatisch (nach Wetter)"**[cite: 1].
-3. **Wetter-Entity:** Wähle deine Haupt-Wetter-Entität (z. B. `weather.home` oder `weather.dwd`)[cite: 1].
-4. **Niederschlags-Entity (Optional):** Falls dein Wetterdienst (wie der DWD) die stündliche Niederschlagsmenge in einem separaten Sensor liefert, wähle diesen hier aus (z. B. `sensor.dwd_precipitation_intensity`)[cite: 1].
-5. **Intensität aus Wetterdaten:** Schalte die Option ein, um die Partikeldichte automatisch vom Niederschlag steuern zu lassen[cite: 1].
+1. Lade die Datei `weather-event-overlay-card.js` herunter.
+2. Kopiere die Datei in deinen Home Assistant Ordner: `/config/www/weather-event-overlay-card.js`.
+3. Gehe in Home Assistant zu **Einstellungen** -> **Dashboards** -> Oben rechts auf die **drei Punkte** -> **Ressourcen**.
+4. Klicke auf **Ressource hinzufügen**:
+   - **URL:** `/local/weather-event-overlay-card.js?v=1.0.0`
+   - **Ressourcentyp:** `JavaScript-Modul`
+5. Lade deine Dashboard-Seite neu (Strg + F5).
 
 ---
 
-## ⚙️ Verwendung (YAML Beispiele)
+## ⚙️ Konfiguration
 
-### Automatisch nach Wetterlage (inkl. separatem Niederschlags-Sensor)
+Du kannst die Karte ganz einfach über den **visuellen Editor** deines Dashboards hinzufügen oder direkt per **YAML**.
+
+### Beispiel: Automatischer Wetter-Modus (Empfohlen)
+
 ```yaml
 type: custom:weather-event-overlay-card
 event: weather_auto
 weather_entity: weather.home
-precipitation_entity: sensor.home_precipitation
-weather_intensity_auto: true
+count_preset: medium
+opacity_preset: medium
 color_mode: auto
