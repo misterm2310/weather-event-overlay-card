@@ -78,6 +78,13 @@ function getParticleCount(preset, eventType) {
       case "medium": default: return 5;
     }
   }
+  if (eventType === "stars") {
+    switch (preset) {
+      case "low": return 15;
+      case "high": return 55;
+      case "medium": default: return 30;
+    }
+  }
   switch (preset) {
     case "low": return Math.round(max * 0.33);
     case "high": return max;
@@ -194,6 +201,7 @@ const WEATHER_STATE_MAP = {
   "fog": ["fog"],
   "windy": ["storm"],
   "windy-variant": ["storm"],
+  "clear-night": ["stars"],
 };
 
 // Gibt IMMER ein Array zurück (auch bei einem einzelnen Effekt), damit die
@@ -222,6 +230,12 @@ const EVENT_CAPABILITIES = {
   shooting_stars: { count: true, opacity: true, color: true },
   balloons: { count: true, opacity: true, color: false },
   lights: { count: true, opacity: true, color: false },
+  // Anzahl steuert bei Weihnachtsmann den Abstand zwischen den Vorbeiflügen
+  // statt einer Partikelmenge (es gibt ja nur einen Schlitten).
+  santa: { count: true, opacity: true, color: true },
+  // Bei der Spinne gibt's nur EIN Tier - Anzahl macht hier keinen Sinn.
+  spider: { count: false, opacity: true, color: true },
+  stars: { count: true, opacity: true, color: true },
 };
 
 const BALLOON_COLORS = ["#FF4B4B", "#FF851B", "#FFDC00", "#2ECC40", "#0074D9", "#B10DC9", "#F012BE"];
@@ -240,6 +254,41 @@ const DEFAULT_LEAF_SHAPE = `
   <path d="M50 10 L50 90" stroke="rgba(0,0,0,0.25)" stroke-width="3" stroke-linecap="round"/>
   <path d="M50 30 L34 20 M50 30 L66 20 M50 55 L30 45 M50 55 L70 45 M50 75 L36 68 M50 75 L64 68"
         stroke="rgba(0,0,0,0.18)" stroke-width="2" stroke-linecap="round"/>
+`;
+
+// Eigene, schlichte Silhouette (Schlitten + 3 Rentiere + Weihnachtsmann) -
+// keine Anlehnung an ein bestimmtes Marken-Design, nur eine generische
+// Weihnachtsszene als Umriss.
+const SANTA_SVG = `
+<svg viewBox="0 0 320 90" preserveAspectRatio="xMidYMid meet" fill="currentColor">
+  <g>
+    <ellipse cx="30" cy="55" rx="20" ry="11"/>
+    <circle cx="54" cy="45" r="7"/>
+    <line x1="58" y1="38" x2="50" y2="24" stroke="currentColor" stroke-width="2"/>
+    <line x1="58" y1="38" x2="66" y2="26" stroke="currentColor" stroke-width="2"/>
+    <line x1="20" y1="64" x2="16" y2="80" stroke="currentColor" stroke-width="3"/>
+    <line x1="38" y1="64" x2="42" y2="80" stroke="currentColor" stroke-width="3"/>
+  </g>
+  <g transform="translate(75,0)">
+    <ellipse cx="30" cy="55" rx="20" ry="11"/>
+    <circle cx="54" cy="45" r="7"/>
+    <line x1="58" y1="38" x2="50" y2="24" stroke="currentColor" stroke-width="2"/>
+    <line x1="58" y1="38" x2="66" y2="26" stroke="currentColor" stroke-width="2"/>
+    <line x1="20" y1="64" x2="16" y2="80" stroke="currentColor" stroke-width="3"/>
+    <line x1="38" y1="64" x2="42" y2="80" stroke="currentColor" stroke-width="3"/>
+  </g>
+  <g transform="translate(150,0)">
+    <ellipse cx="30" cy="55" rx="20" ry="11"/>
+    <circle cx="54" cy="45" r="7"/>
+    <line x1="58" y1="38" x2="50" y2="24" stroke="currentColor" stroke-width="2"/>
+    <line x1="58" y1="38" x2="66" y2="26" stroke="currentColor" stroke-width="2"/>
+    <line x1="20" y1="64" x2="16" y2="80" stroke="currentColor" stroke-width="3"/>
+    <line x1="38" y1="64" x2="42" y2="80" stroke="currentColor" stroke-width="3"/>
+  </g>
+  <path d="M235 55 Q225 70 245 70 L295 70 Q305 70 305 60 L305 50 L245 50 Q235 50 235 55 Z"/>
+  <circle cx="270" cy="35" r="10"/>
+  <path d="M260 30 Q270 15 282 28 L275 30 Z"/>
+</svg>
 `;
 
 const BALLOONS = Array.from({ length: 30 }, (_, i) => ({
@@ -610,6 +659,141 @@ function renderStorm(cfg, hass) {
 }
 
 
+function renderSanta(cfg, hass) {
+  // Weihnachtsmann: fliegt per CSS-Keyframe-Animation periodisch quer übers
+  // Bild - kein JS-Timer nötig, die "Wartezeit" ist einfach der stille Teil
+  // eines langen Animations-Loops. "Anzahl/Frequenz" steuert hier, wie oft
+  // (alle 100-340 Sekunden), nicht eine Partikel-Menge.
+  const color = resolveDynamicColor(cfg.color, hass, "#3a2a1a", "#fbe9c8");
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+  const finalOpacity = isHigh ? 1 : opacity;
+  const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
+  const flightSeconds = 12;
+  const flightPct = Math.min(35, (flightSeconds / interval) * 100).toFixed(2);
+  const fadePct = (parseFloat(flightPct) + 0.5).toFixed(2);
+
+  const html = `<div class="santa-flight" aria-hidden="true" style="color:${color}; animation-duration:${interval}s;">${SANTA_SVG}</div>`;
+  const css = `
+    .santa-flight {
+      position: fixed; top: 8vh; left: -30vw; width: 260px;
+      pointer-events: none; z-index: 9999;
+      animation-name: santa-fly; animation-timing-function: linear; animation-iteration-count: infinite;
+      will-change: transform, opacity;
+    }
+    @keyframes santa-fly {
+      0% { transform: translate(0, 0); opacity: 0; }
+      1% { opacity: ${finalOpacity}; }
+      ${flightPct}% { transform: translate(150vw, -6vh); opacity: ${finalOpacity}; }
+      ${fadePct}% { opacity: 0; }
+      100% { transform: translate(150vw, -6vh); opacity: 0; }
+    }
+  `;
+  return { css, html };
+}
+
+function renderSpider(cfg, hass) {
+  // Spinne: festes Netz oben rechts, Spinne seilt sich an einem Faden auf
+  // und ab. Augen bleiben bewusst immer rot-leuchtend, unabhängig vom Theme.
+  const webColor = resolveDynamicColor(cfg.color, hass, "#4a4a4a", "#e5e5e5");
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+  const finalOpacity = isHigh ? 1 : opacity;
+
+  const html = `
+    <div class="spider-corner" aria-hidden="true" style="opacity:${finalOpacity};">
+      <svg class="spider-web" viewBox="0 0 140 140" style="color:${webColor};">
+        <g fill="none" stroke="currentColor" stroke-width="1.2">
+          <path d="M140 0 L0 140"/>
+          <path d="M140 20 L20 140"/>
+          <path d="M140 45 L45 140"/>
+          <path d="M140 70 L70 140"/>
+          <path d="M140 95 L95 140"/>
+          <path d="M140 0 Q90 40 95 95 Q100 130 140 140"/>
+          <path d="M140 0 Q60 20 45 70 Q35 110 70 140"/>
+          <path d="M140 0 Q40 5 20 45 Q10 90 45 140"/>
+        </g>
+      </svg>
+      <div class="spider-rig">
+        <div class="spider-thread"></div>
+        <div class="spider-body">
+          <span class="spider-eye left"></span>
+          <span class="spider-eye right"></span>
+        </div>
+      </div>
+    </div>
+  `;
+  const css = `
+    .spider-corner {
+      position: fixed; top: 0; right: 0; width: 160px; height: 160px;
+      pointer-events: none; z-index: 9999;
+    }
+    .spider-web { position: absolute; top: 0; right: 0; width: 100%; height: 100%; }
+    .spider-rig {
+      position: absolute; top: 20px; right: 55px;
+      animation: spider-dangle 6s ease-in-out infinite alternate;
+      will-change: transform;
+    }
+    .spider-thread { width: 1px; height: 90px; background: ${webColor}; margin: 0 auto; }
+    .spider-body {
+      position: relative; width: 16px; height: 12px; border-radius: 50%;
+      background: #1a1a1a; margin: -2px auto 0;
+    }
+    .spider-eye {
+      position: absolute; top: 3px; width: 3px; height: 3px; border-radius: 50%;
+      background: #ff2222; box-shadow: 0 0 4px 1px #ff2222;
+    }
+    .spider-eye.left { left: 3px; }
+    .spider-eye.right { right: 3px; }
+    @keyframes spider-dangle {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(70px); }
+    }
+  `;
+  return { css, html };
+}
+
+function renderStars(cfg, hass) {
+  // Sternenhimmel: funkelnde Punkte, Farbe passt sich Hell/Dunkel an (warmes
+  // Gold im Lightmode, kühles Weiß im Darkmode) - genau wie bei den anderen
+  // Auto-Farbe-Effekten. Läuft automatisch bei "klarer Nachthimmel".
+  const color = resolveDynamicColor(cfg.color, hass, "#e8c97a", "#eaf2ff");
+  const count = getParticleCount(cfg.count_preset || "medium", "stars");
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+
+  const stars = getCachedRandomSet("stars", count, () => ({
+    top: (Math.random() * 85).toFixed(2),
+    left: (Math.random() * 100).toFixed(2),
+    size: (Math.random() * 2 + 1).toFixed(2),
+    dur: (Math.random() * 3 + 2).toFixed(2),
+    delay: (Math.random() * -5).toFixed(2),
+    baseOp: (Math.random() * 0.5 + 0.4).toFixed(2),
+  }));
+
+  const starHTML = stars.map((s) => {
+    const peak = isHigh
+      ? Math.max(parseFloat(s.baseOp), 0.9)
+      : (parseFloat(s.baseOp) * opacity);
+    return `<div class="star" style="top:${s.top}vh; left:${s.left}vw; width:${s.size}px; height:${s.size}px; background:${color}; animation-duration:${s.dur}s; animation-delay:${s.delay}s; --peak:${peak.toFixed(2)};"></div>`;
+  }).join("\n");
+
+  const css = `
+    ${overlayBaseCss("stars-container")}
+    .star {
+      position: absolute; border-radius: 50%;
+      box-shadow: 0 0 4px currentColor;
+      animation: star-twinkle ease-in-out infinite alternate;
+      will-change: opacity;
+    }
+    @keyframes star-twinkle {
+      0% { opacity: calc(var(--peak) * 0.25); }
+      100% { opacity: var(--peak); }
+    }
+  `;
+  return { css, html: `<div class="stars-container" aria-hidden="true">${starHTML}</div>` };
+}
+
 const RENDERERS = {
   rain: renderRain,
   snow: renderSnow,
@@ -621,6 +805,9 @@ const RENDERERS = {
   fog: renderFog,
   hail: renderHail,
   storm: renderStorm,
+  santa: renderSanta,
+  spider: renderSpider,
+  stars: renderStars,
 };
 
 /* ============================== HAUPT-KARTE ============================== */
@@ -870,8 +1057,11 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="storm" ${c.event === "storm" ? "selected" : ""}>💨 Sturm</option>
             <option value="leaves" ${c.event === "leaves" ? "selected" : ""}>🍂 Laub</option>
             <option value="shooting_stars" ${c.event === "shooting_stars" ? "selected" : ""}>🌠 Sternschnuppen</option>
+            <option value="stars" ${c.event === "stars" ? "selected" : ""}>✨ Sternenhimmel</option>
             <option value="balloons" ${c.event === "balloons" ? "selected" : ""}>🎈 Luftballons</option>
             <option value="lights" ${c.event === "lights" ? "selected" : ""}>💡 Lichterkette</option>
+            <option value="santa" ${c.event === "santa" ? "selected" : ""}>🎅 Weihnachtsmann</option>
+            <option value="spider" ${c.event === "spider" ? "selected" : ""}>🕷️ Spinne mit Netz</option>
           </select>
         `, isWeatherAuto
           ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft: 🌧️ Regen, ❄️ Schnee, 🧊 Hagel, ⚡ Blitz, 🌫️ Nebel oder 💨 Sturm - bei Sonne/Wolken/klarem Himmel läuft kein Effekt."
@@ -901,7 +1091,10 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
           </select>
         `, isWeatherAuto
           ? "⚠️ Ein Wert für ALLE automatisch erkannten Effekte gemeinsam (Regen, Schnee, Hagel, Blitz, Nebel, Sturm) - nicht einzeln pro Effekt einstellbar."
-          : "Wie viele Partikel gleichzeitig zu sehen sind."
+          : (c.event === "santa"
+              ? "Wie oft der Weihnachtsmann vorbeifliegt: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min."
+              : "Wie viele Partikel gleichzeitig zu sehen sind."
+            )
         ) : ""}
 
         ${caps.opacity ? this._row("Deckkraft / Helligkeit", `
