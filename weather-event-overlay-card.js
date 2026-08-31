@@ -93,7 +93,6 @@ function getOpacityValue(preset) {
   }
 }
 
-// Erkennung des Hell/Dunkel Modus
 function isDarkModeActive(hassInstance) {
   try {
     if (hassInstance && hassInstance.themes) {
@@ -144,11 +143,9 @@ function sanitizeLeafShape(input) {
   const trimmed = input.trim();
   const forbidden = /<script|javascript:|on\w+\s*=|<iframe|<object|<embed|xlink:href|href\s*=/i;
   if (forbidden.test(trimmed)) return null;
-
   const allowedTagPattern = /<\/?(path|polygon|circle|line|g|rect)\b[^>]*>/gi;
   const strippedOfAllowed = trimmed.replace(allowedTagPattern, "");
   if (strippedOfAllowed.includes("<")) return null;
-
   return trimmed;
 }
 
@@ -194,6 +191,15 @@ const EVENT_CAPABILITIES = {
   balloons: { count: true, opacity: true, color: false },
   lights: { count: true, opacity: true, color: false },
 };
+
+function getIntensityFromWeatherEntity(entityState) {
+  if (!entityState || !entityState.attributes) return null;
+  const precip = entityState.attributes.precipitation;
+  if (typeof precip !== "number" || Number.isNaN(precip)) return null;
+  if (precip <= 0.5) return "low";
+  if (precip <= 4) return "medium";
+  return "high";
+}
 
 const BALLOON_COLORS = ["#FF4B4B", "#FF851B", "#FFDC00", "#2ECC40", "#0074D9", "#B10DC9", "#F012BE"];
 
@@ -296,8 +302,20 @@ function renderSnow(cfg, hass) {
       50%  { transform: translate(var(--end-x), 60vh); }
       100% { transform: translate(var(--end-x), 120vh); }
     }
+    .snow-accumulation {
+      position: absolute; bottom: 0; left: 0; width: 100%;
+      border-top-left-radius: 40% 10px; border-top-right-radius: 40% 10px;
+      transition: height 8s linear;
+    }
   `;
-  return { css, html: `<div class="snowflakes" aria-hidden="true">${flakeHTML}</div>` };
+
+  const snowLevel = typeof cfg._snowLevel === "number" ? cfg._snowLevel : 0;
+  const accumHeight = Math.min(18, snowLevel * 0.18);
+  const accumHtml = accumHeight > 0
+    ? `<div class="snow-accumulation" aria-hidden="true" style="height:${accumHeight.toFixed(2)}vh; background:linear-gradient(180deg, rgba(255,255,255,0.92), rgba(230,238,245,0.8));"></div>`
+    : "";
+
+  return { css, html: `<div class="snowflakes" aria-hidden="true">${flakeHTML}${accumHtml}</div>` };
 }
 
 function renderLeaves(cfg, hass) {
@@ -561,6 +579,8 @@ class WeatherEventOverlayCard extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._onThemeChange = this._onThemeChange.bind(this);
     this._onVisibilityChange = this._onVisibilityChange.bind(this);
+    this._snowLevel = 0;
+    this._snowTimer = null;
   }
 
   connectedCallback() {
@@ -575,6 +595,10 @@ class WeatherEventOverlayCard extends HTMLElement {
     window.removeEventListener("resize", this._onThemeChange);
     window.matchMedia("(prefers-color-scheme: dark)").removeEventListener("change", this._onThemeChange);
     document.removeEventListener("visibilitychange", this._onVisibilityChange);
+    if (this._snowTimer) {
+      clearInterval(this._snowTimer);
+      this._snowTimer = null;
+    }
   }
 
   _onThemeChange() {
@@ -606,6 +630,7 @@ class WeatherEventOverlayCard extends HTMLElement {
       color_mode: "auto",
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
       weather_entity: "",
+      weather_intensity_auto: false,
       ...config,
     };
     this._render();
@@ -615,13 +640,16 @@ class WeatherEventOverlayCard extends HTMLElement {
     const oldTheme = this._hass?.themes?.darkMode;
     const weatherEntity = this._config?.weather_entity;
     const oldWeatherState = weatherEntity ? this._hass?.states?.[weatherEntity]?.state : undefined;
+    const oldPrecip = weatherEntity ? this._hass?.states?.[weatherEntity]?.attributes?.precipitation : undefined;
     this._hass = hass;
     const newWeatherState = weatherEntity ? hass?.states?.[weatherEntity]?.state : undefined;
+    const newPrecip = weatherEntity ? hass?.states?.[weatherEntity]?.attributes?.precipitation : undefined;
 
     if (
       !this._hasRenderedOnce ||
       (oldTheme !== undefined && oldTheme !== hass?.themes?.darkMode) ||
-      oldWeatherState !== newWeatherState
+      oldWeatherState !== newWeatherState ||
+      oldPrecip !== newPrecip
     ) {
       this._render();
       this._hasRenderedOnce = true;
@@ -642,6 +670,18 @@ class WeatherEventOverlayCard extends HTMLElement {
     return cfg.event || "off";
   }
 
+  _resolveEffectiveConfig() {
+    const cfg = this._config || {};
+    if (cfg.event === "weather_auto" && cfg.weather_intensity_auto && cfg.weather_entity && this._hass) {
+      const entityState = this._hass.states?.[cfg.weather_entity];
+      const level = getIntensityFromWeatherEntity(entityState);
+      if (level) {
+        return { ...cfg, count_preset: level, opacity_preset: level };
+      }
+    }
+    return cfg;
+  }
+
   getCardSize() { return 0; }
 
   static getStubConfig() {
@@ -652,17 +692,36 @@ class WeatherEventOverlayCard extends HTMLElement {
     return document.createElement("weather-event-overlay-card-editor");
   }
 
+  _updateSnowAccumulation(event) {
+    if (event && event.includes("snow")) {
+      if (!this._snowTimer) {
+        this._snowTimer = setInterval(() => {
+          this._snowLevel = Math.min(100, this._snowLevel + 1);
+          this._render();
+        }, 15000);
+      }
+    } else {
+      if (this._snowTimer) {
+        clearInterval(this._snowTimer);
+        this._snowTimer = null;
+      }
+      this._snowLevel = 0;
+    }
+  }
+
   _render() {
     if (!this._config) return;
     const event = this._resolveEvent();
     const baseStyle = `:host { display: block; position: absolute; top: 0; left: 0; width: 0; height: 0; overflow: visible; pointer-events: none; background: none !important; }`;
+
+    this._updateSnowAccumulation(event);
 
     if (!event || event === "off") {
       this.shadowRoot.innerHTML = `<style>${baseStyle}</style>`;
       return;
     }
 
-    // Unterstützung für mehrere Effekte (z.B. "lightning, rain" oder "snow, rain")
+    const effectiveCfg = this._resolveEffectiveConfig();
     const effectList = event.split(",").map((e) => e.trim());
     let combinedCss = baseStyle;
     let combinedHtml = "";
@@ -670,7 +729,9 @@ class WeatherEventOverlayCard extends HTMLElement {
     effectList.forEach((eff) => {
       const renderer = RENDERERS[eff];
       if (renderer) {
-        const { css, html } = renderer(this._config, this._hass);
+        const singleCfg = { ...effectiveCfg };
+        if (eff === "snow") singleCfg._snowLevel = this._snowLevel;
+        const { css, html } = renderer(singleCfg, this._hass);
         combinedCss += css;
         combinedHtml += html;
       }
@@ -698,6 +759,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
       color_mode: "auto",
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
       weather_entity: "",
+      weather_intensity_auto: false,
       ...config,
     };
     if (this._suppressNextRender) {
@@ -709,10 +771,15 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
 
   set hass(hass) {
     const oldKey = this._weatherEntityListKey || "";
+    const weatherEntity = this._config?.weather_entity;
+    const precipVal = (weatherEntity && hass?.states?.[weatherEntity]) 
+      ? hass.states[weatherEntity].attributes?.precipitation 
+      : undefined;
+
     const newEntities = hass && hass.states
       ? Object.keys(hass.states).filter((eid) => eid.startsWith("weather."))
       : [];
-    const newKey = newEntities.sort().join(",");
+    const newKey = `${newEntities.sort().join(",")}_precip_${precipVal}`;
     this._hass = hass;
 
     if (newKey !== oldKey) {
@@ -733,6 +800,43 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
       </div>
       ${hintHtml}
     </div>`;
+  }
+
+  _renderIntensityStatus() {
+    const c = this._config;
+    if (!c.weather_intensity_auto) return "";
+
+    if (!c.weather_entity || !this._hass || !this._hass.states[c.weather_entity]) {
+      return `
+        <div style="margin: 8px 0; padding: 10px; border-radius: 6px; background: rgba(255,152,0,0.15); border: 1px solid rgba(255,152,0,0.4); color: var(--primary-text-color, #222); font-size: 12px;">
+          ⚠️ <b>Keine Wetter-Entity gewählt</b><br/>
+          Es werden die manuellen Werte (unten) als Rückfallebene verwendet.
+        </div>
+      `;
+    }
+
+    const entity = this._hass.states[c.weather_entity];
+    const precip = entity.attributes ? entity.attributes.precipitation : undefined;
+
+    if (typeof precip === "number" && !Number.isNaN(precip)) {
+      const level = getIntensityFromWeatherEntity(entity);
+      const levelNames = { low: "Wenig (low)", medium: "Mittel (medium)", high: "Stark (high)" };
+      return `
+        <div style="margin: 8px 0; padding: 10px; border-radius: 6px; background: rgba(76,175,80,0.15); border: 1px solid rgba(76,175,80,0.4); color: var(--primary-text-color, #222); font-size: 12px;">
+          🟢 <b>Daten werden erfolgreich empfangen!</b><br/>
+          • Aktueller Niederschlag: <b>${precip} mm</b><br/>
+          • Berechnete Intensität: <b>${levelNames[level] || level}</b>
+        </div>
+      `;
+    } else {
+      return `
+        <div style="margin: 8px 0; padding: 10px; border-radius: 6px; background: rgba(244,67,54,0.15); border: 1px solid rgba(244,67,54,0.4); color: var(--primary-text-color, #222); font-size: 12px;">
+          🔴 <b>Kein 'precipitation'-Attribut vorhanden!</b><br/>
+          Deine Wetter-Entity <i>${c.weather_entity}</i> liefert kein <code>precipitation</code>-Attribut.<br/>
+          ➜ Es werden stattdessen deine <b>manuell eingestellten Werte</b> unten genutzt.
+        </div>
+      `;
+    }
   }
 
   _render() {
@@ -782,7 +886,16 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             : this._row("Wetter-Sensor", `<input id="weather_entity" type="text" placeholder="weather.home" value="${c.weather_entity || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`, "Keine weather-Entity in HA gefunden - trag die Entity-ID hier manuell ein, z. B. weather.home.")
         ) : ""}
 
-        ${caps.count ? this._row("Anzahl / Frequenz", `
+        ${isWeatherAuto ? this._row("🌧️ Intensität aus Wetterdaten", `
+          <select id="weather_intensity_auto" style="width:100%; padding:6px;">
+            <option value="off" ${!c.weather_intensity_auto ? "selected" : ""}>Aus (Anzahl/Deckkraft manuell unten)</option>
+            <option value="on" ${c.weather_intensity_auto ? "selected" : ""}>An (aus Niederschlagsmenge, falls verfügbar)</option>
+          </select>
+        `, "Manche Wetter-Integrationen liefern eine Regen-/Schneemenge. Ist die da, übersteuert sie Anzahl/Deckkraft automatisch. Fehlt sie, greift die manuelle Einstellung unten als Rückfallebene.") : ""}
+
+        ${isWeatherAuto ? this._renderIntensityStatus() : ""}
+
+        ${caps.count && !(isWeatherAuto && c.weather_intensity_auto) ? this._row("Anzahl / Frequenz", `
           <select id="count_preset" style="width:100%; padding:6px;">
             <option value="low" ${c.count_preset === "low" ? "selected" : ""}>🔹 Wenig / Selten</option>
             <option value="medium" ${c.count_preset === "medium" ? "selected" : ""}>🔷 Mittel</option>
@@ -793,7 +906,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
           : "Wie viele Partikel gleichzeitig zu sehen sind."
         ) : ""}
 
-        ${caps.opacity ? this._row("Deckkraft / Helligkeit", `
+        ${caps.opacity && !(isWeatherAuto && c.weather_intensity_auto) ? this._row("Deckkraft / Helligkeit", `
           <select id="opacity_preset" style="width:100%; padding:6px;">
             <option value="low" ${c.opacity_preset === "low" ? "selected" : ""}>👻 Zart (30%)</option>
             <option value="medium" ${c.opacity_preset === "medium" ? "selected" : ""}>👁️ Dezent (60%)</option>
@@ -825,7 +938,12 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
 
     const weatherEntitySel = this.querySelector("#weather_entity");
     if (weatherEntitySel) {
-      weatherEntitySel.addEventListener("change", (e) => this._update("weather_entity", e.target.value.trim(), false));
+      weatherEntitySel.addEventListener("change", (e) => this._update("weather_entity", e.target.value.trim(), true));
+    }
+
+    const weatherIntensitySel = this.querySelector("#weather_intensity_auto");
+    if (weatherIntensitySel) {
+      weatherIntensitySel.addEventListener("change", (e) => this._update("weather_intensity_auto", e.target.value === "on", true));
     }
 
     const countSel = this.querySelector("#count_preset");
