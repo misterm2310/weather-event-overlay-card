@@ -747,10 +747,23 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
   }
 
   set hass(hass) {
+    // Verbesserung (Bugfix): vorher wurde bei JEDEM Home-Assistant-Update
+    // (mehrmals pro Sekunde) komplett neu gerendert - dadurch klappte ein
+    // gerade geöffnetes Dropdown sofort wieder zu, bevor man auswählen
+    // konnte. Jetzt wird nur neu gerendert, wenn sich die Liste der
+    // verfügbaren weather.*-Entities tatsächlich verändert hat (z. B. beim
+    // allerersten Laden) - normale State-Updates lösen kein Re-Render aus.
+    const oldKey = this._weatherEntityListKey || "";
+    const newEntities = hass && hass.states
+      ? Object.keys(hass.states).filter((eid) => eid.startsWith("weather."))
+      : [];
+    const newKey = newEntities.sort().join(",");
     this._hass = hass;
-    // Neu eintreffende weather-Entities sollen im Dropdown auftauchen,
-    // ohne dass man den Editor neu öffnen muss.
-    this._render();
+
+    if (newKey !== oldKey) {
+      this._weatherEntityListKey = newKey;
+      this._render();
+    }
   }
   connectedCallback() { this._render(); }
 
