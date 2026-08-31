@@ -11,6 +11,7 @@ Die Karte rendert sich **ohne sichtbaren Rahmen oder Platzbedarf** direkt als tr
 * **Visueller GUI-Editor:** Vollständig über den Lovelace-Editor konfigurierbar – kein manuelles YAML notwendig (`getConfigElement()`).
 * **Automatische Wetter-Anpassung:** Erkennt den Zustand deiner `weather.*` Entität (Regen, Schnee, Hagel, Blitz, Nebel, Sturm) und schaltet die passenden Effekte automatisch.
 * **Manuelle Event-Steuerung:** Schalte spezifische Effekte für Partys, Feiertage oder Dekorationen dauerhaft ein.
+* **Kombinierbar:** Mehrere Effekte lassen sich ganz einfach per Komma verknüpfen (z. B. `"snow, rain"`).
 * **Automatische Theme-Erkennung:** Unterstützt Hell- und Dunkelmodus mit dynamischer Farbanpassung (`isDarkModeActive`).
 * **Performance-optimiert:** Effekte werden automatisch pausiert, wenn der Browser-Tab nicht aktiv ist (`visibilitychange`).
 
@@ -47,7 +48,7 @@ Die Karte rendert sich **ohne sichtbaren Rahmen oder Platzbedarf** direkt als tr
    * Klicke auf **Ressource hinzufügen**.
    * **URL:** `/local/weather-event-overlay-card.js`
    * **Typ:** `JavaScript-Modul`
-4. Lade das Dashboard neu.
+4. Lade das Dashboard neu (Browser-Cache ggf. leeren).
 
 ---
 
@@ -69,6 +70,7 @@ Die Karte rendert sich **ohne sichtbaren Rahmen oder Platzbedarf** direkt als tr
 Füge die Karte einfach an einer beliebigen Stelle in deinem Dashboard ein. Sie benötigt keinen Platz im Raster.
 
 ### Beispiel 1: Automatischer Wettermodus
+Passt den Effekt vollautomatisch an den aktuellen Zustand deiner Wetter-Entität an.
 
 ```yaml
 type: custom:weather-event-overlay-card
