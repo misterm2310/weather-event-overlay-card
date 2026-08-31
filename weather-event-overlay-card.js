@@ -252,7 +252,7 @@ const FLAKES_DATA = Array.from({ length: 50 }, (_, i) => ({
 /* ============================ RENDER-FUNKTIONEN ============================ */
 
 function renderRain(cfg, hass) {
-  const color = resolveDynamicColor(cfg.color, hass, "#1e3a8a", "#a0c4ff");
+  const color = resolveDynamicColor(cfg.color, hass, "#1e3a8a", "#60a5fa");
   const count = getParticleCount(cfg.count_preset || "medium", "rain");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const drops = spreadSample(DROPS, count);
@@ -348,7 +348,7 @@ function renderLeaves(cfg, hass) {
 }
 
 function renderClearNight(cfg, hass) {
-  const color = resolveDynamicColor(cfg.color, hass, "#0f172a", "#ffffff");
+  const color = resolveDynamicColor(cfg.color, hass, "#0f172a", "#f8fafc");
   const count = getParticleCount(cfg.count_preset || "medium", "clear_night");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
 
@@ -493,7 +493,7 @@ function renderLightning(cfg, hass) {
 }
 
 function renderFog(cfg, hass) {
-  const color = resolveDynamicColor(cfg.color, hass, "#c7c7c7", "#e8e8e8");
+  const color = resolveDynamicColor(cfg.color, hass, "#71717a", "#e2e8f0");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const count = getParticleCount(cfg.count_preset || "medium", "fog");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
@@ -536,7 +536,7 @@ function renderFog(cfg, hass) {
 }
 
 function renderHail(cfg, hass) {
-  const color = resolveDynamicColor(cfg.color, hass, "#8fa3b3", "#e8eef2");
+  const color = resolveDynamicColor(cfg.color, hass, "#475569", "#cbd5e1");
   const count = getParticleCount(cfg.count_preset || "medium", "hail");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
@@ -568,7 +568,7 @@ function renderHail(cfg, hass) {
 }
 
 function renderStorm(cfg, hass) {
-  const color = resolveDynamicColor(cfg.color, hass, "#556270", "#c8d2da");
+  const color = resolveDynamicColor(cfg.color, hass, "#334155", "#94a3b8");
   const count = getParticleCount(cfg.count_preset || "medium", "storm");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
