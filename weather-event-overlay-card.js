@@ -78,13 +78,6 @@ function getParticleCount(preset, eventType) {
       case "medium": default: return 5;
     }
   }
-  if (eventType === "sun_rays") {
-    switch (preset) {
-      case "low": return 4;
-      case "high": return 10;
-      case "medium": default: return 7;
-    }
-  }
   switch (preset) {
     case "low": return Math.round(max * 0.33);
     case "high": return max;
@@ -486,40 +479,6 @@ function renderFog(cfg, hass) {
   return { css, html: `<div class="fog-container" aria-hidden="true">${fogHTML}</div>` };
 }
 
-function renderSunRays(cfg, hass) {
-  // Sonnenstrahlen: warmes Licht, das im Lightmode kräftiger und im
-  // Darkmode dezenter/kühler wirkt (Auto-Farbe wie bei den anderen Effekten).
-  const color = resolveDynamicColor(cfg.color, hass, "#fff3b0", "#ffe9a8");
-  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
-  const count = getParticleCount(cfg.count_preset || "medium", "sun_rays");
-  const isHigh = (cfg.opacity_preset || "medium") === "high";
-
-  const rays = getCachedRandomSet("sun_rays", count, () => ({
-    left: (Math.random() * 100).toFixed(2),
-    width: Math.floor(Math.random() * 6) + 4,
-    dur: (Math.random() * 4 + 6).toFixed(2),
-    delay: (Math.random() * -6).toFixed(2),
-    baseOp: (Math.random() * 0.2 + 0.15).toFixed(2),
-  }));
-
-  const rayHTML = rays.map((r) => {
-    const op = isHigh ? Math.max(r.baseOp, 0.35) : (r.baseOp * opacity);
-    return `<div class="sun-ray" style="left:${r.left}vw; width:${r.width}px; animation-duration:${r.dur}s; animation-delay:${r.delay}s; opacity:${op.toFixed(2)}; background:linear-gradient(180deg, ${color} 0%, transparent 85%);"></div>`;
-  }).join("\n");
-
-  const css = `
-    ${overlayBaseCss("sun-rays-container")}
-    .sun-ray {
-      position: absolute; top: -10%; height: 130vh;
-      transform: rotate(12deg); transform-origin: top center;
-      animation: sun-ray-pulse ease-in-out infinite alternate;
-      will-change: opacity;
-    }
-    @keyframes sun-ray-pulse { 0% { opacity: 0.4; } 100% { opacity: 1; } }
-  `;
-  return { css, html: `<div class="sun-rays-container" aria-hidden="true">${rayHTML}</div>` };
-}
-
 function renderHail(cfg, hass) {
   // Hagel: wie Regen, aber härtere, kleinere, schnellere Punkte statt Streifen.
   const color = resolveDynamicColor(cfg.color, hass, "#8fa3b3", "#e8eef2");
@@ -552,44 +511,6 @@ function renderHail(cfg, hass) {
     }
   `;
   return { css, html: `<div class="hail" aria-hidden="true">${hailHTML}</div>` };
-}
-
-function renderRainbow(cfg, hass) {
-  // Regenbogen: kein Dauer-Loop wie bei den anderen Effekten, sondern ein
-  // sanftes einmaliges Einblenden plus leichtes Auf-und-Ab-Schimmern.
-  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
-  const isHigh = (cfg.opacity_preset || "medium") === "high";
-  const finalOpacity = isHigh ? 0.95 : opacity;
-
-  const html = `
-    <div class="rainbow-container" style="opacity:${finalOpacity};" aria-hidden="true">
-      <svg viewBox="0 0 400 200" preserveAspectRatio="xMidYMax slice" class="rainbow-svg">
-        <defs>
-          <linearGradient id="rainbow-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#ff3b3b"/>
-            <stop offset="16%" stop-color="#ff9d3b"/>
-            <stop offset="33%" stop-color="#ffe83b"/>
-            <stop offset="50%" stop-color="#3bff6a"/>
-            <stop offset="66%" stop-color="#3bb8ff"/>
-            <stop offset="83%" stop-color="#5a3bff"/>
-            <stop offset="100%" stop-color="#c33bff"/>
-          </linearGradient>
-        </defs>
-        <path d="M 10 200 A 190 190 0 0 1 390 200" fill="none" stroke="url(#rainbow-grad)" stroke-width="14" stroke-linecap="round" opacity="0.85"/>
-      </svg>
-    </div>
-  `;
-
-  const css = `
-    .rainbow-container {
-      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
-      width: 100vw; height: 45vh; pointer-events: none; z-index: 9999;
-      animation: rainbow-fade-in 3s ease-out forwards;
-    }
-    .rainbow-svg { width: 100%; height: 100%; filter: blur(1px); }
-    @keyframes rainbow-fade-in { 0% { opacity: 0; transform: translateX(-50%) translateY(20px); } 100% { opacity: 1; transform: translateX(-50%) translateY(0); } }
-  `;
-  return { css, html };
 }
 
 function renderStorm(cfg, hass) {
@@ -625,35 +546,6 @@ function renderStorm(cfg, hass) {
   return { css, html: `<div class="storm-container" aria-hidden="true">${gustHTML}</div>` };
 }
 
-function renderHeatHaze(cfg, hass) {
-  // Hitzeflimmern: ein leicht verzerrender "Flimmer"-Streifen am unteren
-  // Bildrand, simuliert per SVG feTurbulence + feDisplacementMap.
-  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
-  const isHigh = (cfg.opacity_preset || "medium") === "high";
-  const finalOpacity = isHigh ? 0.9 : opacity;
-
-  const html = `
-    <svg width="0" height="0" style="position:absolute;" aria-hidden="true">
-      <filter id="heat-haze-filter">
-        <feTurbulence type="fractalNoise" baseFrequency="0.01 0.04" numOctaves="2" seed="7" result="turb">
-          <animate attributeName="baseFrequency" values="0.01 0.04;0.02 0.07;0.01 0.04" dur="5s" repeatCount="indefinite" />
-        </feTurbulence>
-        <feDisplacementMap in="SourceGraphic" in2="turb" scale="14" xChannelSelector="R" yChannelSelector="G" />
-      </filter>
-    </svg>
-    <div class="heat-haze-layer" style="opacity:${finalOpacity};" aria-hidden="true"></div>
-  `;
-
-  const css = `
-    .heat-haze-layer {
-      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
-      width: 100vw; height: 35vh; pointer-events: none; z-index: 9999;
-      background: linear-gradient(0deg, rgba(255,220,150,0.35) 0%, transparent 100%);
-      filter: url(#heat-haze-filter);
-    }
-  `;
-  return { css, html };
-}
 
 const RENDERERS = {
   rain: renderRain,
@@ -664,11 +556,8 @@ const RENDERERS = {
   shooting_stars: renderShootingStars,
   lightning: renderLightning,
   fog: renderFog,
-  sun_rays: renderSunRays,
   hail: renderHail,
-  rainbow: renderRainbow,
   storm: renderStorm,
-  heat_haze: renderHeatHaze,
 };
 
 /* ============================== HAUPT-KARTE ============================== */
@@ -820,11 +709,8 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="shooting_stars" ${c.event === "shooting_stars" ? "selected" : ""}>🌠 Sternschnuppen</option>
             <option value="lightning" ${c.event === "lightning" ? "selected" : ""}>⚡ Blitze (Gewitter)</option>
             <option value="fog" ${c.event === "fog" ? "selected" : ""}>🌫️ Nebel</option>
-            <option value="sun_rays" ${c.event === "sun_rays" ? "selected" : ""}>☀️ Sonnenstrahlen</option>
             <option value="hail" ${c.event === "hail" ? "selected" : ""}>🧊 Hagel</option>
-            <option value="rainbow" ${c.event === "rainbow" ? "selected" : ""}>🌈 Regenbogen</option>
             <option value="storm" ${c.event === "storm" ? "selected" : ""}>💨 Sturm/Windböen</option>
-            <option value="heat_haze" ${c.event === "heat_haze" ? "selected" : ""}>🥵 Hitzeflimmern</option>
           </select>
         `)}
 
