@@ -540,79 +540,83 @@ function renderStorm(cfg, hass) {
   return { css, html: `<div class="storm-container" aria-hidden="true">${gustHTML}</div>` };
 }
 
-function renderSpider(cfg, hass) {
+function renderFly(cfg, hass) {
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
 
   const css = `
-    .spider-container {
+    .fly-container {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       pointer-events: none; z-index: 9999; overflow: hidden;
     }
-    .spider-web-thread {
-      position: absolute; width: 1px; background: rgba(255, 255, 255, 0.4);
-      top: 0; left: 50%; transform: translateX(-50%); height: 0;
-      animation: thread-length 12s ease-in-out infinite;
-    }
-    .spider-box {
-      position: absolute; top: 10vh; left: 20vw; width: 32px; height: 32px;
-      animation: spider-walk 25s ease-in-out infinite;
+    .fly-box {
+      position: absolute; top: 20vh; left: 10vw; width: 28px; height: 28px;
+      animation: fly-around 18s ease-in-out infinite;
       will-change: transform, top, left;
     }
-    .spider-svg {
-      width: 100%; height: 100%; fill: #111111;
-      filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.5));
+    .fly-svg {
+      width: 100%; height: 100%;
+      filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.4));
+    }
+    .fly-wing-left {
+      transform-origin: 18px 15px;
+      animation: wing-buzz 0.08s infinite alternate;
+    }
+    .fly-wing-right {
+      transform-origin: 10px 15px;
+      animation: wing-buzz 0.08s infinite alternate-reverse;
     }
 
-    /* Animation für das Krabbeln und Abseilen */
-    @keyframes spider-walk {
-      0%   { top: 5vh;  left: 10vw; transform: rotate(90deg); }
-      20%  { top: 5vh;  left: 70vw; transform: rotate(90deg); }
-      25%  { top: 5vh;  left: 70vw; transform: rotate(180deg); }
-      /* Abseilen */
-      35%  { top: 40vh; left: 70vw; transform: rotate(180deg); }
-      45%  { top: 40vh; left: 70vw; transform: rotate(0deg); }
-      /* Hochklettern */
-      55%  { top: 5vh;  left: 70vw; transform: rotate(0deg); }
-      60%  { top: 5vh;  left: 70vw; transform: rotate(270deg); }
-      80%  { top: 5vh;  left: 20vw; transform: rotate(270deg); }
-      85%  { top: 5vh;  left: 20vw; transform: rotate(180deg); }
-      95%  { top: 30vh; left: 20vw; transform: rotate(180deg); }
-      100% { top: 5vh;  left: 10vw; transform: rotate(0deg); }
+    /* Schnelles Flügelbrummen */
+    @keyframes wing-buzz {
+      0%   { transform: scaleX(1) scaleY(1); opacity: 0.9; }
+      100% { transform: scaleX(0.4) scaleY(1.2); opacity: 0.4; }
     }
 
-    @keyframes thread-length {
-      0%, 25%, 60%, 100% { height: 0; }
-      35%, 55% { height: 35vh; }
+    /* Verrückter Flugweg quer über das Dashboard mit Pausen zum Krabbeln */
+    @keyframes fly-around {
+      0%   { top: 15vh; left: 10vw; transform: rotate(45deg); }
+      15%  { top: 60vh; left: 25vw; transform: rotate(160deg); }
+      20%  { top: 60vh; left: 25vw; transform: rotate(180deg); } /* Pause / Sitzen */
+      25%  { top: 61vh; left: 26vw; transform: rotate(90deg); }  /* Kurzes Krabbeln */
+      35%  { top: 80vh; left: 70vw; transform: rotate(110deg); }
+      50%  { top: 20vh; left: 85vw; transform: rotate(-45deg); }
+      55%  { top: 20vh; left: 85vw; transform: rotate(-20deg); } /* Pause / Sitzen */
+      70%  { top: 10vh; left: 40vw; transform: rotate(-135deg); }
+      85%  { top: 45vh; left: 15vw; transform: rotate(200deg); }
+      100% { top: 15vh; left: 10vw; transform: rotate(45deg); }
     }
   `;
 
-  const spiderSvg = `
-    <svg class="spider-svg" viewBox="0 0 100 100">
-      <!-- Faden-Halterung -->
-      <line x1="50" y1="0" x2="50" y2="35" stroke="rgba(255,255,255,0.5)" stroke-width="2"/>
-      <!-- Beine links -->
-      <path d="M 40 45 Q 15 20 5 35" stroke="#111" stroke-width="5" fill="none" stroke-linecap="round"/>
-      <path d="M 40 50 Q 10 45 0 55" stroke="#111" stroke-width="5" fill="none" stroke-linecap="round"/>
-      <path d="M 40 55 Q 12 70 5 80" stroke="#111" stroke-width="5" fill="none" stroke-linecap="round"/>
-      <path d="M 40 60 Q 20 85 15 95" stroke="#111" stroke-width="5" fill="none" stroke-linecap="round"/>
-      <!-- Beine rechts -->
-      <path d="M 60 45 Q 85 20 95 35" stroke="#111" stroke-width="5" fill="none" stroke-linecap="round"/>
-      <path d="M 60 50 Q 90 45 100 55" stroke="#111" stroke-width="5" fill="none" stroke-linecap="round"/>
-      <path d="M 60 55 Q 88 70 95 80" stroke="#111" stroke-width="5" fill="none" stroke-linecap="round"/>
-      <path d="M 60 60 Q 80 85 85 95" stroke="#111" stroke-width="5" fill="none" stroke-linecap="round"/>
-      <!-- Körper & Kopf -->
-      <circle cx="50" cy="40" r="10" fill="#222"/>
-      <circle cx="50" cy="62" r="16" fill="#111"/>
-      <!-- Augen -->
-      <circle cx="46" cy="35" r="2" fill="#ff0000"/>
-      <circle cx="54" cy="35" r="2" fill="#ff0000"/>
+  const flySvg = `
+    <svg class="fly-svg" viewBox="0 0 100 100">
+      <!-- Beine -->
+      <path d="M 30 40 L 10 25 M 30 50 L 5 50 M 30 60 L 10 75" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/>
+      <path d="M 70 40 L 90 25 M 70 50 L 95 50 M 70 60 L 90 75" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/>
+      
+      <!-- Flügel links -->
+      <ellipse class="fly-wing-left" cx="25" cy="25" rx="18" ry="28" fill="rgba(200, 230, 255, 0.65)" stroke="rgba(255,255,255,0.8)" stroke-width="2" transform="rotate(-30 25 25)"/>
+      <!-- Flügel rechts -->
+      <ellipse class="fly-wing-right" cx="75" cy="25" rx="18" ry="28" fill="rgba(200, 230, 255, 0.65)" stroke="rgba(255,255,255,0.8)" stroke-width="2" transform="rotate(30 75 25)"/>
+      
+      <!-- Körper & Hintern -->
+      <ellipse cx="50" cy="65" rx="20" ry="26" fill="#111111"/>
+      <!-- Brust -->
+      <circle cx="50" cy="42" r="16" fill="#2a2a2a"/>
+      <!-- Kopf -->
+      <circle cx="50" cy="26" r="11" fill="#111111"/>
+      
+      <!-- Riesige Fliegenaugen (Rot) -->
+      <circle cx="41" cy="22" r="7" fill="#cc0000"/>
+      <circle cx="59" cy="22" r="7" fill="#cc0000"/>
+      <circle cx="43" cy="20" r="2" fill="#ffffff"/>
+      <circle cx="61" cy="20" r="2" fill="#ffffff"/>
     </svg>
   `;
 
   const html = `
-    <div class="spider-container" style="opacity:${opacity};" aria-hidden="true">
-      <div class="spider-box">
-        ${spiderSvg}
+    <div class="fly-container" style="opacity:${opacity};" aria-hidden="true">
+      <div class="fly-box">
+        ${flySvg}
       </div>
     </div>
   `;
@@ -631,7 +635,7 @@ const RENDERERS = {
   fog: renderFog,
   hail: renderHail,
   storm: renderStorm,
-  spider: renderSpider,
+  fly: renderFly,
 };
 
 /* ============================== HAUPT-KARTE ============================== */
@@ -843,7 +847,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="shooting_stars" ${c.event === "shooting_stars" ? "selected" : ""}>🌠 Sternschnuppen</option>
             <option value="balloons" ${c.event === "balloons" ? "selected" : ""}>🎈 Luftballons</option>
             <option value="lights" ${c.event === "lights" ? "selected" : ""}>💡 Lichterkette</option>
-            <option value="spider" ${c.event === "spider" ? "selected" : ""}>🕷️ Haustier-Spinne</option>
+            <option value="fly" ${c.event === "fly" ? "selected" : ""}>🪰 Haustier-Fliege</option>
           </select>
         `, isWeatherAuto
           ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft: 🌧️ Regen, ❄️ Schnee, 🧊 Hagel, ⚡ Blitz, 🌫️ Nebel oder 💨 Sturm - bei Sonne/Wolken/klarem Himmel läuft kein Effekt."
