@@ -71,6 +71,13 @@ function getParticleCount(preset, eventType) {
       case "medium": default: return 4;
     }
   }
+  if (eventType === "fog") {
+    switch (preset) {
+      case "low": return 3;
+      case "high": return 8;
+      case "medium": default: return 5;
+    }
+  }
   switch (preset) {
     case "low": return Math.round(max * 0.33);
     case "high": return max;
@@ -423,6 +430,55 @@ function renderLightning(cfg, hass) {
   return { css, html };
 }
 
+function renderFog(cfg, hass) {
+  // Nebel bekommt genau wie die anderen Effekte eine Auto-Farbe: hell im
+  // Lightmode (dezentes Grauweiß), heller/dichter im Darkmode.
+  const color = resolveDynamicColor(cfg.color, hass, "#c7c7c7", "#e8e8e8");
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const count = getParticleCount(cfg.count_preset || "medium", "fog");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+
+  // Verbesserung (Performance): Positionen/Timing der Schwaden cachen,
+  // damit ein Resize/Theme-Wechsel nicht bei jedem Re-Render neu würfelt.
+  const banks = getCachedRandomSet("fog", count, () => ({
+    top: (Math.random() * 80).toFixed(2),
+    width: Math.floor(Math.random() * 40) + 60,
+    height: Math.floor(Math.random() * 15) + 12,
+    dur: (Math.random() * 20 + 25).toFixed(2),
+    delay: (Math.random() * -20).toFixed(2),
+    baseOp: (Math.random() * 0.3 + 0.3).toFixed(2),
+    reverse: Math.random() > 0.5,
+  }));
+
+  const fogHTML = banks.map((b) => {
+    // Bei "Kräftig" auch hier einen Mindestwert anheben, damit Nebel spürbar
+    // dichter wirkt statt nur gedeckelt zu werden (gleiche Logik wie Regen/Schnee/Laub).
+    const bankOp = isHigh ? Math.max(b.baseOp, 0.7) : (b.baseOp * opacity);
+    const dir = b.reverse ? "fog-drift-reverse" : "fog-drift";
+    return `<div class="fog-bank" style="top:${b.top}vh; width:${b.width}vw; height:${b.height}vh; animation-duration:${b.dur}s; animation-delay:${b.delay}s; animation-name:${dir}; opacity:${bankOp.toFixed(2)}; background:radial-gradient(ellipse at center, ${color} 0%, transparent 70%);"></div>`;
+  }).join("\n");
+
+  const css = `
+    ${overlayBaseCss("fog-container")}
+    .fog-bank {
+      position: absolute;
+      left: -20vw;
+      border-radius: 50%;
+      filter: blur(18px);
+      will-change: transform;
+    }
+    @keyframes fog-drift {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(140vw); }
+    }
+    @keyframes fog-drift-reverse {
+      0%   { transform: translateX(140vw); }
+      100% { transform: translateX(0); }
+    }
+  `;
+  return { css, html: `<div class="fog-container" aria-hidden="true">${fogHTML}</div>` };
+}
+
 const RENDERERS = {
   rain: renderRain,
   snow: renderSnow,
@@ -431,6 +487,7 @@ const RENDERERS = {
   lights: renderLights,
   shooting_stars: renderShootingStars,
   lightning: renderLightning,
+  fog: renderFog,
 };
 
 /* ============================== HAUPT-KARTE ============================== */
@@ -581,6 +638,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="lights" ${c.event === "lights" ? "selected" : ""}>💡 Lichterkette</option>
             <option value="shooting_stars" ${c.event === "shooting_stars" ? "selected" : ""}>🌠 Sternschnuppen</option>
             <option value="lightning" ${c.event === "lightning" ? "selected" : ""}>⚡ Blitze (Gewitter)</option>
+            <option value="fog" ${c.event === "fog" ? "selected" : ""}>🌫️ Nebel</option>
           </select>
         `)}
 
