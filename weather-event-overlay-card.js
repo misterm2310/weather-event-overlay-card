@@ -540,6 +540,86 @@ function renderStorm(cfg, hass) {
   return { css, html: `<div class="storm-container" aria-hidden="true">${gustHTML}</div>` };
 }
 
+function renderSpider(cfg, hass) {
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+
+  const css = `
+    .spider-container {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      pointer-events: none; z-index: 9999; overflow: hidden;
+    }
+    .spider-web-thread {
+      position: absolute; width: 1px; background: rgba(255, 255, 255, 0.4);
+      top: 0; left: 50%; transform: translateX(-50%); height: 0;
+      animation: thread-length 12s ease-in-out infinite;
+    }
+    .spider-box {
+      position: absolute; top: 10vh; left: 20vw; width: 32px; height: 32px;
+      animation: spider-walk 25s ease-in-out infinite;
+      will-change: transform, top, left;
+    }
+    .spider-svg {
+      width: 100%; height: 100%; fill: #111111;
+      filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.5));
+    }
+
+    /* Animation für das Krabbeln und Abseilen */
+    @keyframes spider-walk {
+      0%   { top: 5vh;  left: 10vw; transform: rotate(90deg); }
+      20%  { top: 5vh;  left: 70vw; transform: rotate(90deg); }
+      25%  { top: 5vh;  left: 70vw; transform: rotate(180deg); }
+      /* Abseilen */
+      35%  { top: 40vh; left: 70vw; transform: rotate(180deg); }
+      45%  { top: 40vh; left: 70vw; transform: rotate(0deg); }
+      /* Hochklettern */
+      55%  { top: 5vh;  left: 70vw; transform: rotate(0deg); }
+      60%  { top: 5vh;  left: 70vw; transform: rotate(270deg); }
+      80%  { top: 5vh;  left: 20vw; transform: rotate(270deg); }
+      85%  { top: 5vh;  left: 20vw; transform: rotate(180deg); }
+      95%  { top: 30vh; left: 20vw; transform: rotate(180deg); }
+      100% { top: 5vh;  left: 10vw; transform: rotate(0deg); }
+    }
+
+    @keyframes thread-length {
+      0%, 25%, 60%, 100% { height: 0; }
+      35%, 55% { height: 35vh; }
+    }
+  `;
+
+  const spiderSvg = `
+    <svg class="spider-svg" viewBox="0 0 100 100">
+      <!-- Faden-Halterung -->
+      <line x1="50" y1="0" x2="50" y2="35" stroke="rgba(255,255,255,0.5)" stroke-width="2"/>
+      <!-- Beine links -->
+      <path d="M 40 45 Q 15 20 5 35" stroke="#111" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M 40 50 Q 10 45 0 55" stroke="#111" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M 40 55 Q 12 70 5 80" stroke="#111" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M 40 60 Q 20 85 15 95" stroke="#111" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <!-- Beine rechts -->
+      <path d="M 60 45 Q 85 20 95 35" stroke="#111" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M 60 50 Q 90 45 100 55" stroke="#111" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M 60 55 Q 88 70 95 80" stroke="#111" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M 60 60 Q 80 85 85 95" stroke="#111" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <!-- Körper & Kopf -->
+      <circle cx="50" cy="40" r="10" fill="#222"/>
+      <circle cx="50" cy="62" r="16" fill="#111"/>
+      <!-- Augen -->
+      <circle cx="46" cy="35" r="2" fill="#ff0000"/>
+      <circle cx="54" cy="35" r="2" fill="#ff0000"/>
+    </svg>
+  `;
+
+  const html = `
+    <div class="spider-container" style="opacity:${opacity};" aria-hidden="true">
+      <div class="spider-box">
+        ${spiderSvg}
+      </div>
+    </div>
+  `;
+
+  return { css, html };
+}           
+
 const RENDERERS = {
   rain: renderRain,
   snow: renderSnow,
@@ -551,6 +631,7 @@ const RENDERERS = {
   fog: renderFog,
   hail: renderHail,
   storm: renderStorm,
+  spider: renderSpider,
 };
 
 /* ============================== HAUPT-KARTE ============================== */
@@ -762,6 +843,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="shooting_stars" ${c.event === "shooting_stars" ? "selected" : ""}>🌠 Sternschnuppen</option>
             <option value="balloons" ${c.event === "balloons" ? "selected" : ""}>🎈 Luftballons</option>
             <option value="lights" ${c.event === "lights" ? "selected" : ""}>💡 Lichterkette</option>
+            <option value="spider" ${c.event === "spider" ? "selected" : ""}>🕷️ Haustier-Spinne</option>
           </select>
         `, isWeatherAuto
           ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft: 🌧️ Regen, ❄️ Schnee, 🧊 Hagel, ⚡ Blitz, 🌫️ Nebel oder 💨 Sturm - bei Sonne/Wolken/klarem Himmel läuft kein Effekt."
