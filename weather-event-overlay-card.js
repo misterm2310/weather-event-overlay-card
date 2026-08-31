@@ -177,6 +177,43 @@ function getCachedRandomSet(key, count, factory) {
 
 /* ============================ STATISCHE DATEN ============================ */
 
+// Verbesserung (optionale Wetter-Automatik): übersetzt den Zustand einer
+// HA weather-Entity (z. B. weather.home) automatisch in einen Karten-Effekt.
+// Regnet's laut Home Assistant -> Regen an. Kein passender Effekt -> "off".
+const WEATHER_STATE_MAP = {
+  "rainy": "rain",
+  "pouring": "rain",
+  "snowy": "snow",
+  "snowy-rainy": "snow",
+  "hail": "hail",
+  "lightning": "lightning",
+  "lightning-rainy": "lightning",
+  "fog": "fog",
+  "windy": "storm",
+  "windy-variant": "storm",
+};
+
+function mapWeatherStateToEvent(state) {
+  return WEATHER_STATE_MAP[state] || "off";
+}
+
+// Verbesserung (GUI-Editor): Tabelle, welcher Effekt welche Regler
+// tatsächlich benutzt. Der Editor blendet Anzahl/Deckkraft/Farbmodus nur
+// ein, wenn der gewählte Effekt sie auch wirklich verwendet.
+const EVENT_CAPABILITIES = {
+  off: { count: false, opacity: false, color: false },
+  rain: { count: true, opacity: true, color: true },
+  snow: { count: true, opacity: true, color: true },
+  hail: { count: true, opacity: true, color: true },
+  lightning: { count: true, opacity: true, color: false },
+  fog: { count: true, opacity: true, color: true },
+  storm: { count: true, opacity: true, color: true },
+  leaves: { count: true, opacity: true, color: false },
+  shooting_stars: { count: true, opacity: true, color: true },
+  balloons: { count: true, opacity: true, color: false },
+  lights: { count: true, opacity: true, color: false },
+};
+
 const BALLOON_COLORS = ["#FF4B4B", "#FF851B", "#FFDC00", "#2ECC40", "#0074D9", "#B10DC9", "#F012BE"];
 
 const BALLOON_SVG = `
@@ -615,6 +652,8 @@ class WeatherEventOverlayCard extends HTMLElement {
       color: "auto",
       color_mode: "auto",
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
+      weather_automation: false,
+      weather_entity: "",
       ...config,
     };
     this._render();
@@ -622,16 +661,33 @@ class WeatherEventOverlayCard extends HTMLElement {
 
   set hass(hass) {
     const oldTheme = this._hass?.themes?.darkMode;
+    const weatherEntity = this._config?.weather_entity;
+    const oldWeatherState = weatherEntity ? this._hass?.states?.[weatherEntity]?.state : undefined;
     this._hass = hass;
-    
-    if (!this._hasRenderedOnce || (oldTheme !== undefined && oldTheme !== hass?.themes?.darkMode)) {
+    const newWeatherState = weatherEntity ? hass?.states?.[weatherEntity]?.state : undefined;
+
+    if (
+      !this._hasRenderedOnce ||
+      (oldTheme !== undefined && oldTheme !== hass?.themes?.darkMode) ||
+      oldWeatherState !== newWeatherState
+    ) {
       this._render();
       this._hasRenderedOnce = true;
     }
   }
 
+  // Verbesserung (optionale Wetter-Automatik): ist sie aktiv und die
+  // konfigurierte weather-Entity vorhanden, entscheidet ihr aktueller
+  // Zustand über den Effekt statt der manuellen Auswahl im Editor.
   _resolveEvent() {
-    return this._config?.event || "off";
+    const cfg = this._config || {};
+    if (cfg.weather_automation && cfg.weather_entity && this._hass) {
+      const entityState = this._hass.states?.[cfg.weather_entity];
+      if (entityState) {
+        return mapWeatherStateToEvent(entityState.state);
+      }
+    }
+    return cfg.event || "off";
   }
 
   getCardSize() { return 0; }
@@ -674,6 +730,8 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
       color: "auto",
       color_mode: "auto",
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
+      weather_automation: false,
+      weather_entity: "",
       ...config,
     };
     if (this._suppressNextRender) {
@@ -693,8 +751,9 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
   _render() {
     if (!this._config) return;
     const c = this._config;
-    const leafColors = Array.isArray(c.leaf_colors) && c.leaf_colors.length === 3 ? c.leaf_colors : ["#c9a227", "#a83232", "#d9812c"];
     const colorMode = c.color_mode || (c.color === "auto" ? "auto" : "custom");
+    const caps = EVENT_CAPABILITIES[c.event] || { count: false, opacity: false, color: false };
+    const weatherOn = !!c.weather_automation;
 
     this.innerHTML = `
       <div style="padding:8px 16px;">
@@ -703,71 +762,91 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="off" ${c.event === "off" ? "selected" : ""}>Aus</option>
             <option value="rain" ${c.event === "rain" ? "selected" : ""}>🌧️ Regen</option>
             <option value="snow" ${c.event === "snow" ? "selected" : ""}>❄️ Schnee</option>
+            <option value="hail" ${c.event === "hail" ? "selected" : ""}>🧊 Hagel</option>
+            <option value="lightning" ${c.event === "lightning" ? "selected" : ""}>⚡ Blitz</option>
+            <option value="fog" ${c.event === "fog" ? "selected" : ""}>🌫️ Nebel</option>
+            <option value="storm" ${c.event === "storm" ? "selected" : ""}>💨 Sturm</option>
             <option value="leaves" ${c.event === "leaves" ? "selected" : ""}>🍂 Laub</option>
+            <option value="shooting_stars" ${c.event === "shooting_stars" ? "selected" : ""}>🌠 Sternschnuppen</option>
             <option value="balloons" ${c.event === "balloons" ? "selected" : ""}>🎈 Luftballons</option>
             <option value="lights" ${c.event === "lights" ? "selected" : ""}>💡 Lichterkette</option>
-            <option value="shooting_stars" ${c.event === "shooting_stars" ? "selected" : ""}>🌠 Sternschnuppen</option>
-            <option value="lightning" ${c.event === "lightning" ? "selected" : ""}>⚡ Blitze (Gewitter)</option>
-            <option value="fog" ${c.event === "fog" ? "selected" : ""}>🌫️ Nebel</option>
-            <option value="hail" ${c.event === "hail" ? "selected" : ""}>🧊 Hagel</option>
-            <option value="storm" ${c.event === "storm" ? "selected" : ""}>💨 Sturm/Windböen</option>
           </select>
         `)}
 
-        ${this._row("Anzahl / Frequenz", `
+        ${caps.count ? this._row("Anzahl / Frequenz", `
           <select id="count_preset" style="width:100%; padding:6px;">
             <option value="low" ${c.count_preset === "low" ? "selected" : ""}>🔹 Wenig / Selten</option>
             <option value="medium" ${c.count_preset === "medium" ? "selected" : ""}>🔷 Mittel</option>
             <option value="high" ${c.count_preset === "high" ? "selected" : ""}>🔷 Viel / Häufig</option>
           </select>
-        `)}
+        `) : ""}
 
-        ${this._row("Deckkraft / Helligkeit", `
+        ${caps.opacity ? this._row("Deckkraft / Helligkeit", `
           <select id="opacity_preset" style="width:100%; padding:6px;">
             <option value="low" ${c.opacity_preset === "low" ? "selected" : ""}>👻 Zart (30%)</option>
             <option value="medium" ${c.opacity_preset === "medium" ? "selected" : ""}>👁️ Dezent (60%)</option>
             <option value="high" ${c.opacity_preset === "high" ? "selected" : ""}>✨ Kräftig (100%)</option>
           </select>
-        `)}
+        `) : ""}
 
-        ${this._row("Farbmodus", `
+        ${caps.color ? this._row("Farbmodus", `
           <select id="color_mode" style="width:100%; padding:6px;">
             <option value="auto" ${colorMode === "auto" ? "selected" : ""}>🌗 Auto (Hell/Dunkel Modus)</option>
             <option value="custom" ${colorMode === "custom" ? "selected" : ""}>🎨 Manuelle Farbe</option>
           </select>
+        `) : ""}
+
+        ${caps.color && colorMode === "custom" ? `
+        <div id="custom_color_picker">
+          ${this._row("Farbe", `<input id="color" type="color" value="${c.color === "auto" ? "#ffffff" : c.color}" style="width:100%; height:36px;" />`)}
+        </div>` : ""}
+
+        <hr style="border:none; border-top:1px solid var(--divider-color, #444); margin:12px 0;" />
+
+        ${this._row("🌦️ Wetter-Automatik", `
+          <select id="weather_automation" style="width:100%; padding:6px;">
+            <option value="off" ${!weatherOn ? "selected" : ""}>Aus (manuelle Auswahl oben)</option>
+            <option value="on" ${weatherOn ? "selected" : ""}>An (folgt echter weather-Entity)</option>
+          </select>
         `)}
 
-        <div id="custom_color_picker" style="display:${colorMode === "custom" ? "block" : "none"};">
-          ${this._row("Farbe (Regen / Schnee / Sterne)", `<input id="color" type="color" value="${c.color === "auto" ? "#ffffff" : c.color}" style="width:100%; height:36px;" />`)}
-        </div>
-
-        ${this._row("Laubfarbe 1", `<input id="leaf_color_0" type="color" value="${leafColors[0]}" style="width:100%; height:36px;" />`)}
-        ${this._row("Laubfarbe 2", `<input id="leaf_color_1" type="color" value="${leafColors[1]}" style="width:100%; height:36px;" />`)}
-        ${this._row("Laubfarbe 3", `<input id="leaf_color_2" type="color" value="${leafColors[2]}" style="width:100%; height:36px;" />`)}
+        ${weatherOn ? this._row("Wetter-Entity", `<input id="weather_entity" type="text" placeholder="weather.home" value="${c.weather_entity || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`) : ""}
       </div>
     `;
 
     this.querySelector("#event").addEventListener("change", (e) => this._update("event", e.target.value, true));
-    this.querySelector("#count_preset").addEventListener("change", (e) => this._update("count_preset", e.target.value, true));
-    this.querySelector("#opacity_preset").addEventListener("change", (e) => this._update("opacity_preset", e.target.value, true));
 
-    this.querySelector("#color_mode").addEventListener("change", (e) => {
-      const mode = e.target.value;
-      if (mode === "auto") {
-        this._updateConfig({ color_mode: "auto", color: "auto" }, true);
-      } else {
-        this._updateConfig({ color_mode: "custom", color: "#ffffff" }, true);
-      }
-    });
+    const countSel = this.querySelector("#count_preset");
+    if (countSel) countSel.addEventListener("change", (e) => this._update("count_preset", e.target.value, true));
+
+    const opacitySel = this.querySelector("#opacity_preset");
+    if (opacitySel) opacitySel.addEventListener("change", (e) => this._update("opacity_preset", e.target.value, true));
+
+    const colorModeSel = this.querySelector("#color_mode");
+    if (colorModeSel) {
+      colorModeSel.addEventListener("change", (e) => {
+        const mode = e.target.value;
+        if (mode === "auto") {
+          this._updateConfig({ color_mode: "auto", color: "auto" }, true);
+        } else {
+          this._updateConfig({ color_mode: "custom", color: "#ffffff" }, true);
+        }
+      });
+    }
 
     const colorPicker = this.querySelector("#color");
     if (colorPicker) {
       colorPicker.addEventListener("change", (e) => this._update("color", e.target.value, true));
     }
 
-    this.querySelector("#leaf_color_0").addEventListener("change", (e) => this._updateLeafColor(0, e.target.value));
-    this.querySelector("#leaf_color_1").addEventListener("change", (e) => this._updateLeafColor(1, e.target.value));
-    this.querySelector("#leaf_color_2").addEventListener("change", (e) => this._updateLeafColor(2, e.target.value));
+    this.querySelector("#weather_automation").addEventListener("change", (e) => {
+      this._update("weather_automation", e.target.value === "on", true);
+    });
+
+    const weatherEntityInput = this.querySelector("#weather_entity");
+    if (weatherEntityInput) {
+      weatherEntityInput.addEventListener("change", (e) => this._update("weather_entity", e.target.value.trim(), false));
+    }
   }
 
   _update(key, value, rerender) {
@@ -782,14 +861,6 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     this._config = { ...this._config, ...newValues };
     fireEvent(this, "config-changed", { config: this._config });
     if (rerender) this._render();
-  }
-
-  _updateLeafColor(index, value) {
-    this._suppressNextRender = true;
-    const leafColors = Array.isArray(this._config.leaf_colors) ? [...this._config.leaf_colors] : ["#c9a227", "#a83232", "#d9812c"];
-    leafColors[index] = value;
-    this._config = { ...this._config, leaf_colors: leafColors };
-    fireEvent(this, "config-changed", { config: this._config });
   }
 }
 
