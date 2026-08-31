@@ -811,7 +811,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="lights" ${c.event === "lights" ? "selected" : ""}>💡 Lichterkette</option>
           </select>
         `, isWeatherAuto
-          ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft."
+          ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft: 🌧️ Regen, ❄️ Schnee, 🧊 Hagel, ⚡ Blitz, 🌫️ Nebel oder 💨 Sturm - bei Sonne/Wolken/klarem Himmel läuft kein Effekt."
           : "Welcher Effekt manuell dauerhaft angezeigt wird."
         )}
 
