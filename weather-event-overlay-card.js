@@ -1,7 +1,7 @@
 /**
  * weather-event-overlay-card
  * Lovelace Custom Card — kombiniertes Wetter/Event-Overlay
- * (Regen, Schnee, Laub, Luftballons, Lichterkette, Sternschnuppen, Blitze, Spinnweben, Weihnachtsmann) mit visuellem GUI-Editor.
+ * (Regen, Schnee, Laub, Luftballons, Lichterkette, Sternschnuppen, Blitze, Spinnweben, Weihnachtsmann, Sternenhimmel) mit visuellem GUI-Editor.
  */
 
 /* ============================== HELFER ============================== */
@@ -57,6 +57,7 @@ function getParticleCount(preset, eventType) {
   let max = 60;
   if (eventType === "balloons") max = 30;
   if (eventType === "lights") max = 25;
+  if (eventType === "clear_night") max = 50;
   if (eventType === "shooting_stars") {
     switch (preset) {
       case "low": return 3;
@@ -142,12 +143,15 @@ function overlayBaseCss(className, extraProps = "") {
 function sanitizeLeafShape(input) {
   if (typeof input !== "string" || !input.trim()) return null;
   const trimmed = input.trim();
-  const forbidden = /<script|javascript:|on\w+\s*=|<iframe|<object|<embed|xlink:href|href\s*=/i;
+  const forbidden = /<script|javascript:|on\w+\s*=|&lt;iframe|&lt;object|&lt;embed|xlink:href|href\s*=/i;
   if (forbidden.test(trimmed)) return null;
 
-  const allowedTagPattern = /<\/?(path|polygon|circle|line|g|rect)\b[^>]*>/gi;
-  const strippedOfAllowed = trimmed.replace(allowedTagPattern, "");
-  if (strippedOfAllowed.includes("<")) return null;
+  const allowedTagPattern = /&lt;\/?(path|polygon|circle|line|g|rect)\b[^&]*&gt;/gi;
+  // Fallback checks for standard angle brackets if passed raw
+  const rawAllowedTagPattern = /<\/?(path|polygon|circle|line|g|rect)\b[^>]*>/gi;
+  
+  const strippedOfAllowed = trimmed.replace(rawAllowedTagPattern, "").replace(allowedTagPattern, "");
+  if (strippedOfAllowed.includes("<") || strippedOfAllowed.includes(">")) return null;
 
   return trimmed;
 }
@@ -174,6 +178,10 @@ const WEATHER_STATE_MAP = {
   "fog": "fog",
   "windy": "storm",
   "windy-variant": "storm",
+  "clear-night": "clear_night",
+  "sunny": "off",
+  "partlycloudy": "off",
+  "cloudy": "off"
 };
 
 function mapWeatherStateToEvent(state) {
@@ -195,6 +203,7 @@ const EVENT_CAPABILITIES = {
   lights: { count: true, opacity: true, color: false },
   spider_web: { count: false, opacity: true, color: false },
   santa_sleigh: { count: false, opacity: true, color: false },
+  clear_night: { count: true, opacity: true, color: true },
 };
 
 const BALLOON_COLORS = ["#FF4B4B", "#FF851B", "#FFDC00", "#2ECC40", "#0074D9", "#B10DC9", "#F012BE"];
@@ -316,15 +325,63 @@ function renderLeaves(cfg, hass) {
       : (f.op * opacity).toFixed(2);
     const color = gradientColor(leafColors, i / leaves.length);
     const px = `${f.s * 1.6}px`;
-    return `<i class="leaf" style="left:${f.l}vw; width:${px}; height:${px}; animation-duration:${f.dur}s; animation-delay:calc(-20s * ${f.d}); opacity:${op}; color:${color};"><svg viewBox="0 0 100 100" width="100%" height="100%">${leafShape}</svg></i>`;
+    const swayRange = (f.ex * 1.5).toFixed(0);
+    return `<i class="leaf" style="left:${f.l}vw; width:${px}; height:${px}; --sway-range:${swayRange}px; animation-duration:${f.dur}s; animation-delay:calc(-20s * ${f.d}); opacity:${op}; color:${color};"><svg viewBox="0 0 100 100" width="100%" height="100%">${leafShape}</svg></i>`;
   }).join("\n");
 
   const css = `
     ${overlayBaseCss("leaves")}
-    .leaf { position:absolute; top:-10%; animation:leaf-fall linear infinite; will-change: transform; }
-    @keyframes leaf-fall { 0% { transform: translateY(0) rotate(0deg); } 100% { transform: translateY(120vh) rotate(360deg); } }
+    .leaf { 
+      position: absolute; 
+      top: -10%; 
+      animation: leaf-fall linear infinite; 
+      will-change: transform; 
+    }
+    @keyframes leaf-fall { 
+      0%   { transform: translateY(0vh) translateX(0px) rotate(0deg); } 
+      25%  { transform: translateY(30vh) translateX(var(--sway-range)) rotate(90deg); }
+      50%  { transform: translateY(60vh) translateX(calc(var(--sway-range) * -0.7)) rotate(180deg); }
+      75%  { transform: translateY(90vh) translateX(var(--sway-range)) rotate(270deg); }
+      100% { transform: translateY(120vh) translateX(0px) rotate(360deg); } 
+    }
   `;
   return { css, html: `<div class="leaves" aria-hidden="true">${leafHTML}</div>` };
+}
+
+function renderClearNight(cfg, hass) {
+  const color = resolveDynamicColor(cfg.color, hass, "#ffffff", "#ffffff");
+  const count = getParticleCount(cfg.count_preset || "medium", "clear_night");
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+
+  const stars = getCachedRandomSet("clear_night", count, () => ({
+    top: (Math.random() * 95).toFixed(2),
+    left: (Math.random() * 100).toFixed(2),
+    size: Math.floor(Math.random() * 3) + 1.5,
+    dur: (Math.random() * 3 + 2).toFixed(2),
+    delay: (Math.random() * 5).toFixed(2),
+    baseOp: (Math.random() * 0.7 + 0.3).toFixed(2),
+  }));
+
+  const starsHtml = stars.map((s) => {
+    const finalOp = (s.baseOp * opacity).toFixed(2);
+    return `<div class="night-star" style="top:${s.top}vh; left:${s.left}vw; width:${s.size}px; height:${s.size}px; animation-duration:${s.dur}s; animation-delay:${s.delay}s; opacity:${finalOp}; background:${color}; box-shadow: 0 0 ${s.size * 2}px ${color};"></div>`;
+  }).join("\n");
+
+  const html = `<div class="clear-night-container" aria-hidden="true">${starsHtml}</div>`;
+  const css = `
+    ${overlayBaseCss("clear-night-container")}
+    .night-star {
+      position: absolute;
+      border-radius: 50%;
+      animation: star-twinkle ease-in-out infinite alternate;
+      will-change: opacity, transform;
+    }
+    @keyframes star-twinkle {
+      0%   { opacity: 0.2; transform: scale(0.8); }
+      100% { opacity: 1; transform: scale(1.2); }
+    }
+  `;
+  return { css, html };
 }
 
 function renderBalloons(cfg, hass) {
@@ -652,6 +709,7 @@ const RENDERERS = {
   storm: renderStorm,
   spider_web: renderSpiderWeb,
   santa_sleigh: renderSantaSleigh,
+  clear_night: renderClearNight,
 };
 
 /* ============================== HAUPT-KARTE ============================== */
@@ -858,7 +916,8 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="lightning" ${c.event === "lightning" ? "selected" : ""}>⚡ Blitz</option>
             <option value="fog" ${c.event === "fog" ? "selected" : ""}>🌫️ Nebel</option>
             <option value="storm" ${c.event === "storm" ? "selected" : ""}>💨 Sturm</option>
-            <option value="leaves" ${c.event === "leaves" ? "selected" : ""}>🍂 Laub</option>
+            <option value="leaves" ${c.event === "leaves" ? "selected" : ""}>🍂 Laub (mit Wind-Taumeln)</option>
+            <option value="clear_night" ${c.event === "clear_night" ? "selected" : ""}>🌌 Sternenhimmel</option>
             <option value="shooting_stars" ${c.event === "shooting_stars" ? "selected" : ""}>🌠 Sternschnuppen</option>
             <option value="balloons" ${c.event === "balloons" ? "selected" : ""}>🎈 Luftballons</option>
             <option value="lights" ${c.event === "lights" ? "selected" : ""}>💡 Lichterkette</option>
@@ -866,7 +925,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="santa_sleigh" ${c.event === "santa_sleigh" ? "selected" : ""}>🎅 Weihnachtsmann-Schlitten</option>
           </select>
         `, isWeatherAuto
-          ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft: 🌧️ Regen, ❄️ Schnee, 🧊 Hagel, ⚡ Blitz, 🌫️ Nebel oder 💨 Sturm - bei Sonne/Wolken/klarem Himmel läuft kein Effekt."
+          ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity, welcher Effekt läuft (inkl. Regen, Schnee, Nebel, Sturm, Sternenhimmel bei 'clear-night')."
           : "Welcher Effekt manuell dauerhaft angezeigt wird."
         )}
 
@@ -880,8 +939,8 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
                     return `<option value="${eid}" ${c.weather_entity === eid ? "selected" : ""}>${friendly}</option>`;
                   }).join("")}
                 </select>
-              `, "Diese Wetter-Entity liefert den aktuellen Zustand (regnet, schneit, ...), nach dem sich der Effekt oben richtet.")
-            : this._row("Wetter-Sensor", `<input id="weather_entity" type="text" placeholder="weather.home" value="${c.weather_entity || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`, "Keine weather-Entity in HA gefunden - trag die Entity-ID hier manuell ein, z. B. weather.home.")
+              `, "Diese Wetter-Entity liefert den aktuellen Zustand, nach dem sich der Effekt richtet.")
+            : this._row("Wetter-Sensor", `<input id="weather_entity" type="text" placeholder="weather.home" value="${c.weather_entity || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`, "Trag deine weather-Entity-ID hier ein, z. B. weather.home.")
         ) : ""}
 
         ${caps.count ? this._row("Anzahl / Frequenz", `
@@ -890,10 +949,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="medium" ${c.count_preset === "medium" ? "selected" : ""}>🔷 Mittel</option>
             <option value="high" ${c.count_preset === "high" ? "selected" : ""}>🔷 Viel / Häufig</option>
           </select>
-        `, isWeatherAuto
-          ? "⚠️ Ein Wert für ALLE automatisch erkannten Effekte gemeinsam (Regen, Schnee, Hagel, Blitz, Nebel, Sturm) - nicht einzeln pro Effekt einstellbar."
-          : "Wie viele Partikel gleichzeitig zu sehen sind."
-        ) : ""}
+        `, "Wie viele Partikel oder Sterne gleichzeitig zu sehen sind.") : ""}
 
         ${caps.opacity ? this._row("Deckkraft / Helligkeit", `
           <select id="opacity_preset" style="width:100%; padding:6px;">
@@ -901,20 +957,14 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="medium" ${c.opacity_preset === "medium" ? "selected" : ""}>👁️ Dezent (60%)</option>
             <option value="high" ${c.opacity_preset === "high" ? "selected" : ""}>✨ Kräftig (100%)</option>
           </select>
-        `, isWeatherAuto
-          ? "⚠️ Ebenfalls EIN Wert für ALLE automatisch erkannten Effekte gemeinsam."
-          : "Wie stark/deutlich der Effekt sichtbar ist."
-        ) : ""}
+        `, "Wie stark/deutlich der Effekt sichtbar ist.") : ""}
 
         ${caps.color ? this._row("Farbmodus", `
           <select id="color_mode" style="width:100%; padding:6px;">
             <option value="auto" ${colorMode === "auto" ? "selected" : ""}>🌗 Auto (Hell/Dunkel Modus)</option>
             <option value="custom" ${colorMode === "custom" ? "selected" : ""}>🎨 Manuelle Farbe</option>
           </select>
-        `, isWeatherAuto
-          ? "Gilt nur, wenn gerade Regen, Schnee, Hagel, Nebel oder Sturm aktiv ist (nicht bei Blitz - der hat immer weißes Licht)."
-          : "Farbe automatisch nach Hell/Dunkel-Modus wählen oder selbst festlegen."
-        ) : ""}
+        `, "Farbe automatisch nach Hell/Dunkel-Modus wählen oder selbst festlegen.") : ""}
 
         ${caps.color && colorMode === "custom" ? `
         <div id="custom_color_picker">
@@ -955,7 +1005,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
   }
 
   _update(key, value, rerender) {
-    this._suppressNextRender = !rerender;
+    this._suppressNewRender = !rerender;
     this._config = { ...this._config, [key]: value };
     fireEvent(this, "config-changed", { config: this._config });
     if (rerender) this._render();
@@ -982,6 +1032,6 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: "weather-event-overlay-card",
   name: "Wetter & Event Overlay Card",
-  description: "Erweiterte Wetter- und Event-Overlay-Karte (Regen, Schnee, Blitze, Sterne, Ballons etc.) mit GUI-Editor.",
+  description: "Erweiterte Wetter- und Event-Overlay-Karte (Regen, Schnee, Blitze, Sternenhimmel, Laub etc.) mit GUI-Editor.",
   preview: false,
 });
