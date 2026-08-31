@@ -1,7 +1,7 @@
 /**
  * weather-event-overlay-card
  * Lovelace Custom Card — kombiniertes Wetter/Event-Overlay
- * (Regen, Schnee, Laub, Luftballons, Lichterkette, Sternschnuppen, Blitze) mit visuellem GUI-Editor.
+ * (Regen, Schnee, Laub, Luftballons, Lichterkette, Sternschnuppen, Blitze, Haustier-Fliege, Spinnweben, Weihnachtsmann, Eiszapfen) mit visuellem GUI-Editor.
  */
 
 /* ============================== HELFER ============================== */
@@ -193,6 +193,10 @@ const EVENT_CAPABILITIES = {
   shooting_stars: { count: true, opacity: true, color: true },
   balloons: { count: true, opacity: true, color: false },
   lights: { count: true, opacity: true, color: false },
+  fly: { count: false, opacity: true, color: false },
+  spider_web: { count: false, opacity: true, color: false },
+  santa_sleigh: { count: false, opacity: true, color: false },
+  icicles: { count: false, opacity: true, color: false },
 };
 
 const BALLOON_COLORS = ["#FF4B4B", "#FF851B", "#FFDC00", "#2ECC40", "#0074D9", "#B10DC9", "#F012BE"];
@@ -622,7 +626,143 @@ function renderFly(cfg, hass) {
   `;
 
   return { css, html };
-}           
+}
+
+function renderSpiderWeb(cfg, hass) {
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+
+  const css = `
+    .spider-web-container {
+      position: fixed; top: 0; right: 0; width: 300px; height: 300px;
+      pointer-events: none; z-index: 9999; overflow: visible;
+    }
+    .corner-web {
+      position: absolute; top: 0; right: 0; width: 180px; height: 180px;
+      fill: rgba(255, 255, 255, 0.35); filter: drop-shadow(0 0 2px rgba(0,0,0,0.2));
+    }
+    .hanging-spider-box {
+      position: absolute; top: 40px; right: 50px; width: 24px; height: 24px;
+      animation: spider-drop 14s ease-in-out infinite;
+      will-change: transform;
+    }
+    .spider-web-thread {
+      position: absolute; top: -300px; left: 50%; width: 1px; height: 300px;
+      background: rgba(255, 255, 255, 0.4); transform: translateX(-50%);
+    }
+
+    @keyframes spider-drop {
+      0%, 100% { transform: translateY(0); }
+      35%, 65% { transform: translateY(180px); }
+      45%, 55% { transform: translateY(170px); }
+    }
+  `;
+
+  const html = `
+    <div class="spider-web-container" style="opacity:${opacity};" aria-hidden="true">
+      <svg class="corner-web" viewBox="0 0 100 100">
+        <path d="M 100 0 L 0 0 Q 50 50 100 100 Z" fill="none" stroke="currentColor" stroke-width="0.8" opacity="0.5"/>
+        <path d="M 100 0 L 0 0 M 100 0 L 25 100 M 100 0 L 60 100 M 100 0 L 0 50" stroke="currentColor" stroke-width="0.5"/>
+        <path d="M 30 0 Q 60 30 100 30 M 50 0 Q 70 50 100 50 M 70 0 Q 85 70 100 70" fill="none" stroke="currentColor" stroke-width="0.5"/>
+      </svg>
+      <div class="hanging-spider-box">
+        <div class="spider-web-thread"></div>
+        <svg viewBox="0 0 100 100" style="width:100%; height:100%; fill:#111;">
+          <path d="M 40 45 Q 15 20 5 35 M 40 50 Q 10 45 0 55 M 40 55 Q 12 70 5 80 M 60 45 Q 85 20 95 35 M 60 50 Q 90 45 100 55 M 60 55 Q 88 70 95 80" stroke="#111" stroke-width="6" fill="none"/>
+          <circle cx="50" cy="40" r="12"/>
+          <circle cx="50" cy="65" r="18"/>
+          <circle cx="45" cy="33" r="2.5" fill="#ff0000"/>
+          <circle cx="55" cy="33" r="2.5" fill="#ff0000"/>
+        </svg>
+      </div>
+    </div>
+  `;
+
+  return { css, html };
+}
+
+function renderSantaSleigh(cfg, hass) {
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+
+  const css = `
+    .santa-container {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      pointer-events: none; z-index: 9999; overflow: hidden;
+    }
+    .santa-sleigh-box {
+      position: absolute; top: 8vh; right: -250px; width: 180px; height: 50px;
+      animation: santa-fly 180s linear infinite;
+      will-change: transform;
+    }
+
+    @keyframes santa-fly {
+      0% { transform: translateX(0) translateY(0); }
+      3% { transform: translateX(calc(-100vw - 300px)) translateY(15px); }
+      4% { transform: translateX(calc(-100vw - 300px)) translateY(-20px); }
+      100% { transform: translateX(calc(-100vw - 300px)) translateY(-20px); }
+    }
+  `;
+
+  const html = `
+    <div class="santa-container" style="opacity:${opacity};" aria-hidden="true">
+      <div class="santa-sleigh-box">
+        <svg viewBox="0 0 200 60" style="width:100%; height:100%; fill:#d4af37;">
+          <!-- Rentier 1 -->
+          <path d="M 20 25 Q 15 15 10 20 M 10 20 Q 5 10 2 12 M 10 20 Q 12 10 16 8 M 20 25 L 35 25 L 40 40 M 25 40 L 23 50 M 35 40 L 37 50" stroke="currentColor" stroke-width="2" fill="none"/>
+          <!-- Rentier 2 -->
+          <path d="M 70 25 Q 65 15 60 20 M 60 20 Q 55 10 52 12 M 60 20 Q 62 10 66 8 M 70 25 L 85 25 L 90 40 M 75 40 L 73 50 M 85 40 L 87 50" stroke="currentColor" stroke-width="2" fill="none"/>
+          <!-- Zügel -->
+          <line x1="20" y1="28" x2="140" y2="32" stroke="rgba(255,255,255,0.6)" stroke-width="1"/>
+          <!-- Schlitten & Weihnachtsmann -->
+          <path d="M 130 45 C 120 45 115 35 125 25 C 130 20 145 20 150 28 C 155 20 170 20 175 35 C 180 45 170 50 150 50 Z" fill="#b91c1c"/>
+          <path d="M 120 52 L 180 52 Q 188 52 185 42" stroke="#d4af37" stroke-width="3" fill="none"/>
+          <circle cx="140" cy="18" r="6" fill="#ffffff"/> <!-- Mütze -->
+          <circle cx="140" cy="22" r="5" fill="#fca5a5"/> <!-- Gesicht -->
+        </svg>
+      </div>
+    </div>
+  `;
+
+  return { css, html };
+}
+
+function renderIcicles(cfg, hass) {
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+
+  const css = `
+    .icicles-container {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 60px;
+      pointer-events: none; z-index: 9999; display: flex; justify-content: space-between;
+    }
+    .icicle-svg {
+      width: 100%; height: 100%;
+      filter: drop-shadow(0 2px 4px rgba(0,150,255,0.2));
+    }
+    .icicle-glimmer {
+      animation: icicle-shimmer 3s ease-in-out infinite alternate;
+    }
+
+    @keyframes icicle-shimmer {
+      0% { opacity: 0.4; }
+      100% { opacity: 0.9; }
+    }
+  `;
+
+  const html = `
+    <div class="icicles-container" style="opacity:${opacity};" aria-hidden="true">
+      <svg class="icicle-svg" viewBox="0 0 1000 60" preserveAspectRatio="none">
+        <path class="icicle-glimmer" d="
+          M 0 0 L 0 35 L 15 0 L 30 50 L 45 0 L 70 25 L 85 0 L 110 55 L 130 0 
+          L 160 40 L 180 0 L 210 20 L 230 0 L 260 60 L 285 0 L 310 30 L 330 0 
+          L 370 45 L 395 0 L 420 25 L 440 0 L 480 58 L 510 0 L 540 35 L 565 0 
+          L 600 48 L 625 0 L 660 20 L 680 0 L 720 52 L 750 0 L 780 30 L 805 0 
+          L 840 60 L 870 0 L 900 25 L 920 0 L 960 42 L 985 0 L 1000 30 L 1000 0 Z
+        " fill="rgba(200, 235, 255, 0.7)" />
+      </svg>
+    </div>
+  `;
+
+  return { css, html };
+}
 
 const RENDERERS = {
   rain: renderRain,
@@ -636,6 +776,9 @@ const RENDERERS = {
   hail: renderHail,
   storm: renderStorm,
   fly: renderFly,
+  spider_web: renderSpiderWeb,
+  santa_sleigh: renderSantaSleigh,
+  icicles: renderIcicles,
 };
 
 /* ============================== HAUPT-KARTE ============================== */
@@ -848,6 +991,9 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="balloons" ${c.event === "balloons" ? "selected" : ""}>🎈 Luftballons</option>
             <option value="lights" ${c.event === "lights" ? "selected" : ""}>💡 Lichterkette</option>
             <option value="fly" ${c.event === "fly" ? "selected" : ""}>🪰 Haustier-Fliege</option>
+            <option value="spider_web" ${c.event === "spider_web" ? "selected" : ""}>🕸️ Spinnweben & Spinne</option>
+            <option value="santa_sleigh" ${c.event === "santa_sleigh" ? "selected" : ""}>🎅 Weihnachtsmann-Schlitten</option>
+            <option value="icicles" ${c.event === "icicles" ? "selected" : ""}>🧊 Eiszapfen-Rand</option>
           </select>
         `, isWeatherAuto
           ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft: 🌧️ Regen, ❄️ Schnee, 🧊 Hagel, ⚡ Blitz, 🌫️ Nebel oder 💨 Sturm - bei Sonne/Wolken/klarem Himmel läuft kein Effekt."
