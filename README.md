@@ -1,60 +1,62 @@
-# 🌦️ Weather & Event Overlay Card for Home Assistant (Lovelace)
+# 🌦️ Weather & Event Overlay Card für Home Assistant
 
-Eine hochgradig anpassbare, performante und visuell ansprechende Custom Card für das Home Assistant Lovelace Dashboard. Sie legt sich transparent über deine Dashboard-Oberfläche und spielt dynamische Wetter- sowie Event-Animationen ab.
+Eine extrem flexible Lovelace Custom Card für Home Assistant zur Anzeige von dynamischen Wetter- und Event-Animations-Overlays (Regen, Schnee, Blitze, Sternschnuppen, Fliege, Spinnweben, Weihnachtsmann u.v.m.).
 
-![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Custom%20Card-blue.svg)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
-
----
-
-## ✨ Features
-
-- **🌦️ Automatische Wetter-Erkennung (`weather_auto`):** Kopple die Karte einfach mit deiner `weather.`-Entität. Wenn es draußen regnet, schneit oder gewittert, wird der passende Effekt automatisch auf dem Dashboard gestartet.
-- **⚡ Kombinationseffekte:** Unterstützt parallele Effekte wie `lightning-rainy` (Blitze & Regen gleichzeitig).
-- **🎨 Visueller GUI-Editor:** Vollständig im Dashboard-Editor konfigurierbar – kein manuelles YAML-Schreiben nötig!
-- **🌗 Smart Dark-Mode Support:** Passt Farben (z. B. Schneeflocken oder Regentropfen) automatisch an das aktive Dark- oder Light-Theme an.
-- **🚀 Performance-optimiert:** 
-  - Nutzt GPU-beschleunigte CSS-Animationen (`will-change: transform`).
-  - Pausiert Animationen automatisch, wenn der Tab gewechselt oder im Hintergrund betrieben wird (spart Ressourcen auf Tablets/Raspberry Pi).
+Die Karte rendert sich **ohne sichtbaren Rahmen oder Platzbedarf** direkt als transparentes Overlay über deinem Dashboard.
 
 ---
 
-## 🎭 Verfügbare Effekte
+## 🚀 Features
+
+* **Visueller GUI-Editor:** Vollständig über den Lovelace-Editor konfigurierbar – kein manuelles YAML notwendig.
+* **Automatische Wetter-Anpassung:** Erkennt den Zustand deiner `weather.*` Entität (Regen, Schnee, Hagel, Blitz, Nebel, Sturm) und schaltet die passenden Effekte automatisch.
+* **Manuelle Event-Steuerung:** Schalte spezifische Effekte für Partys, Feiertage oder Dekorationen dauerhaft ein.
+* **Automatische Theme-Erkennung:** Unterstützt Hell- und Dunkelmodus mit dynamischer Farbanpassung.
+* **Performance-optimiert:** Effekte werden automatisch pausiert, wenn der Browser-Tab nicht aktiv ist.
+
+---
+
+## 🎨 Verfügbare Effekte
 
 | Kategorie | Effekt | Beschreibung |
 | :--- | :--- | :--- |
-| **Wetter** | 🌧️ **Regen** (`rain`) | Fallende Tropfen mit sanftem Farbverlauf |
-| | ❄️ **Schnee** (`snow`) | Sanft schwebende Schneeflocken |
-| | 🧊 **Hagel** (`hail`) | Schneller fallende Hagelkörner |
-| | ⚡ **Blitz** (`lightning`) | Dynamische Bildschirm-Flashes bei Gewitter |
-| | 🌫️ **Nebel** (`fog`) | Vorbeiziehende, weiche Nebelbänke |
-| | 💨 **Sturm** (`storm`) | Windböen-Streifen über dem Bildschirm |
-| **Events** | 🍂 **Laub** (`leaves`) | Drehende Herbstblätter mit Farbverlauf |
-| | 🌠 **Sternschnuppen** (`shooting_stars`) | Vorbeiziehende Sternschnuppen |
-| | 🎈 **Luftballons** (`balloons`) | Aufsteigende bunte Ballons (z. B. für Geburtstage) |
-| | 💡 **Lichterkette** (`lights`) | Blinkende Lichterkette am oberen Bildschirmrand |
+| **Wetter** | 🌧️ Regen | Sanfter bis starker Regenschauer |
+| | ❄️ Schnee | Treibende Schneeflocken |
+| | 🧊 Hagel | Schnelle Hagelkörner |
+| | ⚡ Blitz | Realistisches Blitzen/Flickern des Bildschirms |
+| | 🌫️ Nebel | Vorbeiziehende Nebelschwaden |
+| | 💨 Sturm | Vorbeiziehende Windböen |
+| **Events & Deko** | 🍂 Laub | Herabfallendes Herbstlaub |
+| | 🌠 Sternschnuppen | Sternschnuppen am Nachthimmel |
+| | 🎈 Luftballons | Aufsteigende bunte Partyballons |
+| | 💡 Lichterkette | Blinkende Party-/Weihnachtslichterkette oben |
+| | 🪰 Haustier-Fliege | Eine Fliege krabbelt & fliegt über das Dashboard |
+| | 🕸️ Spinnweben & Spinne | Spinnweben oben rechts mit einer herabfallenden Spinne |
+| | 🎅 Weihnachtsmann | Santa-Schlitten fliegt über den Bildschirm |
+| | 🧊 Eiszapfen-Rand | Schimmernder Eiszapfen-Rand am oberen Bildschirmrand |
 
 ---
 
 ## 📦 Installation
 
-### Manuelle Installation
+### Manuell über WWW-Ordner
 
 1. Lade die Datei `weather-event-overlay-card.js` herunter.
 2. Kopiere die Datei in deinen Home Assistant Ordner: `/config/www/weather-event-overlay-card.js`.
-3. Gehe in Home Assistant zu **Einstellungen** -> **Dashboards** -> Oben rechts auf die **drei Punkte** -> **Ressourcen**.
-4. Klicke auf **Ressource hinzufügen**:
-   - **URL:** `/local/weather-event-overlay-card.js?v=1.0.0`
-   - **Ressourcentyp:** `JavaScript-Modul`
-5. Lade deine Dashboard-Seite neu (Strg + F5).
+3. Füge die Ressource in Home Assistant hinzu:
+   * Gehe zu **Einstellungen** ➔ **Dashboard** ➔ **Drei Punkte oben rechts** ➔ **Ressourcen**.
+   * Klicke auf **Ressource hinzufügen**.
+   * **URL:** `/local/weather-event-overlay-card.js`
+   * **Typ:** `JavaScript-Modul`
+4. Lade das Dashboard neu.
 
 ---
 
-## ⚙️ Konfiguration
+## ⚙️ Anwendung & YAML-Beispiele
 
-Du kannst die Karte ganz einfach über den **visuellen Editor** deines Dashboards hinzufügen oder direkt per **YAML**.
+Füge die Karte einfach an einer beliebigen Stelle in deinem Dashboard ein. Sie benötigt keinen Platz im Raster.
 
-### Beispiel: Automatischer Wetter-Modus (Empfohlen)
+### Beispiel 1: Automatischer Wettermodus
 
 ```yaml
 type: custom:weather-event-overlay-card
