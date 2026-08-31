@@ -178,52 +178,51 @@ function getCachedRandomSet(key, count, factory) {
 /* ============================ STATISCHE DATEN ============================ */
 
 // Verbesserung (optionale Wetter-Automatik): übersetzt den Zustand einer
-// HA weather-Entity (z. B. weather.home) automatisch in einen Karten-Effekt.
-// Hier angepasst für Gewitter + Regen ("lightning-rainy") und Schnee + Regen ("snowy-rainy").
+// HA weather-Entity (z. B. weather.home) automatisch in einen oder mehrere
+// Karten-Effekte. Regnet's laut Home Assistant -> Regen an. Bei "Schneeregen"
+// (snowy-rainy) laufen Schnee UND Regen gleichzeitig, bei Gewitter mit Regen
+// (lightning-rainy) laufen Blitz UND Regen gleichzeitig. Kein passender
+// Effekt -> ["off"].
 const WEATHER_STATE_MAP = {
-  "rainy": "rain",
-  "pouring": "rain",
-  "snowy": "snow",
-  "snowy-rainy": "snow_rain",
-  "hail": "hail",
-  "lightning": "lightning",
-  "lightning-rainy": "lightning_rain",
-  "fog": "fog",
-  "windy": "storm",
-  "windy-variant": "storm",
+  "rainy": ["rain"],
+  "pouring": ["rain"],
+  "snowy": ["snow"],
+  "snowy-rainy": ["snow", "rain"],
+  "hail": ["hail"],
+  "lightning": ["lightning"],
+  "lightning-rainy": ["lightning", "rain"],
+  "fog": ["fog"],
+  "windy": ["storm"],
+  "windy-variant": ["storm"],
 };
 
-function mapWeatherStateToEvent(state) {
-  return WEATHER_STATE_MAP[state] || "off";
+// Gibt IMMER ein Array zurück (auch bei einem einzelnen Effekt), damit die
+// Karte Zustände mit mehreren gleichzeitigen Effekten einheitlich behandeln
+// kann, ohne an jeder Stelle zwischen String und Array unterscheiden zu müssen.
+function mapWeatherStateToEvents(state) {
+  return WEATHER_STATE_MAP[state] || ["off"];
 }
 
 // Verbesserung (GUI-Editor): Tabelle, welcher Effekt welche Regler
-// tatsächlich benutzt. Auch die Kombi-Zustände hinzugefügt.
+// tatsächlich benutzt. Der Editor blendet Anzahl/Deckkraft/Farbmodus nur
+// ein, wenn der gewählte Effekt sie auch wirklich verwendet.
 const EVENT_CAPABILITIES = {
-  off: { count: false, opacity: false, color: false, sound: false },
-  weather_auto: { count: true, opacity: true, color: true, sound: true },
-  rain: { count: true, opacity: true, color: true, sound: true },
-  snow: { count: true, opacity: true, color: true, sound: false },
-  snow_rain: { count: true, opacity: true, color: true, sound: true },
-  hail: { count: true, opacity: true, color: true, sound: false },
-  lightning: { count: true, opacity: true, color: false, sound: true },
-  lightning_rain: { count: true, opacity: true, color: true, sound: true },
-  fog: { count: true, opacity: true, color: true, sound: false },
-  storm: { count: true, opacity: true, color: true, sound: true },
-  leaves: { count: true, opacity: true, color: false, sound: false },
-  shooting_stars: { count: true, opacity: true, color: true, sound: false },
-  balloons: { count: true, opacity: true, color: false, sound: false },
-  lights: { count: true, opacity: true, color: false, sound: false },
+  off: { count: false, opacity: false, color: false },
+  // Automatik kann auf Regen/Schnee/Hagel/Nebel/Sturm (alle mit Farbe) oder
+  // Blitz (ohne Farbe) münden. Anzahl/Deckkraft wirken bei allen sechs,
+  // deshalb bleiben sie im Editor sichtbar - nur der Event-Typ wird ersetzt.
+  weather_auto: { count: true, opacity: true, color: true },
+  rain: { count: true, opacity: true, color: true },
+  snow: { count: true, opacity: true, color: true },
+  hail: { count: true, opacity: true, color: true },
+  lightning: { count: true, opacity: true, color: false },
+  fog: { count: true, opacity: true, color: true },
+  storm: { count: true, opacity: true, color: true },
+  leaves: { count: true, opacity: true, color: false },
+  shooting_stars: { count: true, opacity: true, color: true },
+  balloons: { count: true, opacity: true, color: false },
+  lights: { count: true, opacity: true, color: false },
 };
-
-function getIntensityFromWeatherEntity(entityState) {
-  if (!entityState || !entityState.attributes) return null;
-  const precip = entityState.attributes.precipitation;
-  if (typeof precip !== "number" || Number.isNaN(precip)) return null;
-  if (precip <= 0.5) return "low";
-  if (precip <= 4) return "medium";
-  return "high";
-}
 
 const BALLOON_COLORS = ["#FF4B4B", "#FF851B", "#FFDC00", "#2ECC40", "#0074D9", "#B10DC9", "#F012BE"];
 
@@ -277,6 +276,9 @@ function renderRain(cfg, hass) {
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const drops = spreadSample(DROPS, count);
 
+  // Verbesserung: bei "Kräftig" jeden Tropfen auf einen hohen Mindestwert
+  // anheben (gleiche Logik wie bei Schnee) - sonst bleiben zufällig blasse
+  // Tropfen auch bei "Kräftig" blass.
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const dropHTML = drops.map((d) => {
     const op = isHigh
@@ -310,6 +312,9 @@ function renderSnow(cfg, hass) {
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const flakes = spreadSample(FLAKES_DATA, count);
 
+  // Verbesserung: bei "Kräftig" jede Flocke auf einen hohen Mindestwert
+  // anheben, statt nur den ohnehin schon zufälligen Wert (f.op) zu deckeln.
+  // Vorher blieben blasse Flocken (f.op ~0.3) auch bei "Kräftig" blass.
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const flakeHTML = flakes.map((f) => {
     const op = isHigh
@@ -333,6 +338,10 @@ function renderSnow(cfg, hass) {
     }
   `;
 
+  // Verbesserung (Idee 4: Schneehöhe simulieren): cfg._snowLevel (0-100) wird
+  // von der Haupt-Karte per Timer langsam hochgezählt, solange Schnee aktiv
+  // ist, und übersetzt sich hier in eine wachsende Schneedecke unten am
+  // Bildschirmrand statt dass die Flocken einfach spurlos verschwinden.
   const snowLevel = typeof cfg._snowLevel === "number" ? cfg._snowLevel : 0;
   const accumHeight = Math.min(18, snowLevel * 0.18);
   const accumHtml = accumHeight > 0
@@ -346,9 +355,14 @@ function renderLeaves(cfg, hass) {
   const leafColors = Array.isArray(cfg.leaf_colors) && cfg.leaf_colors.length === 3 ? cfg.leaf_colors : ["#c9a227", "#a83232", "#d9812c"];
   const count = getParticleCount(cfg.count_preset || "medium", "leaves");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  // Verbesserung (Sicherheit): benutzerdefinierte leaf_shape wird jetzt
+  // durch die Whitelist geprüft. Fällt sie durch, greift automatisch die
+  // sichere Standardform statt irgendwas Ungefiltertes zu rendern.
   const leafShape = sanitizeLeafShape(cfg.leaf_shape) || DEFAULT_LEAF_SHAPE;
   const leaves = spreadSample(FLAKES_DATA, count);
 
+  // Verbesserung: bei "Kräftig" jedes Blatt auf einen hohen Mindestwert
+  // anheben (gleiche Logik wie bei Schnee/Regen).
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const leafHTML = leaves.map((f, i) => {
     const op = isHigh
@@ -423,6 +437,9 @@ function renderShootingStars(cfg, hass) {
   const count = getParticleCount(cfg.count_preset || "medium", "shooting_stars");
   const color = resolveDynamicColor(cfg.color, hass, "#ffffff", "#ffffff");
 
+  // Verbesserung (Performance): Positionen/Timing einmalig würfeln und
+  // zwischenspeichern, damit ein Resize oder Theme-Wechsel nicht jedes Mal
+  // ein neues Sternenmuster (= Flackern) erzeugt.
   const stars = getCachedRandomSet("shooting_stars", count, () => ({
     top: (Math.random() * 50).toFixed(2),
     left: (Math.random() * 100).toFixed(2),
@@ -476,32 +493,16 @@ function renderLightning(cfg, hass) {
   return { css, html };
 }
 
-// Kombi-Renderer: Blitz + Regen
-function renderLightningRain(cfg, hass) {
-  const rainRes = renderRain(cfg, hass);
-  const lightningRes = renderLightning(cfg, hass);
-  return {
-    css: `${rainRes.css}\n${lightningRes.css}`,
-    html: `${rainRes.html}\n${lightningRes.html}`
-  };
-}
-
-// Kombi-Renderer: Schnee + Regen
-function renderSnowRain(cfg, hass) {
-  const snowRes = renderSnow(cfg, hass);
-  const rainRes = renderRain(cfg, hass);
-  return {
-    css: `${snowRes.css}\n${rainRes.css}`,
-    html: `${snowRes.html}\n${rainRes.html}`
-  };
-}
-
 function renderFog(cfg, hass) {
+  // Nebel bekommt genau wie die anderen Effekte eine Auto-Farbe: hell im
+  // Lightmode (dezentes Grauweiß), heller/dichter im Darkmode.
   const color = resolveDynamicColor(cfg.color, hass, "#c7c7c7", "#e8e8e8");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const count = getParticleCount(cfg.count_preset || "medium", "fog");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
 
+  // Verbesserung (Performance): Positionen/Timing der Schwaden cachen,
+  // damit ein Resize/Theme-Wechsel nicht bei jedem Re-Render neu würfelt.
   const banks = getCachedRandomSet("fog", count, () => ({
     top: (Math.random() * 80).toFixed(2),
     width: Math.floor(Math.random() * 40) + 60,
@@ -513,6 +514,8 @@ function renderFog(cfg, hass) {
   }));
 
   const fogHTML = banks.map((b) => {
+    // Bei "Kräftig" auch hier einen Mindestwert anheben, damit Nebel spürbar
+    // dichter wirkt statt nur gedeckelt zu werden (gleiche Logik wie Regen/Schnee/Laub).
     const bankOp = isHigh ? Math.max(b.baseOp, 0.7) : (b.baseOp * opacity);
     const dir = b.reverse ? "fog-drift-reverse" : "fog-drift";
     return `<div class="fog-bank" style="top:${b.top}vh; width:${b.width}vw; height:${b.height}vh; animation-duration:${b.dur}s; animation-delay:${b.delay}s; animation-name:${dir}; opacity:${bankOp.toFixed(2)}; background:radial-gradient(ellipse at center, ${color} 0%, transparent 70%);"></div>`;
@@ -540,6 +543,7 @@ function renderFog(cfg, hass) {
 }
 
 function renderHail(cfg, hass) {
+  // Hagel: wie Regen, aber härtere, kleinere, schnellere Punkte statt Streifen.
   const color = resolveDynamicColor(cfg.color, hass, "#8fa3b3", "#e8eef2");
   const count = getParticleCount(cfg.count_preset || "medium", "hail");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
@@ -551,6 +555,7 @@ function renderHail(cfg, hass) {
       ? Math.min(1, Math.max(d.op, 0.85)).toFixed(2)
       : (d.op * opacity).toFixed(2);
     const size = Math.max(3, Math.round(d.size / 3));
+    // Hagel fällt schneller und härter als Regen (kürzere Animationsdauer).
     const dur = (parseFloat(d.dur) * 0.55).toFixed(2);
     return `<div class="hailstone" style="left:${d.l}vw; width:${size}px; height:${size}px; animation-duration:${dur}s; animation-delay:${d.d}s; opacity:${op}; background:${color};"></div>`;
   }).join("\n");
@@ -572,6 +577,8 @@ function renderHail(cfg, hass) {
 }
 
 function renderStorm(cfg, hass) {
+  // Sturm/Windböen: Partikel schießen schräg und schnell durchs Bild,
+  // statt gerade nach unten zu fallen wie bei Regen/Schnee.
   const color = resolveDynamicColor(cfg.color, hass, "#556270", "#c8d2da");
   const count = getParticleCount(cfg.count_preset || "medium", "storm");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
@@ -606,141 +613,15 @@ function renderStorm(cfg, hass) {
 const RENDERERS = {
   rain: renderRain,
   snow: renderSnow,
-  snow_rain: renderSnowRain,
   leaves: renderLeaves,
   balloons: renderBalloons,
   lights: renderLights,
   shooting_stars: renderShootingStars,
   lightning: renderLightning,
-  lightning_rain: renderLightningRain,
   fog: renderFog,
   hail: renderHail,
   storm: renderStorm,
 };
-
-/* ============================ SOUND-ENGINE ============================ */
-
-class OverlaySoundEngine {
-  constructor() {
-    this._ctx = null;
-    this._current = null;
-    this._unlockAttached = false;
-  }
-
-  _ensureContext() {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return null;
-    if (!this._ctx) {
-      this._ctx = new AC();
-    }
-    if (this._ctx.state === "suspended") {
-      this._ctx.resume().catch(() => {});
-      if (!this._unlockAttached) {
-        this._unlockAttached = true;
-        const unlock = () => { this._ctx && this._ctx.resume().catch(() => {}); };
-        document.addEventListener("click", unlock, { once: true });
-        document.addEventListener("touchstart", unlock, { once: true });
-      }
-    }
-    return this._ctx;
-  }
-
-  _makeNoiseBuffer(ctx, seconds) {
-    const bufferSize = Math.floor(ctx.sampleRate * seconds);
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = Math.random() * 2 - 1;
-    }
-    return buffer;
-  }
-
-  play(type, volume) {
-    const ctx = this._ensureContext();
-    if (!ctx) return;
-
-    if (this._current && this._current.type === type) {
-      if (this._current.gain) this._current.gain.gain.setTargetAtTime(volume, ctx.currentTime, 0.5);
-      return;
-    }
-    this.stop();
-
-    if (type === "rain" || type === "lightning_rain" || type === "snow_rain") {
-      const source = ctx.createBufferSource();
-      source.buffer = this._makeNoiseBuffer(ctx, 2);
-      source.loop = true;
-      const filter = ctx.createBiquadFilter();
-      filter.type = "highpass";
-      filter.frequency.value = 900;
-      const gain = ctx.createGain();
-      gain.gain.value = volume;
-      source.connect(filter).connect(gain).connect(ctx.destination);
-      source.start();
-      this._current = { type, gain, stopFn: () => { try { source.stop(); } catch (e) {} } };
-    } else if (type === "storm") {
-      const source = ctx.createBufferSource();
-      source.buffer = this._makeNoiseBuffer(ctx, 3);
-      source.loop = true;
-      const filter = ctx.createBiquadFilter();
-      filter.type = "lowpass";
-      filter.frequency.value = 400;
-      const gain = ctx.createGain();
-      gain.gain.value = volume;
-      const lfo = ctx.createOscillator();
-      lfo.frequency.value = 0.15;
-      const lfoGain = ctx.createGain();
-      lfoGain.gain.value = volume * 0.5;
-      lfo.connect(lfoGain).connect(gain.gain);
-      lfo.start();
-      source.connect(filter).connect(gain).connect(ctx.destination);
-      source.start();
-      this._current = { type, gain, stopFn: () => { try { source.stop(); lfo.stop(); } catch (e) {} } };
-    } else if (type === "lightning") {
-      this._current = { type, gain: null, thunderTimer: null, stopFn: () => {} };
-      const scheduleThunder = () => {
-        const delay = 4000 + Math.random() * 10000;
-        this._current.thunderTimer = setTimeout(() => {
-          if (!this._current || (this._current.type !== "lightning" && this._current.type !== "lightning_rain")) return;
-          this._playThunderBurst(ctx, volume);
-          scheduleThunder();
-        }, delay);
-      };
-      scheduleThunder();
-      this._current.stopFn = () => { if (this._current.thunderTimer) clearTimeout(this._current.thunderTimer); };
-    }
-  }
-
-  _playThunderBurst(ctx, volume) {
-    const source = ctx.createBufferSource();
-    source.buffer = this._makeNoiseBuffer(ctx, 1.5);
-    const filter = ctx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.value = 150;
-    const gain = ctx.createGain();
-    const now = ctx.currentTime;
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(volume * 1.8, now + 0.05);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
-    source.connect(filter).connect(gain).connect(ctx.destination);
-    source.start();
-    source.stop(now + 1.6);
-  }
-
-  stop() {
-    if (this._current) {
-      try { this._current.stopFn && this._current.stopFn(); } catch (e) {}
-      this._current = null;
-    }
-  }
-}
-
-function getSoundVolume(preset) {
-  switch (preset) {
-    case "low": return 0.08;
-    case "high": return 0.22;
-    case "medium": default: return 0.14;
-  }
-}
 
 /* ============================== HAUPT-KARTE ============================== */
 
@@ -750,7 +631,6 @@ class WeatherEventOverlayCard extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._onThemeChange = this._onThemeChange.bind(this);
     this._onVisibilityChange = this._onVisibilityChange.bind(this);
-    this._soundEngine = new OverlaySoundEngine();
     this._snowLevel = 0;
     this._snowTimer = null;
   }
@@ -767,7 +647,6 @@ class WeatherEventOverlayCard extends HTMLElement {
     window.removeEventListener("resize", this._onThemeChange);
     window.matchMedia("(prefers-color-scheme: dark)").removeEventListener("change", this._onThemeChange);
     document.removeEventListener("visibilitychange", this._onVisibilityChange);
-    this._soundEngine.stop();
     if (this._snowTimer) {
       clearInterval(this._snowTimer);
       this._snowTimer = null;
@@ -778,6 +657,9 @@ class WeatherEventOverlayCard extends HTMLElement {
     this._render();
   }
 
+  // Verbesserung (Performance/Akku): pausiert alle CSS-Animationen, sobald
+  // das Browser-Tab im Hintergrund ist (Tablet an der Wand, Handy gesperrt
+  // etc.) - spart unnötig laufende Animationen, die eh keiner sieht.
   _onVisibilityChange() {
     if (!this.shadowRoot) return;
     const hidden = document.hidden;
@@ -803,8 +685,6 @@ class WeatherEventOverlayCard extends HTMLElement {
       color_mode: "auto",
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
       weather_entity: "",
-      weather_intensity_auto: false,
-      sound_enabled: false,
       ...config,
     };
     this._render();
@@ -827,30 +707,23 @@ class WeatherEventOverlayCard extends HTMLElement {
     }
   }
 
-  _resolveEvent() {
+  // Verbesserung (optionale Wetter-Automatik): "weather_auto" ist ein
+  // eigener Eintrag im Event-Dropdown statt eines separaten Schalters -
+  // so gibt's nur eine Stelle, die entscheidet, kein Widerspruchspotenzial.
+  // Gibt IMMER ein Array zurück, da manche Wetterzustände (Schneeregen,
+  // Gewitter mit Regen) zwei Effekte gleichzeitig auslösen.
+  _resolveEvents() {
     const cfg = this._config || {};
     if (cfg.event === "weather_auto") {
       if (cfg.weather_entity && this._hass) {
         const entityState = this._hass.states?.[cfg.weather_entity];
         if (entityState) {
-          return mapWeatherStateToEvent(entityState.state);
+          return mapWeatherStateToEvents(entityState.state);
         }
       }
-      return "off";
+      return ["off"];
     }
-    return cfg.event || "off";
-  }
-
-  _resolveEffectiveConfig() {
-    const cfg = this._config || {};
-    if (cfg.event === "weather_auto" && cfg.weather_intensity_auto && cfg.weather_entity && this._hass) {
-      const entityState = this._hass.states?.[cfg.weather_entity];
-      const level = getIntensityFromWeatherEntity(entityState);
-      if (level) {
-        return { ...cfg, count_preset: level, opacity_preset: level };
-      }
-    }
-    return cfg;
+    return [cfg.event || "off"];
   }
 
   getCardSize() { return 0; }
@@ -863,20 +736,13 @@ class WeatherEventOverlayCard extends HTMLElement {
     return document.createElement("weather-event-overlay-card-editor");
   }
 
-  _updateSound(event, cfg) {
-    const caps = EVENT_CAPABILITIES[event] || { sound: false };
-    const soundEligibleEvents = ["rain", "storm", "lightning", "lightning_rain", "snow_rain"];
-    if (!cfg.sound_enabled || !caps.sound || !soundEligibleEvents.includes(event)) {
-      this._soundEngine.stop();
-      return;
-    }
-    // Für lightning_rain nutzen wir den Regen-Sound (oder triggern bei Bedarf auch Donner, da kombiniert)
-    const soundType = event === "lightning_rain" ? "rain" : event;
-    this._soundEngine.play(soundType, getSoundVolume(cfg.opacity_preset || "medium"));
-  }
-
-  _updateSnowAccumulation(event) {
-    if (event === "snow" || event === "snow_rain") {
+  // Verbesserung (Schneehöhe simulieren): solange Schnee (manuell,
+  // automatisch, oder als Teil einer Kombination wie Schneeregen) läuft,
+  // wächst die Schneedecke langsam an. Läuft kein Schnee mehr, wird die
+  // Ansammlung wieder zurückgesetzt.
+  _updateSnowAccumulation(events) {
+    const snowActive = events.includes("snow");
+    if (snowActive) {
       if (!this._snowTimer) {
         this._snowTimer = setInterval(() => {
           this._snowLevel = Math.min(100, this._snowLevel + 1);
@@ -894,23 +760,30 @@ class WeatherEventOverlayCard extends HTMLElement {
 
   _render() {
     if (!this._config) return;
-    const event = this._resolveEvent();
-    const renderer = RENDERERS[event];
+    const events = this._resolveEvents();
     const baseStyle = `:host { display: block; position: absolute; top: 0; left: 0; width: 0; height: 0; overflow: visible; pointer-events: none; background: none !important; }`;
 
-    this._updateSound(event, this._config);
-    this._updateSnowAccumulation(event);
+    this._updateSnowAccumulation(events);
 
-    if (!renderer) {
-      this.shadowRoot.innerHTML = `<style>${baseStyle}</style>`;
-      return;
+    // Verbesserung: mehrere gleichzeitige Effekte (z. B. Schnee+Regen bei
+    // Schneeregen, Blitz+Regen bei Gewitter mit Regen) werden einfach
+    // nacheinander gerendert und ihr CSS/HTML zusammengehängt - jeder
+    // Effekt-Container hat eigene, eindeutige CSS-Klassen, es gibt also
+    // keine Überschneidungen.
+    let combinedCss = "";
+    let combinedHtml = "";
+    for (const event of events) {
+      const renderer = RENDERERS[event];
+      if (!renderer) continue;
+      const cfgForRender = event === "snow" ? { ...this._config, _snowLevel: this._snowLevel } : this._config;
+      const { css, html } = renderer(cfgForRender, this._hass);
+      combinedCss += css;
+      combinedHtml += html;
     }
 
-    const effectiveCfg = this._resolveEffectiveConfig();
-    if (event === "snow" || event === "snow_rain") effectiveCfg._snowLevel = this._snowLevel;
-
-    const { css, html } = renderer(effectiveCfg, this._hass);
-    this.shadowRoot.innerHTML = `<style>${baseStyle}${css}</style>${html}`;
+    this.shadowRoot.innerHTML = `<style>${baseStyle}${combinedCss}</style>${combinedHtml}`;
+    // Pause-Status neu anwenden, da innerHTML gerade komplett ersetzt wurde
+    // (und damit auch ein zuvor gesetzter Pause-<style> verloren ging).
     this._onVisibilityChange();
   }
 }
@@ -927,8 +800,6 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
       color_mode: "auto",
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
       weather_entity: "",
-      weather_intensity_auto: false,
-      sound_enabled: false,
       ...config,
     };
     if (this._suppressNextRender) {
@@ -939,6 +810,12 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
   }
 
   set hass(hass) {
+    // Verbesserung (Bugfix): vorher wurde bei JEDEM Home-Assistant-Update
+    // (mehrmals pro Sekunde) komplett neu gerendert - dadurch klappte ein
+    // gerade geöffnetes Dropdown sofort wieder zu, bevor man auswählen
+    // konnte. Jetzt wird nur neu gerendert, wenn sich die Liste der
+    // verfügbaren weather.*-Entities tatsächlich verändert hat (z. B. beim
+    // allerersten Laden) - normale State-Updates lösen kein Re-Render aus.
     const oldKey = this._weatherEntityListKey || "";
     const newEntities = hass && hass.states
       ? Object.keys(hass.states).filter((eid) => eid.startsWith("weather."))
@@ -970,9 +847,11 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     if (!this._config) return;
     const c = this._config;
     const colorMode = c.color_mode || (c.color === "auto" ? "auto" : "custom");
-    const caps = EVENT_CAPABILITIES[c.event] || { count: false, opacity: false, color: false, sound: false };
+    const caps = EVENT_CAPABILITIES[c.event] || { count: false, opacity: false, color: false };
     const isWeatherAuto = c.event === "weather_auto";
 
+    // Verbesserung: alle weather.*-Entities aus HA einlesen und als echtes
+    // Dropdown anbieten, statt dass man die Entity-ID von Hand eintippen muss.
     const weatherEntities = this._hass && this._hass.states
       ? Object.keys(this._hass.states).filter((eid) => eid.startsWith("weather."))
       : [];
@@ -985,10 +864,8 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="weather_auto" ${isWeatherAuto ? "selected" : ""}>🌦️ Automatisch (nach Wetter)</option>
             <option value="rain" ${c.event === "rain" ? "selected" : ""}>🌧️ Regen</option>
             <option value="snow" ${c.event === "snow" ? "selected" : ""}>❄️ Schnee</option>
-            <option value="snow_rain" ${c.event === "snow_rain" ? "selected" : ""}>🌨️ Schnee & Regen</option>
             <option value="hail" ${c.event === "hail" ? "selected" : ""}>🧊 Hagel</option>
             <option value="lightning" ${c.event === "lightning" ? "selected" : ""}>⚡ Blitz</option>
-            <option value="lightning_rain" ${c.event === "lightning_rain" ? "selected" : ""}>⛈️ Gewitter & Regen</option>
             <option value="fog" ${c.event === "fog" ? "selected" : ""}>🌫️ Nebel</option>
             <option value="storm" ${c.event === "storm" ? "selected" : ""}>💨 Sturm</option>
             <option value="leaves" ${c.event === "leaves" ? "selected" : ""}>🍂 Laub</option>
@@ -997,7 +874,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="lights" ${c.event === "lights" ? "selected" : ""}>💡 Lichterkette</option>
           </select>
         `, isWeatherAuto
-          ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft (inkl. ⛈️ Gewitter+Regen und 🌨️ Schnee+Regen)."
+          ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft: 🌧️ Regen, ❄️ Schnee, 🧊 Hagel, ⚡ Blitz, 🌫️ Nebel oder 💨 Sturm - bei Sonne/Wolken/klarem Himmel läuft kein Effekt."
           : "Welcher Effekt manuell dauerhaft angezeigt wird."
         )}
 
@@ -1011,33 +888,31 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
                     return `<option value="${eid}" ${c.weather_entity === eid ? "selected" : ""}>${friendly}</option>`;
                   }).join("")}
                 </select>
-              `, "Diese Wetter-Entity liefert den aktuellen Zustand, nach dem sich der Effekt oben richtet.")
-            : this._row("Wetter-Sensor", `<input id="weather_entity" type="text" placeholder="weather.home" value="${c.weather_entity || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`, "Keine weather-Entity in HA gefunden - trag die Entity-ID hier manuell ein.")
+              `, "Diese Wetter-Entity liefert den aktuellen Zustand (regnet, schneit, ...), nach dem sich der Effekt oben richtet.")
+            : this._row("Wetter-Sensor", `<input id="weather_entity" type="text" placeholder="weather.home" value="${c.weather_entity || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`, "Keine weather-Entity in HA gefunden - trag die Entity-ID hier manuell ein, z. B. weather.home.")
         ) : ""}
 
-        ${isWeatherAuto ? this._row("🌧️ Intensität aus Wetterdaten", `
-          <select id="weather_intensity_auto" style="width:100%; padding:6px;">
-            <option value="off" ${!c.weather_intensity_auto ? "selected" : ""}>Aus (Anzahl/Deckkraft manuell unten)</option>
-            <option value="on" ${c.weather_intensity_auto ? "selected" : ""}>An (aus Niederschlagsmenge, falls verfügbar)</option>
-          </select>
-        `, "Manche Wetter-Integrationen liefern eine Regen-/Schneemenge. Ist die da, übersteuert sie Anzahl/Deckkraft automatisch.") : ""}
 
-        ${caps.count && !(isWeatherAuto && c.weather_intensity_auto) ? this._row("Anzahl / Frequenz", `
+        ${caps.count ? this._row("Anzahl / Frequenz", `
           <select id="count_preset" style="width:100%; padding:6px;">
             <option value="low" ${c.count_preset === "low" ? "selected" : ""}>🔹 Wenig / Selten</option>
             <option value="medium" ${c.count_preset === "medium" ? "selected" : ""}>🔷 Mittel</option>
             <option value="high" ${c.count_preset === "high" ? "selected" : ""}>🔷 Viel / Häufig</option>
           </select>
-        `, "Wie viele Partikel gleichzeitig zu sehen sind."
+        `, isWeatherAuto
+          ? "⚠️ Ein Wert für ALLE automatisch erkannten Effekte gemeinsam (Regen, Schnee, Hagel, Blitz, Nebel, Sturm) - nicht einzeln pro Effekt einstellbar."
+          : "Wie viele Partikel gleichzeitig zu sehen sind."
         ) : ""}
 
-        ${caps.opacity && !(isWeatherAuto && c.weather_intensity_auto) ? this._row("Deckkraft / Helligkeit", `
+        ${caps.opacity ? this._row("Deckkraft / Helligkeit", `
           <select id="opacity_preset" style="width:100%; padding:6px;">
             <option value="low" ${c.opacity_preset === "low" ? "selected" : ""}>👻 Zart (30%)</option>
             <option value="medium" ${c.opacity_preset === "medium" ? "selected" : ""}>👁️ Dezent (60%)</option>
             <option value="high" ${c.opacity_preset === "high" ? "selected" : ""}>✨ Kräftig (100%)</option>
           </select>
-        `, "Wie stark/deutlich der Effekt sichtbar ist."
+        `, isWeatherAuto
+          ? "⚠️ Ebenfalls EIN Wert für ALLE automatisch erkannten Effekte gemeinsam."
+          : "Wie stark/deutlich der Effekt sichtbar ist."
         ) : ""}
 
         ${caps.color ? this._row("Farbmodus", `
@@ -1045,20 +920,15 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="auto" ${colorMode === "auto" ? "selected" : ""}>🌗 Auto (Hell/Dunkel Modus)</option>
             <option value="custom" ${colorMode === "custom" ? "selected" : ""}>🎨 Manuelle Farbe</option>
           </select>
-        `, "Farbe automatisch nach Hell/Dunkel-Modus wählen oder selbst festlegen."
+        `, isWeatherAuto
+          ? "Gilt nur, wenn gerade Regen, Schnee, Hagel, Nebel oder Sturm aktiv ist (nicht bei Blitz - der hat immer weißes Licht)."
+          : "Farbe automatisch nach Hell/Dunkel-Modus wählen oder selbst festlegen."
         ) : ""}
 
         ${caps.color && colorMode === "custom" ? `
         <div id="custom_color_picker">
           ${this._row("Farbe", `<input id="color" type="color" value="${c.color === "auto" ? "#ffffff" : c.color}" style="width:100%; height:36px;" />`)}
         </div>` : ""}
-
-        ${caps.sound ? this._row("🔊 Sound", `
-          <select id="sound_enabled" style="width:100%; padding:6px;">
-            <option value="off" ${!c.sound_enabled ? "selected" : ""}>Aus (Standard)</option>
-            <option value="on" ${c.sound_enabled ? "selected" : ""}>An (leiser Regen-/Wind-/Donner-Klang)</option>
-          </select>
-        `, "Hörbar bei Regen, Sturm, Gewitter und Schnee+Regen.") : ""}
       </div>
     `;
 
@@ -1067,16 +937,6 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     const weatherEntitySel = this.querySelector("#weather_entity");
     if (weatherEntitySel) {
       weatherEntitySel.addEventListener("change", (e) => this._update("weather_entity", e.target.value.trim(), false));
-    }
-
-    const weatherIntensitySel = this.querySelector("#weather_intensity_auto");
-    if (weatherIntensitySel) {
-      weatherIntensitySel.addEventListener("change", (e) => this._update("weather_intensity_auto", e.target.value === "on", true));
-    }
-
-    const soundSel = this.querySelector("#sound_enabled");
-    if (soundSel) {
-      soundSel.addEventListener("change", (e) => this._update("sound_enabled", e.target.value === "on", true));
     }
 
     const countSel = this.querySelector("#count_preset");
@@ -1120,6 +980,8 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
 
 /* ============================== REGISTRIERUNG ============================== */
 
+// Verbesserung (Robustheit): Schutz gegen "already defined"-Fehler,
+// falls HA/HACS die Ressource mal doppelt nachlädt (z. B. nach einem Update).
 if (!customElements.get("weather-event-overlay-card")) {
   customElements.define("weather-event-overlay-card", WeatherEventOverlayCard);
 }
