@@ -632,11 +632,19 @@ function renderSanta(cfg, hass) {
   // wieder mit Farbmodus (Auto/Manuell) nutzbar. Das Rentier wird nur EINMAL
   // gezeichnet und per <use> zweimal eingesetzt - garantiert identisch/
   // symmetrisch, statt zwei von Hand leicht unterschiedliche Kopien.
-  const color = resolveDynamicColor(cfg.color, hass, "#2a1e14", "#fbe9c8");
+  // Weihnachtsrot: dunkles Rot im Hellmodus (gut lesbar auf hellem
+  // Hintergrund), kräftigeres Rot im Dunkelmodus (leuchtet mehr im Dunkeln).
+  const color = resolveDynamicColor(cfg.color, hass, "#8b1a1a", "#e0393f");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
   const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
+  // Verbesserung (Geschwindigkeit): der Flug selbst dauert jetzt ~18
+  // Sekunden (vorher passierte die komplette Durchquerung nur innerhalb der
+  // ersten 3-4% der Animation, bei "Mittel" also in nur ~6-8s - viel zu
+  // hektisch). Der Prozentsatz wird passend zur gewählten Intervall-Länge
+  // berechnet, damit die 18 Sekunden bei jedem Preset gleich bleiben.
+  const flightPct = Math.min(30, (18 / interval) * 100).toFixed(2);
 
   const css = `
     .santa-container {
@@ -651,9 +659,8 @@ function renderSanta(cfg, hass) {
     }
     @keyframes santa-fly {
       0% { transform: translateX(0) translateY(0); }
-      3% { transform: translateX(calc(-100vw - 300px)) translateY(15px); }
-      4% { transform: translateX(calc(-100vw - 300px)) translateY(-20px); }
-      100% { transform: translateX(calc(-100vw - 300px)) translateY(-20px); }
+      ${flightPct}% { transform: translateX(calc(-100vw - 300px)) translateY(-15px); }
+      100% { transform: translateX(calc(-100vw - 300px)) translateY(-15px); }
     }
   `;
 
@@ -795,9 +802,9 @@ function renderSpider(cfg, hass) {
 }
 
 function renderStars(cfg, hass) {
-  // Sternenhimmel: funkelnde Punkte, Farbe passt sich Hell/Dunkel an (warmes
-  // Gold im Lightmode, kühles Weiß im Darkmode) - genau wie bei den anderen
-  // Auto-Farbe-Effekten. Läuft automatisch bei "klarer Nachthimmel".
+  // Sternenhimmel: funkelnde Punkte, Farbe passt sich Hell/Dunkel an (dunkel
+  // im Lightmode, strahlend weiß im Darkmode) - genau wie bei Regen/Schnee.
+  // Läuft automatisch bei "klarer Nachthimmel".
   const color = resolveDynamicColor(cfg.color, hass, "#1a1a2e", "#ffffff");
   const count = getParticleCount(cfg.count_preset || "medium", "stars");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
@@ -806,20 +813,26 @@ function renderStars(cfg, hass) {
   const stars = getCachedRandomSet("stars", count, () => ({
     top: (Math.random() * 85).toFixed(2),
     left: (Math.random() * 100).toFixed(2),
-    size: (Math.random() * 2 + 1).toFixed(2),
+    // Verbesserung (Sichtbarkeit): etwas größere Sterne (2-4.5px statt 1-3px),
+    // damit sie auch auf großen Tablet-/TV-Displays klar erkennbar sind.
+    size: (Math.random() * 2.5 + 2).toFixed(2),
     dur: (Math.random() * 3 + 2).toFixed(2),
     delay: (Math.random() * -5).toFixed(2),
-    baseOp: (Math.random() * 0.5 + 0.4).toFixed(2),
+    // Verbesserung (Sichtbarkeit): höherer Mindestwert (0.55 statt 0.4),
+    // damit auch der Funkeln-Tiefpunkt nicht zu blass wird.
+    baseOp: (Math.random() * 0.4 + 0.55).toFixed(2),
   }));
 
   const starHTML = stars.map((s) => {
     const peak = isHigh
-      ? Math.max(parseFloat(s.baseOp), 0.9)
-      : (parseFloat(s.baseOp) * opacity);
-    // Verbesserung: Glow-Radius richtet sich nach der Sterngröße (schöneres
-    // Funkeln), statt bei jedem Stern gleich stark zu leuchten.
-    const glow = (parseFloat(s.size) * 2).toFixed(2);
-    return `<div class="star" style="top:${s.top}vh; left:${s.left}vw; width:${s.size}px; height:${s.size}px; background:${color}; box-shadow: 0 0 ${glow}px ${color}; animation-duration:${s.dur}s; animation-delay:${s.delay}s; --peak:${peak.toFixed(2)};"></div>`;
+      ? Math.max(parseFloat(s.baseOp), 0.95)
+      : Math.max(parseFloat(s.baseOp) * opacity, 0.35);
+    const glow = (parseFloat(s.size) * 2.5).toFixed(2);
+    // Verbesserung (Sichtbarkeit): zusätzlicher dünner neutral-grauer Halo
+    // als "Sicherheitsnetz" - falls die Theme-Erkennung mal daneben liegt,
+    // bleibt der Stern trotzdem als heller Punkt sichtbar, egal auf welchem
+    // Hintergrund (dunkel oder hell).
+    return `<div class="star" style="top:${s.top}vh; left:${s.left}vw; width:${s.size}px; height:${s.size}px; background:${color}; box-shadow: 0 0 ${glow}px ${color}, 0 0 1.5px rgba(160,160,160,0.9); animation-duration:${s.dur}s; animation-delay:${s.delay}s; --peak:${peak.toFixed(2)};"></div>`;
   }).join("\n");
 
   const css = `
@@ -830,7 +843,7 @@ function renderStars(cfg, hass) {
       will-change: opacity, transform;
     }
     @keyframes star-twinkle {
-      0% { opacity: calc(var(--peak) * 0.25); transform: scale(0.8); }
+      0% { opacity: calc(var(--peak) * 0.5); transform: scale(0.8); }
       100% { opacity: var(--peak); transform: scale(1.2); }
     }
   `;
