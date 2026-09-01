@@ -663,6 +663,11 @@ function renderSanta(cfg, hass, hostEl) {
   const finalOpacity = isHigh ? 1 : opacity;
   const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
   const flightPct = Math.min(30, (18 / interval) * 100).toFixed(2);
+  // Verbesserung (Bugfix): negativer animation-delay, berechnet aus der
+  // gemerkten Startzeit - lässt die Animation an der richtigen Stelle
+  // weiterlaufen, statt bei jedem Neu-Rendern wieder bei 0% zu beginnen.
+  const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
+  const delaySec = (-(elapsedSec % interval)).toFixed(2);
 
   const css = `
     .santa-container {
@@ -671,7 +676,7 @@ function renderSanta(cfg, hass, hostEl) {
     }
     .santa-sleigh-box {
       position: absolute; top: 8vh; right: -250px; width: 220px; height: 62px;
-      animation: santa-fly ${interval}s linear infinite; will-change: transform;
+      animation: santa-fly ${interval}s linear infinite; animation-delay: ${delaySec}s; will-change: transform;
     }
     @keyframes santa-fly {
       0% { transform: translateX(0) translateY(0); }
@@ -828,8 +833,19 @@ function renderDog(cfg, hass, hostEl) {
   const finalOpacity = isHigh ? 1 : opacity;
   const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
   const walkPct = Math.min(30, (20 / interval) * 100).toFixed(2);
-  const startHeight = (Math.random() * 70 + 10).toFixed(2);
-  const driftHeight = (parseFloat(startHeight) + (Math.random() * 16 - 8)).toFixed(2);
+  // Verbesserung (Bugfix): Höhe/Drift kommen jetzt von der Haupt-Karte
+  // (einmalig gewürfelt und gespeichert, siehe _render()), statt bei jedem
+  // Aufruf neu zufällig zu sein - sonst würde ein Neu-Rendern mitten in der
+  // Animation zu einem sichtbaren Sprung führen. Fallback auf Zufallswerte,
+  // falls die Funktion (z. B. in Tests) ohne diese Werte aufgerufen wird.
+  const startHeight = (typeof cfg._startHeight === "number" ? cfg._startHeight : Math.random() * 70 + 10).toFixed(2);
+  const drift = typeof cfg._drift === "number" ? cfg._drift : (Math.random() * 16 - 8);
+  const driftHeight = (parseFloat(startHeight) + drift).toFixed(2);
+  // Negativer animation-delay aus der gemerkten Startzeit - lässt die
+  // Animation an der richtigen Stelle weiterlaufen, statt bei jedem
+  // Neu-Rendern wieder bei 0% zu beginnen.
+  const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
+  const delaySec = (-(elapsedSec % interval)).toFixed(2);
 
   const css = `
     .dog-container {
@@ -838,7 +854,7 @@ function renderDog(cfg, hass, hostEl) {
     }
     .dog-walk-box {
       position: absolute; top: ${startHeight}vh; left: -160px; width: 140px; height: 55px;
-      animation: dog-walk ${interval}s linear infinite; will-change: transform;
+      animation: dog-walk ${interval}s linear infinite; animation-delay: ${delaySec}s; will-change: transform;
     }
     .dog-bob {
       animation: dog-bob 0.55s ease-in-out infinite alternate;
@@ -963,6 +979,12 @@ class WeatherEventOverlayCard extends HTMLElement {
     this._portalHost = null;
     this._portalShadow = null;
     this._visibilityPollTimer = null;
+    // Verbesserung (Bugfix): merkt sich, WANN ein periodischer Effekt
+    // (Hund, Weihnachtsmann) gestartet wurde. Wird die Karte zwischendurch
+    // neu gerendert (z. B. durch häufige State-Updates einer Timer-Entity
+    // im Dashboard), kann die Animation so weiterrechnen, statt jedes Mal
+    // wieder bei 0% anzufangen und nie eine komplette Runde zu schaffen.
+    this._periodicStartTimes = {};
   }
 
   // Verbesserung (Bugfix): "position: fixed" wird nicht mehr relativ zum
@@ -1118,12 +1140,44 @@ class WeatherEventOverlayCard extends HTMLElement {
     const events = this._resolveEvents();
     this._updateSnowAccumulation(events);
 
+    // Verbesserung (Bugfix): Startzeiten von Effekten aufräumen, die gerade
+    // nicht mehr laufen - so fängt ein Effekt beim nächsten Auswählen
+    // wieder frisch bei 0 an, statt eine alte, längst vergangene Startzeit
+    // weiterzuverwenden.
+    for (const key of Object.keys(this._periodicStartTimes)) {
+      if (!events.includes(key)) delete this._periodicStartTimes[key];
+    }
+
     let combinedCss = "";
     let combinedHtml = "";
     for (const event of events) {
       const renderer = RENDERERS[event];
       if (!renderer) continue;
-      const cfgForRender = event === "snow" ? { ...this._config, _snowLevel: this._snowLevel } : this._config;
+      let cfgForRender = this._config;
+      if (event === "snow") {
+        cfgForRender = { ...this._config, _snowLevel: this._snowLevel };
+      } else if (event === "santa") {
+        if (!this._periodicStartTimes.santa) this._periodicStartTimes.santa = Date.now();
+        cfgForRender = { ...this._config, _startTime: this._periodicStartTimes.santa };
+      } else if (event === "dog") {
+        // Höhe/Drift nur EINMAL pro Lauf-Zyklus würfeln und mitspeichern -
+        // sonst würde ein Neu-Rendern mitten in der Animation zu einem
+        // sichtbaren Sprung auf eine neue Höhe führen.
+        if (!this._periodicStartTimes.dog) {
+          this._periodicStartTimes.dog = {
+            start: Date.now(),
+            startHeight: Math.random() * 70 + 10,
+            drift: Math.random() * 16 - 8,
+          };
+        }
+        const dogState = this._periodicStartTimes.dog;
+        cfgForRender = {
+          ...this._config,
+          _startTime: dogState.start,
+          _startHeight: dogState.startHeight,
+          _drift: dogState.drift,
+        };
+      }
       const { css, html } = renderer(cfgForRender, this._hass, this);
       combinedCss += css;
       combinedHtml += html;
@@ -1230,8 +1284,8 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
                     return `<option value="${eid}" ${c.weather_entity === eid ? "selected" : ""}>${friendly}</option>`;
                   }).join("")}
                 </select>
-              `, "Wetter-Entity für die automatische Steuerung.")
-            : this._row("Wetter-Sensor", `<input id="weather_entity" type="text" placeholder="weather.home" value="${c.weather_entity || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`, "Entity-ID manuell eintragen, z. B. weather.home.")
+              `, "Diese Wetter-Entity liefert den aktuellen Zustand (regnet, schneit, ...), nach dem sich der Effekt oben richtet.")
+            : this._row("Wetter-Sensor", `<input id="weather_entity" type="text" placeholder="weather.home" value="${c.weather_entity || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`, "Keine weather-Entity in HA gefunden - trag die Entity-ID hier manuell ein, z. B. weather.home.")
         ) : ""}
 
         ${caps.count ? this._row("Anzahl / Frequenz", `
@@ -1240,7 +1294,16 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="medium" ${c.count_preset === "medium" ? "selected" : ""}>🔷 Mittel</option>
             <option value="high" ${c.count_preset === "high" ? "selected" : ""}>🔷 Viel / Häufig</option>
           </select>
-        `, "Anzahl der Partikel.") : ""}
+        `, isWeatherAuto
+          ? "⚠️ Ein Wert für ALLE automatisch erkannten Effekte gemeinsam (Regen, Schnee, Hagel, Blitz, Nebel, Sturm) - nicht einzeln pro Effekt einstellbar."
+          : (c.event === "santa"
+              ? "Wie oft der Weihnachtsmann vorbeifliegt: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur einen Schlitten gibt)."
+              : (c.event === "dog"
+                  ? "Wie oft der Labrador durchläuft: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur einen Hund gibt)."
+                  : "Wie viele Partikel gleichzeitig zu sehen sind."
+                )
+            )
+        ) : ""}
 
         ${caps.opacity ? this._row("Deckkraft / Helligkeit", `
           <select id="opacity_preset" style="width:100%; padding:6px;">
@@ -1248,14 +1311,20 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="medium" ${c.opacity_preset === "medium" ? "selected" : ""}>👁️ Dezent (60%)</option>
             <option value="high" ${c.opacity_preset === "high" ? "selected" : ""}>✨ Kräftig (100%)</option>
           </select>
-        `, "Sichtbarkeit des Effekts.") : ""}
+        `, isWeatherAuto
+          ? "Ebenfalls EIN Wert für ALLE automatisch erkannten Effekte gemeinsam."
+          : "Wie stark/deutlich der Effekt sichtbar ist."
+        ) : ""}
 
         ${caps.color ? this._row("Farbmodus", `
           <select id="color_mode" style="width:100%; padding:6px;">
             <option value="auto" ${colorMode === "auto" ? "selected" : ""}>🌗 Auto (Theme-Abgleich)</option>
             <option value="custom" ${colorMode === "custom" ? "selected" : ""}>🎨 Manuelle Farbe</option>
           </select>
-        `, "Passt die Farbe automatisch an das aktive Theme an.") : ""}
+        `, isWeatherAuto
+          ? "Gilt nur, wenn gerade Regen, Schnee, Hagel, Nebel oder Sturm aktiv ist (nicht bei Blitz - der hat immer weißes Licht)."
+          : "Farbe automatisch nach Hell/Dunkel-Modus wählen oder selbst festlegen."
+        ) : ""}
 
         ${caps.color && colorMode === "custom" ? `
         <div id="custom_color_picker">
