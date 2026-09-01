@@ -231,9 +231,12 @@ const EVENT_CAPABILITIES = {
   balloons: { count: true, opacity: true, color: false },
   lights: { count: true, opacity: true, color: false },
   // Anzahl steuert bei Weihnachtsmann den Abstand zwischen den Vorbeiflügen
-  // statt einer Partikelmenge (es gibt ja nur einen Schlitten).
-  santa: { count: true, opacity: true, color: true },
+  // statt einer Partikelmenge (es gibt ja nur einen Schlitten). Farbmodus
+  // gibt's hier nicht - die Illustration ist eine feste bunte Szene
+  // (Gold/Rot/Weiß), kein einfarbiges Element zum Umschalten.
+  santa: { count: true, opacity: true, color: false },
   // Bei der Spinne gibt's nur EIN Tier - Anzahl macht hier keinen Sinn.
+  // Farbmodus bleibt aktiv, da Netz/Faden sich Hell/Dunkel anpassen.
   spider: { count: false, opacity: true, color: true },
   stars: { count: true, opacity: true, color: true },
 };
@@ -254,41 +257,6 @@ const DEFAULT_LEAF_SHAPE = `
   <path d="M50 10 L50 90" stroke="rgba(0,0,0,0.25)" stroke-width="3" stroke-linecap="round"/>
   <path d="M50 30 L34 20 M50 30 L66 20 M50 55 L30 45 M50 55 L70 45 M50 75 L36 68 M50 75 L64 68"
         stroke="rgba(0,0,0,0.18)" stroke-width="2" stroke-linecap="round"/>
-`;
-
-// Eigene, schlichte Silhouette (Schlitten + 3 Rentiere + Weihnachtsmann) -
-// keine Anlehnung an ein bestimmtes Marken-Design, nur eine generische
-// Weihnachtsszene als Umriss.
-const SANTA_SVG = `
-<svg viewBox="0 0 320 90" preserveAspectRatio="xMidYMid meet" fill="currentColor">
-  <g>
-    <ellipse cx="30" cy="55" rx="20" ry="11"/>
-    <circle cx="54" cy="45" r="7"/>
-    <line x1="58" y1="38" x2="50" y2="24" stroke="currentColor" stroke-width="2"/>
-    <line x1="58" y1="38" x2="66" y2="26" stroke="currentColor" stroke-width="2"/>
-    <line x1="20" y1="64" x2="16" y2="80" stroke="currentColor" stroke-width="3"/>
-    <line x1="38" y1="64" x2="42" y2="80" stroke="currentColor" stroke-width="3"/>
-  </g>
-  <g transform="translate(75,0)">
-    <ellipse cx="30" cy="55" rx="20" ry="11"/>
-    <circle cx="54" cy="45" r="7"/>
-    <line x1="58" y1="38" x2="50" y2="24" stroke="currentColor" stroke-width="2"/>
-    <line x1="58" y1="38" x2="66" y2="26" stroke="currentColor" stroke-width="2"/>
-    <line x1="20" y1="64" x2="16" y2="80" stroke="currentColor" stroke-width="3"/>
-    <line x1="38" y1="64" x2="42" y2="80" stroke="currentColor" stroke-width="3"/>
-  </g>
-  <g transform="translate(150,0)">
-    <ellipse cx="30" cy="55" rx="20" ry="11"/>
-    <circle cx="54" cy="45" r="7"/>
-    <line x1="58" y1="38" x2="50" y2="24" stroke="currentColor" stroke-width="2"/>
-    <line x1="58" y1="38" x2="66" y2="26" stroke="currentColor" stroke-width="2"/>
-    <line x1="20" y1="64" x2="16" y2="80" stroke="currentColor" stroke-width="3"/>
-    <line x1="38" y1="64" x2="42" y2="80" stroke="currentColor" stroke-width="3"/>
-  </g>
-  <path d="M235 55 Q225 70 245 70 L295 70 Q305 70 305 60 L305 50 L245 50 Q235 50 235 55 Z"/>
-  <circle cx="270" cy="35" r="10"/>
-  <path d="M260 30 Q270 15 282 28 L275 30 Z"/>
-</svg>
 `;
 
 const BALLOONS = Array.from({ length: 30 }, (_, i) => ({
@@ -660,96 +628,112 @@ function renderStorm(cfg, hass) {
 
 
 function renderSanta(cfg, hass) {
-  // Weihnachtsmann: fliegt per CSS-Keyframe-Animation periodisch quer übers
-  // Bild - kein JS-Timer nötig, die "Wartezeit" ist einfach der stille Teil
-  // eines langen Animations-Loops. "Anzahl/Frequenz" steuert hier, wie oft
-  // (alle 100-340 Sekunden), nicht eine Partikel-Menge.
-  const color = resolveDynamicColor(cfg.color, hass, "#3a2a1a", "#fbe9c8");
+  // Optik: Schlitten mit 2 Rentieren im festen Weihnachts-Farbschema (Gold/
+  // Rot/Weiß) - bewusst NICHT theme-abhängig, da es eine bunte Illustration
+  // ist und kein einfarbiges Element. Anzahl/Frequenz + Kräftig-Boost bleiben
+  // wie bei den anderen Effekten an die bestehenden Regler gekoppelt.
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
   const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
-  const flightSeconds = 12;
-  const flightPct = Math.min(35, (flightSeconds / interval) * 100).toFixed(2);
-  const fadePct = (parseFloat(flightPct) + 0.5).toFixed(2);
 
-  const html = `<div class="santa-flight" aria-hidden="true" style="color:${color}; animation-duration:${interval}s;">${SANTA_SVG}</div>`;
   const css = `
-    .santa-flight {
-      position: fixed; top: 8vh; left: -30vw; width: 260px;
-      pointer-events: none; z-index: 9999;
-      animation-name: santa-fly; animation-timing-function: linear; animation-iteration-count: infinite;
-      will-change: transform, opacity;
+    .santa-container {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      pointer-events: none; z-index: 9999; overflow: hidden;
+    }
+    .santa-sleigh-box {
+      position: absolute; top: 8vh; right: -250px; width: 180px; height: 50px;
+      animation: santa-fly ${interval}s linear infinite;
+      will-change: transform;
     }
     @keyframes santa-fly {
-      0% { transform: translate(0, 0); opacity: 0; }
-      1% { opacity: ${finalOpacity}; }
-      ${flightPct}% { transform: translate(150vw, -6vh); opacity: ${finalOpacity}; }
-      ${fadePct}% { opacity: 0; }
-      100% { transform: translate(150vw, -6vh); opacity: 0; }
+      0% { transform: translateX(0) translateY(0); }
+      3% { transform: translateX(calc(-100vw - 300px)) translateY(15px); }
+      4% { transform: translateX(calc(-100vw - 300px)) translateY(-20px); }
+      100% { transform: translateX(calc(-100vw - 300px)) translateY(-20px); }
     }
   `;
+
+  const html = `
+    <div class="santa-container" style="opacity:${finalOpacity};" aria-hidden="true">
+      <div class="santa-sleigh-box">
+        <svg viewBox="0 0 200 60" style="width:100%; height:100%; fill:#d4af37;">
+          <!-- Rentier 1 -->
+          <path d="M 20 25 Q 15 15 10 20 M 10 20 Q 5 10 2 12 M 10 20 Q 12 10 16 8 M 20 25 L 35 25 L 40 40 M 25 40 L 23 50 M 35 40 L 37 50" stroke="currentColor" stroke-width="2" fill="none"/>
+          <!-- Rentier 2 -->
+          <path d="M 70 25 Q 65 15 60 20 M 60 20 Q 55 10 52 12 M 60 20 Q 62 10 66 8 M 70 25 L 85 25 L 90 40 M 75 40 L 73 50 M 85 40 L 87 50" stroke="currentColor" stroke-width="2" fill="none"/>
+          <!-- Zügel -->
+          <line x1="20" y1="28" x2="140" y2="32" stroke="rgba(255,255,255,0.6)" stroke-width="1"/>
+          <!-- Schlitten & Weihnachtsmann -->
+          <path d="M 130 45 C 120 45 115 35 125 25 C 130 20 145 20 150 28 C 155 20 170 20 175 35 C 180 45 170 50 150 50 Z" fill="#b91c1c"/>
+          <path d="M 120 52 L 180 52 Q 188 52 185 42" stroke="#d4af37" stroke-width="3" fill="none"/>
+          <circle cx="140" cy="18" r="6" fill="#ffffff"/> <!-- Mütze -->
+          <circle cx="140" cy="22" r="5" fill="#fca5a5"/> <!-- Gesicht -->
+        </svg>
+      </div>
+    </div>
+  `;
+
   return { css, html };
 }
 
 function renderSpider(cfg, hass) {
-  // Spinne: festes Netz oben rechts, Spinne seilt sich an einem Faden auf
-  // und ab. Augen bleiben bewusst immer rot-leuchtend, unabhängig vom Theme.
+  // Optik: Netz in der Ecke + Spinne, die an einem Faden auf und ab seilt.
+  // Farbmodus bleibt aktiv (Netz/Faden passen sich Hell/Dunkel an), Kräftig
+  // hebt die Deckkraft wie bei den anderen Effekten auf volle 100% an. Die
+  // Augen bleiben bewusst immer leuchtend rot, unabhängig vom Theme.
   const webColor = resolveDynamicColor(cfg.color, hass, "#4a4a4a", "#e5e5e5");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
 
+  const css = `
+    .spider-web-container {
+      position: fixed; top: 0; right: 0; width: 300px; height: 300px;
+      pointer-events: none; z-index: 9999; overflow: visible;
+      color: ${webColor};
+    }
+    .corner-web {
+      position: absolute; top: 0; right: 0; width: 180px; height: 180px;
+      filter: drop-shadow(0 0 2px rgba(0,0,0,0.2));
+    }
+    .hanging-spider-box {
+      position: absolute; top: 40px; right: 50px; width: 24px; height: 24px;
+      animation: spider-drop 14s ease-in-out infinite;
+      will-change: transform;
+    }
+    .spider-web-thread {
+      position: absolute; top: -300px; left: 50%; width: 1px; height: 300px;
+      background: ${webColor}; transform: translateX(-50%);
+    }
+    @keyframes spider-drop {
+      0%, 100% { transform: translateY(0); }
+      35%, 65% { transform: translateY(180px); }
+      45%, 55% { transform: translateY(170px); }
+    }
+  `;
+
   const html = `
-    <div class="spider-corner" aria-hidden="true" style="opacity:${finalOpacity};">
-      <svg class="spider-web" viewBox="0 0 140 140" style="color:${webColor};">
-        <g fill="none" stroke="currentColor" stroke-width="1.2">
-          <path d="M140 0 L0 140"/>
-          <path d="M140 20 L20 140"/>
-          <path d="M140 45 L45 140"/>
-          <path d="M140 70 L70 140"/>
-          <path d="M140 95 L95 140"/>
-          <path d="M140 0 Q90 40 95 95 Q100 130 140 140"/>
-          <path d="M140 0 Q60 20 45 70 Q35 110 70 140"/>
-          <path d="M140 0 Q40 5 20 45 Q10 90 45 140"/>
-        </g>
+    <div class="spider-web-container" style="opacity:${finalOpacity};" aria-hidden="true">
+      <svg class="corner-web" viewBox="0 0 100 100">
+        <path d="M 100 0 L 0 0 Q 50 50 100 100 Z" fill="none" stroke="currentColor" stroke-width="0.8" opacity="0.5"/>
+        <path d="M 100 0 L 0 0 M 100 0 L 25 100 M 100 0 L 60 100 M 100 0 L 0 50" stroke="currentColor" stroke-width="0.5"/>
+        <path d="M 30 0 Q 60 30 100 30 M 50 0 Q 70 50 100 50 M 70 0 Q 85 70 100 70" fill="none" stroke="currentColor" stroke-width="0.5"/>
       </svg>
-      <div class="spider-rig">
-        <div class="spider-thread"></div>
-        <div class="spider-body">
-          <span class="spider-eye left"></span>
-          <span class="spider-eye right"></span>
-        </div>
+      <div class="hanging-spider-box">
+        <div class="spider-web-thread"></div>
+        <svg viewBox="0 0 100 100" style="width:100%; height:100%; fill:#111;">
+          <path d="M 40 45 Q 15 20 5 35 M 40 50 Q 10 45 0 55 M 40 55 Q 12 70 5 80 M 60 45 Q 85 20 95 35 M 60 50 Q 90 45 100 55 M 60 55 Q 88 70 95 80" stroke="#111" stroke-width="6" fill="none"/>
+          <circle cx="50" cy="40" r="12"/>
+          <circle cx="50" cy="65" r="18"/>
+          <circle cx="45" cy="33" r="2.5" fill="#ff0000" style="filter: drop-shadow(0 0 3px #ff2222);"/>
+          <circle cx="55" cy="33" r="2.5" fill="#ff0000" style="filter: drop-shadow(0 0 3px #ff2222);"/>
+        </svg>
       </div>
     </div>
   `;
-  const css = `
-    .spider-corner {
-      position: fixed; top: 0; right: 0; width: 160px; height: 160px;
-      pointer-events: none; z-index: 9999;
-    }
-    .spider-web { position: absolute; top: 0; right: 0; width: 100%; height: 100%; }
-    .spider-rig {
-      position: absolute; top: 20px; right: 55px;
-      animation: spider-dangle 6s ease-in-out infinite alternate;
-      will-change: transform;
-    }
-    .spider-thread { width: 1px; height: 90px; background: ${webColor}; margin: 0 auto; }
-    .spider-body {
-      position: relative; width: 16px; height: 12px; border-radius: 50%;
-      background: #1a1a1a; margin: -2px auto 0;
-    }
-    .spider-eye {
-      position: absolute; top: 3px; width: 3px; height: 3px; border-radius: 50%;
-      background: #ff2222; box-shadow: 0 0 4px 1px #ff2222;
-    }
-    .spider-eye.left { left: 3px; }
-    .spider-eye.right { right: 3px; }
-    @keyframes spider-dangle {
-      0% { transform: translateY(0); }
-      100% { transform: translateY(70px); }
-    }
-  `;
+
   return { css, html };
 }
 
