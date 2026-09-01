@@ -1361,26 +1361,39 @@ function renderWishStar(cfg, hass, hostEl) {
 
   const css = `
     .wishstar {
-      position: fixed; top: ${pos.top.toFixed(2)}vh; left: ${pos.left.toFixed(2)}vw; width: 46px; height: 46px;
+      position: fixed; top: ${pos.top.toFixed(2)}vh; left: ${pos.left.toFixed(2)}vw; width: 70px; height: 70px;
       pointer-events: none; z-index: 9999;
       animation: wishstar-flash 3s ease-in-out 1 forwards;
-      filter: drop-shadow(0 0 14px ${color});
       will-change: opacity, transform;
     }
+    .wishstar-halo {
+      position: absolute; inset: 0; border-radius: 50%;
+      background: radial-gradient(circle, ${color} 0%, ${color}99 30%, transparent 72%);
+      filter: blur(5px);
+    }
+    .wishstar-ray {
+      position: absolute; top: 50%; left: 50%; filter: blur(2.5px); opacity: 0.55;
+    }
+    .wishstar-ray.v { width: 2.5px; height: 100%; background: linear-gradient(${color}, transparent 38%, transparent 62%, ${color}); transform: translate(-50%, -50%); }
+    .wishstar-ray.h { width: 100%; height: 2.5px; background: linear-gradient(90deg, ${color}, transparent 38%, transparent 62%, ${color}); transform: translate(-50%, -50%); }
+    .wishstar-core {
+      position: absolute; top: 50%; left: 50%; width: 16px; height: 16px; margin: -8px;
+      border-radius: 50%; background: #ffffff;
+      box-shadow: 0 0 14px 5px ${color};
+    }
     @keyframes wishstar-flash {
-      0% { opacity: 0; transform: scale(0.3) rotate(0deg); }
-      30% { opacity: ${peak}; transform: scale(1.25) rotate(8deg); }
-      55% { opacity: ${peak}; transform: scale(1) rotate(0deg); }
-      100% { opacity: 0; transform: scale(0.3) rotate(0deg); }
+      0% { opacity: 0; transform: scale(0.3); }
+      30% { opacity: ${peak}; transform: scale(1.2); }
+      55% { opacity: ${peak}; transform: scale(1); }
+      100% { opacity: 0; transform: scale(0.3); }
     }
   `;
   const html = `
     <div class="wishstar" aria-hidden="true">
-      <svg viewBox="0 0 100 100" style="width:100%; height:100%;">
-        <path d="M50,0 L57,43 L100,50 L57,57 L50,100 L43,57 L0,50 L43,43 Z" fill="${color}"/>
-        <circle cx="50" cy="50" r="12" fill="${color}"/>
-        <circle cx="50" cy="50" r="5" fill="#ffffff" opacity="0.9"/>
-      </svg>
+      <div class="wishstar-halo"></div>
+      <div class="wishstar-ray v"></div>
+      <div class="wishstar-ray h"></div>
+      <div class="wishstar-core"></div>
     </div>
   `;
   return { css, html };
