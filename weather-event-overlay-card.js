@@ -759,20 +759,22 @@ function renderStars(cfg, hass) {
     const peak = isHigh
       ? Math.max(parseFloat(s.baseOp), 0.9)
       : (parseFloat(s.baseOp) * opacity);
-    return `<div class="star" style="top:${s.top}vh; left:${s.left}vw; width:${s.size}px; height:${s.size}px; background:${color}; animation-duration:${s.dur}s; animation-delay:${s.delay}s; --peak:${peak.toFixed(2)};"></div>`;
+    // Verbesserung: Glow-Radius richtet sich nach der Sterngröße (schöneres
+    // Funkeln), statt bei jedem Stern gleich stark zu leuchten.
+    const glow = (parseFloat(s.size) * 2).toFixed(2);
+    return `<div class="star" style="top:${s.top}vh; left:${s.left}vw; width:${s.size}px; height:${s.size}px; background:${color}; box-shadow: 0 0 ${glow}px ${color}; animation-duration:${s.dur}s; animation-delay:${s.delay}s; --peak:${peak.toFixed(2)};"></div>`;
   }).join("\n");
 
   const css = `
     ${overlayBaseCss("stars-container")}
     .star {
       position: absolute; border-radius: 50%;
-      box-shadow: 0 0 4px currentColor;
       animation: star-twinkle ease-in-out infinite alternate;
-      will-change: opacity;
+      will-change: opacity, transform;
     }
     @keyframes star-twinkle {
-      0% { opacity: calc(var(--peak) * 0.25); }
-      100% { opacity: var(--peak); }
+      0% { opacity: calc(var(--peak) * 0.25); transform: scale(0.8); }
+      100% { opacity: var(--peak); transform: scale(1.2); }
     }
   `;
   return { css, html: `<div class="stars-container" aria-hidden="true">${starHTML}</div>` };
