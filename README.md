@@ -1,24 +1,23 @@
 # Weather & Event Overlay Card for Home Assistant
 
-Eine benutzerdefinierte Lovelace-Karte für Home Assistant, die dynamische Animationen über dein Dashboard legt – von echtem Wetter (Regen, Schnee, Hagel, Blitz, Nebel, Sturm, Wolken-Drift) über Himmelsphänomene (Sternenhimmel, Sternschnuppen, Wunschstern, Komet) bis zu Tieren und Deko-Effekten (Herbstlaub, Luftballons, Lichterkette, Weihnachtsmann, Spinne mit Netz, goldener Labrador, Eichhörnchen, Fledermäuse, Eule, Biene, Enten-Familie). Inklusive vollständiger visueller GUI-Editor-Unterstützung, automatischer Theme-Anpassung und optionaler Wetter-Automatik mit echten Kombi-Effekten.
+Eine benutzerdefinierte Lovelace-Karte für Home Assistant, die dynamische Animationen über dein Dashboard legt – von echtem Wetter (Regen, Schnee, Hagel, Blitz, Nebel, Sturm, Wolken-Drift) über Himmelsphänomene (Sternenhimmel, Sternschnuppen, Wunschstern, Komet) bis zu Tieren und Deko-Effekten (Herbstlaub, Luftballons, Lichterkette, Weihnachtsmann, Spinne mit Netz, goldener Labrador, Fledermäuse, Eule, Bienenschwarm). Inklusive vollständiger visueller GUI-Editor-Unterstützung, automatischer Theme-Anpassung und optionaler Wetter-Automatik mit echten Kombi-Effekten.
 
 ---
 
 ## 🎨 Features
 
-* **22 Effekte** – siehe Tabelle weiter unten für die komplette Liste.
+* **20 Effekte** – siehe Tabelle weiter unten für die komplette Liste, sinnvoll gruppiert im Editor-Dropdown (Wetter → Himmel/Nacht → Deko/Jahreszeit → Tiere).
 * **🌦️ Optionale Wetter-Automatik:** Statt manuell einen Effekt auszuwählen, kann die Karte sich an einer echten `weather.*`-Entity orientieren und automatisch den passenden Effekt zeigen.
 * **⛈️ Echte Kombi-Effekte:** Meldet die Wetter-Entity "Schneeregen", laufen Schnee **und** Regen gleichzeitig; bei "Gewitter mit Regen" laufen Blitz **und** Regen gleichzeitig.
 * **☃️ Wachsende Schneedecke:** Läuft der Schnee-Effekt eine Weile, sammelt sich unten am Bildschirmrand langsam eine echte kleine Schneeschicht an.
-* **🎅🐕🐿️🐝🦆☄️ Periodisch durchlaufende Figuren:** Weihnachtsmann, Labrador, Eichhörnchen, Biene, Enten-Familie und Komet ziehen periodisch durchs Bild statt dauerhaft sichtbar zu sein – wie oft, stellst du über "Anzahl/Frequenz" ein (alle 1-6 Minuten). Läuft robust auch dann korrekt weiter, wenn die Karte durch häufige Dashboard-Updates (z. B. eine laufende Timer-Entity) zwischendurch neu rendert – Position, Höhe und Zeitpunkt bleiben dabei stabil, statt bei jedem Neu-Rendern zu springen.
+* **🎅🐕☄️ Periodisch durchlaufende Figuren:** Weihnachtsmann, Labrador und Komet ziehen periodisch durchs Bild statt dauerhaft sichtbar zu sein – wie oft, stellst du über "Anzahl/Frequenz" ein (alle 1-6 Minuten). Läuft robust auch dann korrekt weiter, wenn die Karte durch häufige Dashboard-Updates (z. B. eine laufende Timer-Entity) zwischendurch neu rendert.
 * **🕷️ Spinne mit Netz:** Mathematisch berechnetes, symmetrisches Netz oben rechts, eine Spinne mit blinkenden roten Augen seilt sich daran auf und ab.
 * **🐕 Goldener Labrador:** Läuft mit echter Beinbewegung (diagonale Beinpaare schwingen gegenläufig wie im echten Trab).
-* **🦇 Fledermäuse:** Mehrere flatternde Silhouetten auf wellenförmigen, unregelmäßigen Flugbahnen.
-* **🦉 Eule:** Sitzt ruhig in einer Ecke, blinzelt gelegentlich und dreht leicht den Kopf.
-* **🐝 Biene:** Zickzackt in einem verschlungenen Pfad übers Bild statt geradeaus zu fliegen.
-* **🦆 Enten-Familie:** Eine große Ente läuft voran, mehrere kleine Küken watscheln im Gänsemarsch hinterher.
-* **🌤️ Wolken-Drift:** Mehrere weiche, verschwommene Wolken ziehen ganz ruhig und langsam übers Bild.
-* **⭐ Wunschstern-Funkeln:** Ein einzelner, extra heller Stern blitzt an einer festen Position immer wieder kurz auf.
+* **🦇 Fledermäuse:** Mehrere flatternde Silhouetten über den kompletten Bildschirm verteilt, auf wellenförmigen Flugbahnen.
+* **🦉 Eule:** Sitzt auf einem Ast in der oberen linken Ecke, vor einem kleinen Halbmond - mit Federstruktur, Ohrbüscheln, Glanzpunkten in den Augen, sichtbaren Krallen sowie sanftem Blinzeln, Kopfdrehen und Atem-Wippen.
+* **🐝 Bienenschwarm:** 5-8 Bienen gleichzeitig, jede mit eigenem Zickzack-Pfad über den kompletten Bildschirm, mit sichtbaren flatternden Flügeln.
+* **🌤️ Wolken-Drift:** Mehrere weiche, sehr zart verschwommene Wolken ziehen über den kompletten Bildschirm; läuft auch automatisch bei bewölktem/teilweise bewölktem Wetter.
+* **⭐ Wunschstern-Funkeln:** Ein einzelner Stern mit weichem Strahlenkranz-Glanz leuchtet einmal auf, verschwindet komplett und blitzt beim nächsten Zyklus an einer neuen zufälligen Position wieder auf - niemals zweimal am selben Fleck hintereinander.
 * **🌗 Auto-Theme-Modus mit View-Theme-Unterstützung:** Erkennt automatisch Hell-/Dunkelmodus – auch wenn das Theme nur auf einer einzelnen Dashboard-Seite (View-Theme) statt global gesetzt ist.
 * **✨ Echtes "Kräftig":** Bei maximaler Deckkraft wird jeder Effekt spürbar kräftiger/deutlicher dargestellt.
 * **GUI-Editor mit Kontext:** Der Editor blendet nur die Regler ein, die für den aktuell gewählten Effekt auch wirklich etwas tun, und erklärt passend zum gewählten Effekt, was jeder Regler macht.
@@ -61,14 +60,15 @@ Eine benutzerdefinierte Lovelace-Karte für Home Assistant, die dynamische Anima
 
 Karte zum Dashboard hinzufügen → **Weather & Event Overlay Card** auswählen → im Editor:
 
-1. **Effekt** wählen – entweder einen festen Effekt (Regen, Schnee, Eichhörnchen, ...) oder **"🌦️ Automatisch (nach Wetter)"**.
+1. **Effekt** wählen – entweder einen festen Effekt (Regen, Schnee, Eule, ...) oder **"🌦️ Automatisch (nach Wetter)"**.
 2. Bei "Automatisch": darunter erscheint **Wetter-Sensor** – dort deine `weather.*`-Entity aus der Liste auswählen.
 3. **Anzahl / Frequenz**, **Deckkraft / Helligkeit** und ggf. **Farbmodus** nach Geschmack einstellen.
 
 Der Editor blendet dabei automatisch nur die Regler ein, die für den gewählten Effekt auch etwas bewirken:
-* Bei **Blitz, Weihnachtsmann, Hund, Eichhörnchen, Fledermäuse, Eule, Biene, Wolken-Drift und Enten-Familie** gibt's keinen Farbmodus (feste Farben).
+* Bei **Blitz, Weihnachtsmann, Hund, Fledermäuse, Eule und Wolken-Drift** gibt's keinen Farbmodus (feste Farben).
 * Bei der **Spinne, Eule und Wunschstern** gibt's keine Anzahl (es gibt jeweils nur die eine).
-* Bei **Weihnachtsmann, Hund, Eichhörnchen, Biene, Enten-Familie und Komet** steuert "Anzahl/Frequenz" NICHT eine Partikelmenge, sondern wie oft die Figur durchs Bild zieht: Wenig ≈ alle 5-6 Minuten, Mittel ≈ alle 3-4 Minuten, Viel ≈ alle 1-2 Minuten.
+* Bei **Weihnachtsmann, Hund und Komet** steuert "Anzahl/Frequenz" NICHT eine Partikelmenge, sondern wie oft die Figur durchs Bild zieht: Wenig ≈ alle 5-6 Minuten, Mittel ≈ alle 3-4 Minuten, Viel ≈ alle 1-2 Minuten.
+* Bei **Fledermäuse, Bienen und Wolken-Drift** ist "Anzahl" dagegen eine ganz normale Partikelmenge (wie viele gleichzeitig zu sehen sind).
 
 ### 🌦️ Wie die Wetter-Automatik genau funktioniert
 
@@ -84,10 +84,11 @@ Ist "Automatisch" aktiv, schaut die Karte sich den aktuellen Zustand deiner gew�
 | `lightning-rainy` | ⚡ Blitz **+** 🌧️ Regen gleichzeitig |
 | `fog` | 🌫️ Nebel |
 | `windy`, `windy-variant` | 💨 Sturm |
+| `cloudy`, `partlycloudy` | 🌤️ Wolken-Drift |
 | `clear-night` | ✨ Sternenhimmel |
-| alles andere (sonnig, wolkig, ...) | Aus |
+| alles andere (sonnig, klar, ...) | Aus |
 
-**Wichtig:** Anzahl, Deckkraft und Farbmodus gelten bei aktiver Automatik als **ein gemeinsamer Wert für alle möglichen Wetter-Effekte**. Alle Tier- und Deko-Effekte (Weihnachtsmann, Hund, Eichhörnchen, Fledermäuse, Eule, Biene, Wolken-Drift, Enten-Familie, Wunschstern, Spinne) laufen NICHT über die Wetter-Automatik, die wählst du bei Bedarf manuell aus.
+**Wichtig:** Anzahl, Deckkraft und Farbmodus gelten bei aktiver Automatik als **ein gemeinsamer Wert für alle möglichen Wetter-Effekte**. Alle Tier- und Deko-Effekte (Weihnachtsmann, Hund, Fledermäuse, Eule, Bienen, Wunschstern, Spinne) laufen NICHT über die Wetter-Automatik, die wählst du bei Bedarf manuell aus.
 
 ---
 
@@ -101,14 +102,6 @@ weather_entity: weather.home
 count_preset: medium
 opacity_preset: medium
 color_mode: auto
-```
-
-### Eichhörnchen (schnell, alle 3-4 Min.)
-```yaml
-type: custom:weather-event-overlay-card
-event: squirrel
-count_preset: medium
-opacity_preset: medium
 ```
 
 ### Fledermäuse
@@ -126,7 +119,7 @@ event: owl
 opacity_preset: medium
 ```
 
-### Biene
+### Bienenschwarm
 ```yaml
 type: custom:weather-event-overlay-card
 event: bee
@@ -134,19 +127,11 @@ count_preset: medium
 opacity_preset: medium
 ```
 
-### Wolken-Drift
+### Wolken-Drift (zart)
 ```yaml
 type: custom:weather-event-overlay-card
 event: clouds
 count_preset: low
-opacity_preset: medium
-```
-
-### Enten-Familie
-```yaml
-type: custom:weather-event-overlay-card
-event: ducks
-count_preset: medium
 opacity_preset: medium
 ```
 
@@ -193,22 +178,20 @@ leaf_colors:
 | `lightning` | ⚡ Blitz / Gewitter |
 | `fog` | 🌫️ Wabernde Nebelschwaden |
 | `storm` | 💨 Sturm/Windböen |
-| `clouds` | 🌤️ Ruhig ziehende Wolken |
-| `leaves` | 🍂 Herbstlaub mit 3-Farben-Verlauf |
+| `clouds` | 🌤️ Sehr zart ziehende Wolken über den ganzen Bildschirm |
 | `shooting_stars` | 🌠 Sternschnuppen |
 | `stars` | ✨ Funkelnder Sternenhimmel |
-| `wishstar` | ⭐ Ein einzelner Wunschstern, der immer wieder kurz aufblitzt |
+| `wishstar` | ⭐ Ein Stern mit weichem Strahlenkranz, blitzt an wechselnden Positionen auf |
 | `comet` | ☄️ Seltener, dramatischer Komet mit langem Schweif |
+| `leaves` | 🍂 Herbstlaub mit 3-Farben-Verlauf |
 | `balloons` | 🎈 Aufsteigende Luftballons |
 | `lights` | 💡 Blinkende Lichterkette am oberen Rand |
 | `santa` | 🎅 Weihnachtsmann mit Schlitten & 2 Rentieren (periodischer Vorbeiflug) |
 | `spider` | 🕷️ Spinnennetz mit auf- und abseilender Spinne (blinkende rote Augen) |
 | `dog` | 🐕 Goldener Labrador mit echter Lauf-Beinbewegung |
-| `squirrel` | 🐿️ Eichhörnchen, huscht schnell und hoppelnd durchs Bild |
-| `bats` | 🦇 Mehrere flatternde Fledermäuse |
-| `owl` | 🦉 Eule, sitzt ruhig in der Ecke und blinzelt |
-| `bee` | 🐝 Biene im Zickzack-Flug |
-| `ducks` | 🦆 Enten-Familie im Gänsemarsch |
+| `bats` | 🦇 Fledermausschwarm über den ganzen Bildschirm |
+| `owl` | 🦉 Eule auf einem Ast, vor dem Mond, mit Federdetails |
+| `bee` | 🐝 Bienenschwarm (5-8 Stück) im Zickzack-Flug |
 
 ---
 
@@ -218,7 +201,7 @@ leaf_colors:
 |---|---|---|---|
 | `event` | string | `off` | Welcher Effekt aktiv ist, oder `weather_auto` für die Wetter-Automatik (siehe Tabelle oben) |
 | `weather_entity` | string | `""` | HA-Entity-ID einer `weather.*`-Entity, z. B. `weather.home` (nur relevant bei `event: weather_auto`) |
-| `count_preset` | `low` \| `medium` \| `high` | `medium` | Anzahl bzw. Frequenz der Partikel – bei `weather_auto` gemeinsam für alle möglichen Effekte, bei `santa`/`dog`/`squirrel`/`bee`/`ducks`/`comet` stattdessen der Abstand zwischen den Durchgängen |
+| `count_preset` | `low` \| `medium` \| `high` | `medium` | Anzahl bzw. Frequenz der Partikel – bei `weather_auto` gemeinsam für alle möglichen Effekte, bei `santa`/`dog`/`comet` stattdessen der Abstand zwischen den Durchgängen, bei `bats`/`bee`/`clouds` die Menge gleichzeitiger Partikel |
 | `opacity_preset` | `low` \| `medium` \| `high` | `medium` | Deckkraft/Helligkeit des Effekts |
 | `color_mode` | `auto` \| `custom` | `auto` | Automatische Theme-Erkennung oder feste Farbe (nur bei Effekten mit Farbmodus) |
 | `color` | string (hex) oder `auto` | `auto` | Manuelle Farbe für Effekte mit Farbmodus (Regen, Schnee, Nebel, Hagel, Sturm, Sternschnuppen, Sternenhimmel, Wunschstern, Spinnennetz, Komet) |
