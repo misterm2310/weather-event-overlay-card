@@ -1348,30 +1348,30 @@ function renderDucks(cfg, hass, hostEl) {
 
 function renderWishStar(cfg, hass, hostEl) {
   // Wunschstern-Funkeln: sieht aus wie ein Stern vom normalen Sternenhimmel
-  // (runder Punkt mit Glow, gleiches Funkeln) - nur deutlich größer und an
-  // einer einzigen festen zufälligen Position, statt vieler kleiner Punkte.
+  // (runder Punkt mit Glow) - leuchtet aber einmal auf, verschwindet dann
+  // wieder komplett und blitzt beim nächsten Zyklus an einer NEUEN Position
+  // auf. Die Position kommt von der Haupt-Karte (_wishstarPos), die sie bei
+  // jedem Zyklus per Timer neu würfelt - ein reiner CSS-Loop könnte nicht
+  // "teleportieren", nur an derselben Stelle bleiben.
   const color = resolveDynamicColor(cfg.color, hass, "#1a1a2e", "#ffffff", hostEl);
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const peak = isHigh ? 1 : Math.max(opacity, 0.5);
-
-  const pos = getCachedRandomSet("wishstar", 1, () => ({
-    top: (Math.random() * 60 + 8).toFixed(2),
-    left: (Math.random() * 80 + 10).toFixed(2),
-    dur: (Math.random() * 2 + 3).toFixed(2),
-  }))[0];
+  const pos = cfg._wishstarPos || { top: 30, left: 50 };
 
   const css = `
     .wishstar {
-      position: fixed; top: ${pos.top}vh; left: ${pos.left}vw; width: 16px; height: 16px;
+      position: fixed; top: ${pos.top.toFixed(2)}vh; left: ${pos.left.toFixed(2)}vw; width: 16px; height: 16px;
       pointer-events: none; z-index: 9999; border-radius: 50%; background: ${color};
       box-shadow: 0 0 40px 10px ${color}, 0 0 4px rgba(160,160,160,0.9);
-      animation: wishstar-twinkle ${pos.dur}s ease-in-out infinite alternate;
+      animation: wishstar-flash 3s ease-in-out 1;
       will-change: opacity, transform;
     }
-    @keyframes wishstar-twinkle {
-      0% { opacity: calc(${peak} * 0.55); transform: scale(0.85); }
-      100% { opacity: ${peak}; transform: scale(1.25); }
+    @keyframes wishstar-flash {
+      0% { opacity: 0; transform: scale(0.3); }
+      30% { opacity: ${peak}; transform: scale(1.3); }
+      55% { opacity: ${peak}; transform: scale(1); }
+      100% { opacity: 0; transform: scale(0.3); }
     }
   `;
   return { css, html: `<div class="wishstar" aria-hidden="true"></div>` };
@@ -1458,6 +1458,8 @@ class WeatherEventOverlayCard extends HTMLElement {
     // im Dashboard), kann die Animation so weiterrechnen, statt jedes Mal
     // wieder bei 0% anzufangen und nie eine komplette Runde zu schaffen.
     this._periodicStartTimes = {};
+    this._wishstarTimer = null;
+    this._wishstarPos = null;
   }
 
   // Verbesserung (Bugfix): "position: fixed" wird nicht mehr relativ zum
@@ -1506,6 +1508,10 @@ class WeatherEventOverlayCard extends HTMLElement {
     if (this._snowTimer) {
       clearInterval(this._snowTimer);
       this._snowTimer = null;
+    }
+    if (this._wishstarTimer) {
+      clearInterval(this._wishstarTimer);
+      this._wishstarTimer = null;
     }
     if (this._visibilityPollTimer) {
       clearInterval(this._visibilityPollTimer);
@@ -1603,6 +1609,39 @@ class WeatherEventOverlayCard extends HTMLElement {
     }
   }
 
+  // Verbesserung: der Wunschstern soll einmal aufleuchten, verschwinden und
+  // dann an einer NEUEN Position wieder aufleuchten - nicht dauerhaft an
+  // derselben Stelle. Dafür braucht's einen JS-Timer, der bei jedem Zyklus
+  // eine frische Zufallsposition würfelt und neu rendert (ein reiner
+  // CSS-Loop würde immer an der gleichen Stelle bleiben).
+  _updateWishstar(events) {
+    if (events.includes("wishstar")) {
+      if (!this._wishstarTimer) {
+        const cycle = { low: 12000, medium: 8000, high: 5000 }[this._config?.opacity_preset || "medium"] || 8000;
+        const regen = () => {
+          this._wishstarPos = {
+            top: Math.random() * 60 + 8,
+            left: Math.random() * 80 + 10,
+          };
+          this._render();
+        };
+        // WICHTIG: Timer wird ZUERST gesetzt, bevor regen() das erste Mal
+        // läuft. regen() ruft _render() auf, was _updateWishstar() erneut
+        // aufruft - ohne den Timer vorher zu setzen, würde das eine
+        // Endlosschleife auslösen (regen() würde sich quasi selbst erneut
+        // anstoßen, bevor der erste Aufruf fertig ist).
+        this._wishstarTimer = setInterval(regen, cycle);
+        regen();
+      }
+    } else {
+      if (this._wishstarTimer) {
+        clearInterval(this._wishstarTimer);
+        this._wishstarTimer = null;
+      }
+      this._wishstarPos = null;
+    }
+  }
+
   _render() {
     if (!this._config) return;
     // Der Portal-Container existiert erst, sobald die Karte im DOM hängt
@@ -1612,6 +1651,7 @@ class WeatherEventOverlayCard extends HTMLElement {
 
     const events = this._resolveEvents();
     this._updateSnowAccumulation(events);
+    this._updateWishstar(events);
 
     // Verbesserung (Bugfix): Startzeiten von Effekten aufräumen, die gerade
     // nicht mehr laufen - so fängt ein Effekt beim nächsten Auswählen
@@ -1629,6 +1669,8 @@ class WeatherEventOverlayCard extends HTMLElement {
       let cfgForRender = this._config;
       if (event === "snow") {
         cfgForRender = { ...this._config, _snowLevel: this._snowLevel };
+      } else if (event === "wishstar") {
+        cfgForRender = { ...this._config, _wishstarPos: this._wishstarPos };
       } else if (event === "santa" || event === "comet") {
         if (!this._periodicStartTimes[event]) this._periodicStartTimes[event] = Date.now();
         cfgForRender = { ...this._config, _startTime: this._periodicStartTimes[event] };
