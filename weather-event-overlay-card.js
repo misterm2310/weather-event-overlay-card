@@ -105,13 +105,7 @@ function getParticleCount(preset, eventType) {
       case "medium": default: return 4;
     }
   }
-  if (eventType === "frame") {
-    switch (preset) {
-      case "low": return 12;
-      case "high": return 26;
-      case "medium": default: return 18;
-    }
-  }
+
   switch (preset) {
     case "low": return Math.round(max * 0.33);
     case "high": return max;
@@ -1305,83 +1299,100 @@ function renderWishStar(cfg, hass, hostEl) {
 
 // Vier saisonale Motive für den Rahmen-Effekt - jeweils eine kleine,
 // erkennbare Illustration in fester (nicht theme-abhängiger) Farbe.
-const FRAME_MOTIF_SPRING = `
-  <circle cx="20" cy="12" r="6" fill="#f7b6d2"/>
-  <circle cx="12" cy="20" r="6" fill="#f7b6d2"/>
-  <circle cx="28" cy="20" r="6" fill="#f7b6d2"/>
-  <circle cx="15" cy="27" r="6" fill="#f7b6d2"/>
-  <circle cx="25" cy="27" r="6" fill="#f7b6d2"/>
-  <circle cx="20" cy="20" r="5" fill="#f7d842"/>
-  <path d="M20,32 Q26,36 24,40" stroke="#5a9c4a" stroke-width="2" fill="none"/>
-  <ellipse cx="25" cy="37" rx="4" ry="2" fill="#5a9c4a"/>
-`;
-const FRAME_MOTIF_SUMMER = `
-  <path d="M20,38 Q16,20 20,4" stroke="#3f7a3a" stroke-width="2.5" fill="none"/>
-  <path d="M20,10 Q10,6 8,14 Q16,16 20,10 Z" fill="#4f9c46"/>
-  <path d="M20,18 Q30,14 32,22 Q24,24 20,18 Z" fill="#4f9c46"/>
-  <path d="M20,26 Q12,24 10,32 Q18,32 20,26 Z" fill="#4f9c46"/>
-  <circle cx="20" cy="4" r="3" fill="#f2c94c"/>
-`;
-const FRAME_MOTIF_AUTUMN = `
-  <path d="M20,4 C10,12 6,28 20,38 C34,28 30,12 20,4 Z" fill="#c9822a"/>
-  <path d="M20,8 L20,34" stroke="#8a5a1a" stroke-width="1.5"/>
-  <path d="M20,16 L14,12 M20,16 L26,12 M20,24 L13,20 M20,24 L27,20"
-        stroke="#8a5a1a" stroke-width="1" fill="none"/>
-`;
-const FRAME_MOTIF_WINTER = `
-  <path d="M20,4 L20,32" stroke="#bcdcf0" stroke-width="2"/>
-  <path d="M20,10 L12,4 M20,10 L28,4 M20,18 L12,12 M20,18 L28,12"
-        stroke="#bcdcf0" stroke-width="1.5" fill="none"/>
-  <path d="M20,32 L17,40 M20,32 L23,40" stroke="#dff0fb" stroke-width="2" stroke-linecap="round"/>
-`;
-
-const FRAME_SEASONS = {
-  spring: FRAME_MOTIF_SPRING,
-  summer: FRAME_MOTIF_SUMMER,
-  autumn: FRAME_MOTIF_AUTUMN,
-  winter: FRAME_MOTIF_WINTER,
-};
+// Verbesserung: statt einzelner Symbole mit Lücken dazwischen wird jetzt
+// ein kleines Kachel-Muster gebaut (Ranke + Motiv), das der Browser über
+// CSS background-repeat NAHTLOS und LÜCKENLOS entlang der kompletten Kante
+// wiederholt - wie eine Tapetenbordüre. Jede Jahreszeit hat ihre eigene
+// Kachel mit einer durchgehenden Ranken-Linie, die von Kachel zu Kachel
+// exakt weiterläuft (gleiche Höhe an beiden Kachel-Rändern).
+function buildFrameTileSvg(season) {
+  const vine = (color) => `<path d="M0,23 Q25,8 50,23 T100,23" stroke="${color}" stroke-width="3" fill="none"/>`;
+  if (season === "spring") {
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="46" viewBox="0 0 100 46">
+      ${vine("#5a9c4a")}
+      <circle cx="22" cy="15" r="6" fill="#f7b6d2"/><circle cx="22" cy="15" r="2.5" fill="#f7d842"/>
+      <circle cx="72" cy="15" r="6" fill="#f7b6d2"/><circle cx="72" cy="15" r="2.5" fill="#f7d842"/>
+      <path d="M35,19 Q40,7 47,17" stroke="#5a9c4a" stroke-width="2" fill="none"/>
+      <path d="M85,19 Q90,7 97,17" stroke="#5a9c4a" stroke-width="2" fill="none"/>
+    </svg>`;
+  }
+  if (season === "summer") {
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="46" viewBox="0 0 100 46">
+      ${vine("#3f7a3a")}
+      <path d="M22,19 Q14,10 8,16 Q16,20 22,19 Z" fill="#4f9c46"/>
+      <path d="M22,19 Q30,10 36,16 Q28,20 22,19 Z" fill="#4f9c46"/>
+      <path d="M72,19 Q64,10 58,16 Q66,20 72,19 Z" fill="#4f9c46"/>
+      <path d="M72,19 Q80,10 86,16 Q78,20 72,19 Z" fill="#4f9c46"/>
+    </svg>`;
+  }
+  if (season === "winter") {
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="46" viewBox="0 0 100 46">
+      ${vine("#bcdcf0")}
+      <path d="M22,19 L22,38 M18,26 L22,30 L26,26 M17,33 L22,37 L27,33" stroke="#dff0fb" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <path d="M72,19 L72,38 M68,26 L72,30 L76,26 M67,33 L72,37 L77,33" stroke="#dff0fb" stroke-width="2" fill="none" stroke-linecap="round"/>
+    </svg>`;
+  }
+  // autumn (Standard)
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="46" viewBox="0 0 100 46">
+    ${vine("#8a5a1a")}
+    <path d="M22,15 C16,20 14,30 22,36 C30,30 28,20 22,15 Z" fill="#c9822a"/>
+    <path d="M22,18 L22,33" stroke="#8a5a1a" stroke-width="1"/>
+    <path d="M72,15 C66,20 64,30 72,36 C80,30 78,20 72,15 Z" fill="#a83232"/>
+    <path d="M72,18 L72,33" stroke="#8a5a1a" stroke-width="1"/>
+  </svg>`;
+}
 
 function renderFrame(cfg, hass, hostEl) {
-  // Saisonaler Rahmen: kleine Motive (Blüten/Blätter/Zweige/Eis - je nach
-  // gewählter Jahreszeit) verteilt entlang aller vier Bildschirmkanten,
-  // wie ein dekorativer Bilderrahmen um den restlichen Bildschirminhalt.
-  // Feste Farben je Jahreszeit, kein Farbmodus.
-  const season = FRAME_SEASONS[cfg.frame_season] ? cfg.frame_season : "autumn";
-  const motifSvg = FRAME_SEASONS[season];
+  // Saisonaler Rahmen: eine durchgehende Ranke (nahtlos gekachelt, siehe
+  // buildFrameTileSvg) läuft direkt an allen vier Bildschirmkanten entlang,
+  // ganz ohne Abstand zum Rand - wie ein umlaufender Bilderrahmen, der an
+  // den schwarzen TV-Rand anknüpft. Feste Farben je Jahreszeit.
+  const season = ["spring", "summer", "autumn", "winter"].includes(cfg.frame_season) ? cfg.frame_season : "autumn";
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
-  const count = getParticleCount(cfg.count_preset || "medium", "frame");
+  // Anzahl steuert die Dichte der Ranke: kleinere Kachel = mehr Wiederholungen
+  // auf derselben Strecke = dichteres Muster.
+  const tileWidth = { low: 140, medium: 100, high: 70 }[cfg.count_preset || "medium"] || 100;
+  const thickness = 46;
 
-  const motifs = getCachedRandomSet(`frame-${season}`, count, () => ({
-    jitter: (Math.random() * 3 - 1.5),
-    scale: (Math.random() * 0.25 + 0.85),
-    rotJitter: (Math.random() * 16 - 8),
-  }));
-
-  const perSide = Math.max(2, Math.ceil(count / 4));
-  const items = motifs.map((m, i) => {
-    const side = i % 4;
-    const posInSide = Math.floor(i / 4);
-    const t = (posInSide + 0.5) / perSide;
-    let top, left, rot;
-    if (side === 0) { top = 1.5 + m.jitter; left = t * 92 + 4; rot = 0; }
-    else if (side === 1) { top = t * 88 + 6; left = 96 + m.jitter * 0.3; rot = -90; }
-    else if (side === 2) { top = 96.5 + m.jitter; left = t * 92 + 4; rot = 180; }
-    else { top = t * 88 + 6; left = 2 + m.jitter * 0.3; rot = 90; }
-    rot += m.rotJitter;
-    return `<div class="frame-motif" style="top:${top.toFixed(2)}vh; left:${left.toFixed(2)}vw; transform:translate(-50%,-50%) rotate(${rot.toFixed(1)}deg) scale(${m.scale.toFixed(2)});"><svg viewBox="0 0 40 40" style="width:100%; height:100%;">${motifSvg}</svg></div>`;
-  }).join("\n");
+  const tileSvg = buildFrameTileSvg(season);
+  const dataUrl = `url("data:image/svg+xml,${encodeURIComponent(tileSvg)}")`;
 
   const css = `
-    .frame-container {
-      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      pointer-events: none; z-index: 9999;
+    .frame-strip {
+      position: fixed; z-index: 9999; pointer-events: none;
+      background-image: ${dataUrl};
+      background-size: ${tileWidth}px ${thickness}px;
     }
-    .frame-motif { position: absolute; width: 42px; height: 42px; }
+    .frame-strip.top {
+      top: 0; left: 0; width: 100vw; height: ${thickness}px;
+      background-repeat: repeat-x;
+    }
+    .frame-strip.bottom {
+      bottom: 0; left: 0; width: 100vw; height: ${thickness}px;
+      background-repeat: repeat-x;
+    }
+    .frame-strip.left {
+      top: 0; left: 0; width: 100vh; height: ${thickness}px;
+      transform-origin: top left; transform: rotate(90deg);
+      background-repeat: repeat-x;
+    }
+    .frame-strip.right {
+      top: 0; right: 0; width: 100vh; height: ${thickness}px;
+      transform-origin: top right; transform: rotate(-90deg);
+      background-repeat: repeat-x;
+    }
   `;
-  return { css, html: `<div class="frame-container" style="opacity:${finalOpacity};" aria-hidden="true">${items}</div>` };
+  const html = `
+    <div aria-hidden="true" style="opacity:${finalOpacity};">
+      <div class="frame-strip top"></div>
+      <div class="frame-strip bottom"></div>
+      <div class="frame-strip left"></div>
+      <div class="frame-strip right"></div>
+    </div>
+  `;
+  return { css, html };
 }
 
 function renderStars(cfg, hass, hostEl) {
