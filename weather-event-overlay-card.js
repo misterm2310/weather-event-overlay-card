@@ -91,6 +91,13 @@ function getParticleCount(preset, eventType) {
       case "medium": default: return 8;
     }
   }
+  if (eventType === "bee") {
+    switch (preset) {
+      case "low": return 3;
+      case "high": return 8;
+      case "medium": default: return 5;
+    }
+  }
   if (eventType === "clouds") {
     switch (preset) {
       case "low": return 2;
@@ -305,7 +312,6 @@ const COUNT_IS_INTERVAL_TEXT = {
   dog: "Wie oft der Labrador durchläuft: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur einen Hund gibt).",
   comet: "Wie oft der Komet vorbeizieht: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (deutlich seltener als Sternschnuppen).",
   squirrel: "Wie oft das Eichhörnchen durchhuscht: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur eins gibt).",
-  bee: "Wie oft die Biene vorbeifliegt: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur eine gibt).",
   ducks: "Wie oft die Enten-Familie durchwatschelt: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur eine Familie gibt).",
 };
 
@@ -1055,7 +1061,10 @@ function renderSquirrel(cfg, hass, hostEl) {
             <circle cx="62" cy="20" r="8" fill="#c17d3a"/>
             <path d="M58,13 L56,6 L63,11 Z" fill="#a5672f"/>
             <circle cx="65" cy="19" r="1.5" fill="#2a1a10"/>
-            <path d="M32,35 Q28,41 26,44 M40,36 Q38,42 37,44" stroke="#8a5a28" stroke-width="3" stroke-linecap="round" fill="none"/>
+            <path d="M32,35 Q28,42 27,45" stroke="#8a5a28" stroke-width="4" stroke-linecap="round" fill="none"/>
+            <path d="M42,36 Q40,43 39,46" stroke="#8a5a28" stroke-width="4" stroke-linecap="round" fill="none"/>
+            <ellipse cx="27" cy="46" rx="3" ry="2" fill="#7a4a1f"/>
+            <ellipse cx="39" cy="47" rx="3" ry="2" fill="#7a4a1f"/>
           </svg>
         </div>
       </div>
@@ -1072,7 +1081,7 @@ function renderBats(cfg, hass, hostEl) {
   const count = getParticleCount(cfg.count_preset || "medium", "bats");
 
   const bats = getCachedRandomSet("bats", count, () => ({
-    top: (Math.random() * 55).toFixed(2),
+    top: (Math.random() * 85).toFixed(2),
     dur: (Math.random() * 6 + 9).toFixed(2),
     delay: (Math.random() * -12).toFixed(2),
     flapDur: (Math.random() * 0.2 + 0.25).toFixed(2),
@@ -1129,7 +1138,7 @@ function renderOwl(cfg, hass, hostEl) {
 
   const css = `
     .owl-container {
-      position: fixed; bottom: 2vh; left: 1vw; width: 140px; height: 140px;
+      position: fixed; top: 2vh; left: 1vw; width: 85px; height: 85px;
       pointer-events: none; z-index: 999999;
     }
     .owl-head {
@@ -1178,64 +1187,62 @@ function renderOwl(cfg, hass, hostEl) {
 }
 
 function renderBee(cfg, hass, hostEl) {
-  // Biene: zickzackt in einem verschlungenen Pfad übers Bild, mit
-  // schnell flatternden Flügeln - läuft periodisch wie Hund/Weihnachtsmann.
+  // Bienen: mehrere gleichzeitig (Standard 5-6), jede mit eigenem
+  // Zickzack-Pfad über den kompletten Bildschirm verteilt - wie die
+  // Fledermäuse, nicht mehr nur eine einzelne periodisch durchfliegende.
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
-  const finalOpacity = isHigh ? 1 : opacity;
-  const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
-  const zigzagPct = Math.min(35, (13 / interval) * 100).toFixed(2);
-  const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
-  const delaySec = (-(elapsedSec % interval)).toFixed(2);
-  const startHeight = typeof cfg._startHeight === "number" ? cfg._startHeight.toFixed(2) : "40.00";
-  const p1 = (parseFloat(zigzagPct) * 0.25).toFixed(2);
-  const p2 = (parseFloat(zigzagPct) * 0.5).toFixed(2);
-  const p3 = (parseFloat(zigzagPct) * 0.75).toFixed(2);
+  const count = getParticleCount(cfg.count_preset || "medium", "bee");
+
+  const bees = getCachedRandomSet("bee", count, () => ({
+    top: (Math.random() * 80).toFixed(2),
+    dur: (Math.random() * 8 + 14).toFixed(2),
+    delay: (Math.random() * -20).toFixed(2),
+    wobble: Math.floor(Math.random() * 14) + 6,
+    baseOp: (Math.random() * 0.2 + 0.75).toFixed(2),
+  }));
+
+  const beeHtml = bees.map((b) => {
+    const op = isHigh ? Math.max(parseFloat(b.baseOp), 0.9) : (parseFloat(b.baseOp) * opacity);
+    return `
+    <div class="bee" style="top:${b.top}vh; animation-duration:${b.dur}s; animation-delay:${b.delay}s; opacity:${op.toFixed(2)}; --wobble:${b.wobble}vh;">
+      <svg viewBox="0 0 34 26" preserveAspectRatio="xMidYMid meet">
+        <ellipse class="bee-wing" cx="13" cy="6" rx="8" ry="5" fill="#eef6ff" opacity="0.85" stroke="#c3d6ea" stroke-width="0.6"/>
+        <ellipse class="bee-wing" cx="27" cy="6" rx="8" ry="5" fill="#eef6ff" opacity="0.85" stroke="#c3d6ea" stroke-width="0.6"/>
+        <ellipse cx="20" cy="14" rx="11" ry="8" fill="#2a1a05"/>
+        <rect x="12" y="10" width="4" height="8" fill="#f5c518"/>
+        <rect x="20" y="10" width="4" height="8" fill="#f5c518"/>
+        <rect x="28" y="10" width="3" height="8" fill="#f5c518"/>
+        <circle cx="9" cy="14" r="4" fill="#1a1a1a"/>
+      </svg>
+    </div>`;
+  }).join("\n");
 
   const css = `
-    .bee-container {
-      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      pointer-events: none; z-index: 9999; overflow: hidden;
-    }
-    .bee-box {
-      position: absolute; top: ${startHeight}vh; left: -60px; width: 34px; height: 26px;
-      animation-name: bee-zigzag; animation-timing-function: ease-in-out; animation-iteration-count: infinite;
-      animation-duration: ${interval}s; animation-delay: ${delaySec}s; will-change: transform;
+    ${overlayBaseCss("bee-container")}
+    .bee {
+      position: absolute; left: -8vw; width: 34px;
+      animation-name: bee-zigzag; animation-timing-function: linear; animation-iteration-count: infinite;
+      will-change: transform;
     }
     .bee-wing {
       animation: bee-wing-flap 0.12s ease-in-out infinite alternate;
       transform-origin: 20px 9px;
     }
     @keyframes bee-zigzag {
-      0% { transform: translate(0, 0); opacity: 0; }
-      1% { opacity: ${finalOpacity}; }
-      ${p1}% { transform: translate(25vw, -6vh); }
-      ${p2}% { transform: translate(50vw, 8vh); }
-      ${p3}% { transform: translate(75vw, -4vh); }
-      ${zigzagPct}% { transform: translate(calc(100vw + 80px), 3vh); opacity: ${finalOpacity}; }
-      100% { transform: translate(calc(100vw + 80px), 3vh); opacity: 0; }
+      0%   { transform: translateX(0) translateY(0); }
+      20%  { transform: translateX(24vw) translateY(calc(-1 * var(--wobble))); }
+      40%  { transform: translateX(48vw) translateY(var(--wobble)); }
+      60%  { transform: translateX(72vw) translateY(calc(-0.6 * var(--wobble))); }
+      80%  { transform: translateX(96vw) translateY(var(--wobble)); }
+      100% { transform: translateX(120vw) translateY(0); }
     }
     @keyframes bee-wing-flap {
       0% { transform: scaleY(1); }
       100% { transform: scaleY(0.55); }
     }
   `;
-  const html = `
-    <div class="bee-container" style="opacity:${finalOpacity};" aria-hidden="true">
-      <div class="bee-box">
-        <svg viewBox="0 0 34 26" preserveAspectRatio="xMidYMid meet">
-          <ellipse class="bee-wing" cx="13" cy="6" rx="8" ry="5" fill="#eef6ff" opacity="0.85" stroke="#c3d6ea" stroke-width="0.6"/>
-          <ellipse class="bee-wing" cx="27" cy="6" rx="8" ry="5" fill="#eef6ff" opacity="0.85" stroke="#c3d6ea" stroke-width="0.6"/>
-          <ellipse cx="20" cy="14" rx="11" ry="8" fill="#2a1a05"/>
-          <rect x="12" y="10" width="4" height="8" fill="#f5c518"/>
-          <rect x="20" y="10" width="4" height="8" fill="#f5c518"/>
-          <rect x="28" y="10" width="3" height="8" fill="#f5c518"/>
-          <circle cx="9" cy="14" r="4" fill="#1a1a1a"/>
-        </svg>
-      </div>
-    </div>
-  `;
-  return { css, html };
+  return { css, html: `<div class="bee-container" aria-hidden="true">${beeHtml}</div>` };
 }
 
 function renderClouds(cfg, hass, hostEl) {
@@ -1246,15 +1253,15 @@ function renderClouds(cfg, hass, hostEl) {
   const count = getParticleCount(cfg.count_preset || "medium", "clouds");
 
   const clouds = getCachedRandomSet("clouds", count, () => ({
-    top: (Math.random() * 30).toFixed(2),
+    top: (Math.random() * 82).toFixed(2),
     scale: (Math.random() * 0.7 + 0.7).toFixed(2),
     dur: (Math.random() * 40 + 60).toFixed(2),
     delay: (Math.random() * -80).toFixed(2),
-    baseOp: (Math.random() * 0.12 + 0.14).toFixed(2),
+    baseOp: (Math.random() * 0.08 + 0.08).toFixed(2),
   }));
 
   const cloudHtml = clouds.map((c) => {
-    const op = isHigh ? Math.max(parseFloat(c.baseOp), 0.4) : (parseFloat(c.baseOp) * opacity);
+    const op = isHigh ? Math.max(parseFloat(c.baseOp), 0.25) : (parseFloat(c.baseOp) * opacity);
     return `<div class="cloud" style="top:${c.top}vh; transform:scale(${c.scale}); animation-duration:${c.dur}s; animation-delay:${c.delay}s; opacity:${op.toFixed(2)};"></div>`;
   }).join("\n");
 
@@ -1340,43 +1347,34 @@ function renderDucks(cfg, hass, hostEl) {
 }
 
 function renderWishStar(cfg, hass, hostEl) {
-  // Wunschstern-Funkeln: ein einzelner, extra heller Stern blitzt an einer
-  // festen zufälligen Position immer wieder kurz auf - unabhängig vom
-  // normalen Sternenhimmel-Effekt.
+  // Wunschstern-Funkeln: sieht aus wie ein Stern vom normalen Sternenhimmel
+  // (runder Punkt mit Glow, gleiches Funkeln) - nur deutlich größer und an
+  // einer einzigen festen zufälligen Position, statt vieler kleiner Punkte.
   const color = resolveDynamicColor(cfg.color, hass, "#1a1a2e", "#ffffff", hostEl);
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
-  const finalOpacity = isHigh ? 1 : opacity;
-  const cycleDur = { low: 26, medium: 16, high: 8 }[cfg.opacity_preset || "medium"] || 16;
+  const peak = isHigh ? 1 : Math.max(opacity, 0.5);
 
   const pos = getCachedRandomSet("wishstar", 1, () => ({
     top: (Math.random() * 60 + 8).toFixed(2),
     left: (Math.random() * 80 + 10).toFixed(2),
+    dur: (Math.random() * 2 + 3).toFixed(2),
   }))[0];
 
   const css = `
-    .wishstar-container {
-      position: fixed; top: ${pos.top}vh; left: ${pos.left}vw; width: 60px; height: 60px;
-      pointer-events: none; z-index: 9999;
-      animation: wishstar-flash 7s ease-in-out infinite; --peak:${finalOpacity};
-      filter: drop-shadow(0 0 10px ${color});
+    .wishstar {
+      position: fixed; top: ${pos.top}vh; left: ${pos.left}vw; width: 16px; height: 16px;
+      pointer-events: none; z-index: 9999; border-radius: 50%; background: ${color};
+      box-shadow: 0 0 40px 10px ${color}, 0 0 4px rgba(160,160,160,0.9);
+      animation: wishstar-twinkle ${pos.dur}s ease-in-out infinite alternate;
+      will-change: opacity, transform;
     }
-    @keyframes wishstar-flash {
-      0%, 70% { opacity: 0; transform: scale(0.3) rotate(0deg); }
-      80% { opacity: var(--peak); transform: scale(1.1) rotate(8deg); }
-      88% { opacity: var(--peak); transform: scale(0.9) rotate(0deg); }
-      100% { opacity: 0; transform: scale(0.3) rotate(0deg); }
+    @keyframes wishstar-twinkle {
+      0% { opacity: calc(${peak} * 0.55); transform: scale(0.85); }
+      100% { opacity: ${peak}; transform: scale(1.25); }
     }
   `;
-  const html = `
-    <div class="wishstar-container" aria-hidden="true">
-      <svg viewBox="0 0 60 60" style="width:100%; height:100%;">
-        <path d="M30,2 Q34,26 58,30 Q34,34 30,58 Q26,34 2,30 Q26,26 30,2 Z" fill="${color}"/>
-        <path d="M30,16 Q32,28 44,30 Q32,32 30,44 Q28,32 16,30 Q28,28 30,16 Z" fill="${color}" opacity="0.6"/>
-      </svg>
-    </div>
-  `;
-  return { css, html };
+  return { css, html: `<div class="wishstar" aria-hidden="true"></div>` };
 }
 
 function renderStars(cfg, hass, hostEl) {
@@ -1634,7 +1632,7 @@ class WeatherEventOverlayCard extends HTMLElement {
       } else if (event === "santa" || event === "comet") {
         if (!this._periodicStartTimes[event]) this._periodicStartTimes[event] = Date.now();
         cfgForRender = { ...this._config, _startTime: this._periodicStartTimes[event] };
-      } else if (event === "dog" || event === "squirrel" || event === "bee" || event === "ducks") {
+      } else if (event === "dog" || event === "squirrel" || event === "ducks") {
         // Höhe/Drift nur EINMAL pro Lauf-Zyklus würfeln und mitspeichern -
         // sonst würde ein Neu-Rendern mitten in der Animation zu einem
         // sichtbaren Sprung auf eine neue Höhe führen. Jeder dieser
@@ -1643,7 +1641,6 @@ class WeatherEventOverlayCard extends HTMLElement {
           const ranges = {
             dog: [10, 80],
             squirrel: [65, 88],
-            bee: [15, 60],
             ducks: [60, 88],
           };
           const [min, max] = ranges[event] || [10, 80];
@@ -1743,22 +1740,22 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="lightning" ${c.event === "lightning" ? "selected" : ""}>⚡ Blitz</option>
             <option value="fog" ${c.event === "fog" ? "selected" : ""}>🌫️ Nebel</option>
             <option value="storm" ${c.event === "storm" ? "selected" : ""}>💨 Sturm</option>
-            <option value="leaves" ${c.event === "leaves" ? "selected" : ""}>🍂 Laub</option>
+            <option value="clouds" ${c.event === "clouds" ? "selected" : ""}>🌤️ Wolken-Drift</option>
             <option value="shooting_stars" ${c.event === "shooting_stars" ? "selected" : ""}>🌠 Sternschnuppen</option>
             <option value="stars" ${c.event === "stars" ? "selected" : ""}>✨ Sternenhimmel</option>
+            <option value="wishstar" ${c.event === "wishstar" ? "selected" : ""}>⭐ Wunschstern-Funkeln</option>
+            <option value="comet" ${c.event === "comet" ? "selected" : ""}>☄️ Komet</option>
+            <option value="leaves" ${c.event === "leaves" ? "selected" : ""}>🍂 Laub</option>
             <option value="balloons" ${c.event === "balloons" ? "selected" : ""}>🎈 Luftballons</option>
             <option value="lights" ${c.event === "lights" ? "selected" : ""}>💡 Lichterkette</option>
             <option value="santa" ${c.event === "santa" ? "selected" : ""}>🎅 Weihnachtsmann</option>
             <option value="spider" ${c.event === "spider" ? "selected" : ""}>🕷️ Spinne mit Netz</option>
             <option value="dog" ${c.event === "dog" ? "selected" : ""}>🐕 Goldener Labrador</option>
-            <option value="comet" ${c.event === "comet" ? "selected" : ""}>☄️ Komet</option>
             <option value="squirrel" ${c.event === "squirrel" ? "selected" : ""}>🐿️ Eichhörnchen</option>
             <option value="bats" ${c.event === "bats" ? "selected" : ""}>🦇 Fledermäuse</option>
             <option value="owl" ${c.event === "owl" ? "selected" : ""}>🦉 Eule</option>
-            <option value="bee" ${c.event === "bee" ? "selected" : ""}>🐝 Biene</option>
-            <option value="clouds" ${c.event === "clouds" ? "selected" : ""}>🌤️ Wolken-Drift</option>
+            <option value="bee" ${c.event === "bee" ? "selected" : ""}>🐝 Bienen</option>
             <option value="ducks" ${c.event === "ducks" ? "selected" : ""}>🦆 Enten-Familie</option>
-            <option value="wishstar" ${c.event === "wishstar" ? "selected" : ""}>⭐ Wunschstern-Funkeln</option>
           </select>
         `, isWeatherAuto
           ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft."
