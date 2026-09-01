@@ -104,17 +104,7 @@ function parseColorBrightness(colorStr) {
   if (!colorStr) return null;
   const str = colorStr.trim();
 
-  if (str.startsWith("#")) {
-    let hex = str.slice(1);
-    if (hex.length === 3) hex = hex.split("").map((c) => c + c).join("");
-    if (hex.length !== 6) return null;
-    const r = parseInt(hex.slice(0, 2), 16);
-    const g = parseInt(hex.slice(2, 4), 16);
-    const b = parseInt(hex.slice(4, 6), 16);
-    if ([r, g, b].some(Number.isNaN)) return null;
-    return (r * 299 + g * 587 + b * 114) / 1000;
-  }
-
+  // Handle rgb / rgba
   const rgbMatch = str.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
   if (rgbMatch) {
     const r = parseInt(rgbMatch[1], 10);
@@ -122,26 +112,51 @@ function parseColorBrightness(colorStr) {
     const b = parseInt(rgbMatch[3], 10);
     return (r * 299 + g * 587 + b * 114) / 1000;
   }
+
+  // Handle hex
+  let hex = str;
+  if (hex.startsWith("#")) hex = hex.slice(1);
+  if (hex.length === 3) hex = hex.split("").map((c) => c + c).join("");
+  if (hex.length === 6) {
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    if (![r, g, b].some(Number.isNaN)) {
+      return (r * 299 + g * 587 + b * 114) / 1000;
+    }
+  }
   return null;
 }
 
-// Verbesserte Erkennung mit direktem Home-Assistant-Vorrang
+// Direkte Messung der echten Dashboard-Helligkeit im DOM
 function isDarkModeActive(hassInstance) {
   try {
+    // 1. Suche nach HA Element und lese dessen tatsächliche CSS-Variablen aus
+    const haEl = document.querySelector("home-assistant") || document.querySelector("hui-view") || document.documentElement;
+    if (haEl) {
+      const styles = getComputedStyle(haEl);
+      for (const varName of ["--primary-background-color", "--card-background-color", "--background-color"]) {
+        const val = styles.getPropertyValue(varName).trim();
+        if (val) {
+          const brightness = parseColorBrightness(val);
+          if (brightness !== null) {
+            return brightness < 128; // < 128 bedeutet dunkler Hintergrund
+          }
+        }
+      }
+    }
+
+    // 2. Fallback auf direktes Dokument
+    const rootStyles = getComputedStyle(document.documentElement);
+    const bg = rootStyles.getPropertyValue("--primary-background-color").trim();
+    const bBrightness = parseColorBrightness(bg);
+    if (bBrightness !== null) {
+      return bBrightness < 128;
+    }
+
+    // 3. Fallback auf Standard Home-Assistant Flag oder Browser Scheme
     if (hassInstance && hassInstance.themes && hassInstance.themes.darkMode !== undefined) {
       return hassInstance.themes.darkMode;
-    }
-
-    const rootStyles = getComputedStyle(document.documentElement);
-    const bgColor = rootStyles.getPropertyValue("--primary-background-color").trim();
-    const brightness = parseColorBrightness(bgColor);
-    if (brightness !== null) {
-      return brightness < 128;
-    }
-
-    const haEl = document.querySelector("home-assistant");
-    if (haEl) {
-      if (haEl.hasAttribute("dark-mode") || haEl.classList.contains("dark")) return true;
     }
 
     return window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -852,17 +867,12 @@ class WeatherEventOverlayCard extends HTMLElement {
   }
 
   set hass(hass) {
-    const oldTheme = this._hass?.themes?.darkMode;
     const weatherEntity = this._config?.weather_entity;
     const oldWeatherState = weatherEntity ? this._hass?.states?.[weatherEntity]?.state : undefined;
     this._hass = hass;
     const newWeatherState = weatherEntity ? hass?.states?.[weatherEntity]?.state : undefined;
 
-    if (
-      !this._hasRenderedOnce ||
-      (oldTheme !== undefined && oldTheme !== hass?.themes?.darkMode) ||
-      oldWeatherState !== newWeatherState
-    ) {
+    if (!this._hasRenderedOnce || oldWeatherState !== newWeatherState) {
       this._render();
       this._hasRenderedOnce = true;
     }
