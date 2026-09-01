@@ -101,30 +101,59 @@ function getOpacityValue(preset) {
 }
 
 // Erkennung des Hell/Dunkel Modus
+// Verbesserung (Bugfix): berechnet die Helligkeit einer Farbe egal ob sie
+// als Hex ("#1c1c1c") oder als rgb()/rgba() vorliegt. Vorher wurde nur
+// rgb() verstanden - CSS-Variablen liefern aber oft Hex-Strings, und die
+// alte Regex hat daraus wirre Zahlen zusammengewürfelt statt "kein Treffer".
+function parseColorBrightness(colorStr) {
+  if (!colorStr) return null;
+  const str = colorStr.trim();
+
+  if (str.startsWith("#")) {
+    let hex = str.slice(1);
+    if (hex.length === 3) hex = hex.split("").map((c) => c + c).join("");
+    if (hex.length !== 6) return null;
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    if ([r, g, b].some(Number.isNaN)) return null;
+    return (r * 299 + g * 587 + b * 114) / 1000;
+  }
+
+  const rgbMatch = str.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (rgbMatch) {
+    const r = parseInt(rgbMatch[1], 10);
+    const g = parseInt(rgbMatch[2], 10);
+    const b = parseInt(rgbMatch[3], 10);
+    return (r * 299 + g * 587 + b * 114) / 1000;
+  }
+  return null;
+}
+
 function isDarkModeActive(hassInstance) {
   try {
-    if (hassInstance && hassInstance.themes) {
-      if (hassInstance.themes.darkMode !== undefined) {
-        return hassInstance.themes.darkMode;
-      }
-    }
-    
+    // Verbesserung (Bugfix): die TATSÄCHLICHE Hintergrundfarbe des
+    // Dashboards wird jetzt ZUERST geprüft, noch vor HA's "Dark Mode"-
+    // Schalter. Grund: wer ein dunkles Theme nutzt, ohne extra den
+    // System-Schalter umzulegen, hatte vorher fälschlich "hell" bekommen,
+    // weil der Schalter-Wert blind Vorrang hatte.
     const rootStyles = getComputedStyle(document.documentElement);
-    const bgColor = rootStyles.getPropertyValue('--primary-background-color').trim();
-    if (bgColor) {
-      const rgbMatch = bgColor.match(/\d+/g);
-      if (rgbMatch && rgbMatch.length >= 3) {
-        const brightness = (parseInt(rgbMatch[0]) * 299 + parseInt(rgbMatch[1]) * 587 + parseInt(rgbMatch[2]) * 114) / 1000;
-        return brightness < 128;
-      }
+    const bgColor = rootStyles.getPropertyValue("--primary-background-color").trim();
+    const brightness = parseColorBrightness(bgColor);
+    if (brightness !== null) {
+      return brightness < 128;
     }
 
-    const haEl = document.querySelector('home-assistant');
+    if (hassInstance && hassInstance.themes && hassInstance.themes.darkMode !== undefined) {
+      return hassInstance.themes.darkMode;
+    }
+
+    const haEl = document.querySelector("home-assistant");
     if (haEl) {
-      if (haEl.hasAttribute('dark-mode') || haEl.classList.contains('dark')) return true;
+      if (haEl.hasAttribute("dark-mode") || haEl.classList.contains("dark")) return true;
     }
 
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
   } catch (e) {
     return true;
   }
