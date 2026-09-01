@@ -84,11 +84,18 @@ function getParticleCount(preset, eventType) {
       case "medium": default: return 30;
     }
   }
-  if (eventType === "aurora") {
+  if (eventType === "bats") {
     switch (preset) {
-      case "low": return 3;
-      case "high": return 8;
-      case "medium": default: return 5;
+      case "low": return 4;
+      case "high": return 14;
+      case "medium": default: return 8;
+    }
+  }
+  if (eventType === "clouds") {
+    switch (preset) {
+      case "low": return 2;
+      case "high": return 7;
+      case "medium": default: return 4;
     }
   }
   switch (preset) {
@@ -288,6 +295,18 @@ function mapWeatherStateToEvents(state) {
   return WEATHER_STATE_MAP[state] || ["off"];
 }
 
+// Verbesserung (GUI-Editor): bei diesen Effekten steuert "Anzahl/Frequenz"
+// den Abstand zwischen den Durchgängen (es gibt ja nur EINE Figur), nicht
+// eine Partikelmenge - der Hinweistext im Editor erklärt das passend dazu.
+const COUNT_IS_INTERVAL_TEXT = {
+  santa: "Wie oft der Weihnachtsmann vorbeifliegt: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur einen Schlitten gibt).",
+  dog: "Wie oft der Labrador durchläuft: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur einen Hund gibt).",
+  comet: "Wie oft der Komet vorbeizieht: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (deutlich seltener als Sternschnuppen).",
+  squirrel: "Wie oft das Eichhörnchen durchhuscht: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur eins gibt).",
+  bee: "Wie oft die Biene vorbeifliegt: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur eine gibt).",
+  ducks: "Wie oft die Enten-Familie durchwatschelt: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur eine Familie gibt).",
+};
+
 const EVENT_CAPABILITIES = {
   off: { count: false, opacity: false, color: false },
   weather_auto: { count: true, opacity: true, color: true },
@@ -305,8 +324,17 @@ const EVENT_CAPABILITIES = {
   spider: { count: false, opacity: true, color: true },
   stars: { count: true, opacity: true, color: true },
   dog: { count: true, opacity: true, color: false },
-  aurora: { count: true, opacity: true, color: false },
   comet: { count: true, opacity: true, color: true },
+  // Anzahl steuert bei Eichhörnchen, Biene und Enten-Familie den Abstand
+  // zwischen den Durchgängen (wie bei Weihnachtsmann/Hund), nicht eine
+  // Partikelmenge.
+  squirrel: { count: true, opacity: true, color: false },
+  bats: { count: true, opacity: true, color: false },
+  owl: { count: false, opacity: true, color: false },
+  bee: { count: true, opacity: true, color: false },
+  clouds: { count: true, opacity: true, color: false },
+  ducks: { count: true, opacity: true, color: false },
+  wishstar: { count: false, opacity: true, color: true },
 };
 
 const BALLOON_COLORS = ["#FF4B4B", "#FF851B", "#FFDC00", "#2ECC40", "#0074D9", "#B10DC9", "#F012BE"];
@@ -921,58 +949,6 @@ function renderDog(cfg, hass, hostEl) {
   return { css, html };
 }
 
-function renderAurora(cfg, hass, hostEl) {
-  // Polarlicht: mehrere wabernde, halbtransparente Farbbänder (Grün/Türkis/
-  // Violett) oben im Bild - feste Farbpalette statt Theme-Abgleich, da die
-  // typischen Aurora-Farben selbst das Erkennungsmerkmal sind (wie beim
-  // Weihnachtsmann/Hund).
-  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
-  const isHigh = (cfg.opacity_preset || "medium") === "high";
-  const finalOpacity = isHigh ? 1 : opacity;
-  const count = getParticleCount(cfg.count_preset || "medium", "aurora");
-
-  const bands = getCachedRandomSet("aurora", count, () => ({
-    top: (Math.random() * 12).toFixed(2),
-    height: Math.floor(Math.random() * 22) + 26,
-    left: (Math.random() * 30 - 15).toFixed(2),
-    waveDur: (Math.random() * 8 + 14).toFixed(2),
-    waveDelay: (Math.random() * -12).toFixed(2),
-    shimmerDur: (Math.random() * 2 + 2.5).toFixed(2),
-    shimmerDelay: (Math.random() * -3).toFixed(2),
-    hue: Math.random() > 0.5
-      ? "linear-gradient(90deg, transparent, #22c55e99, #06b6d499, #a855f799, transparent)"
-      : "linear-gradient(90deg, transparent, #34d39999, #38bdf899, #c084fc99, transparent)",
-  }));
-
-  const bandHtml = bands.map((b) => `
-    <div class="aurora-band" style="top:${b.top}vh; left:${b.left}vw; height:${b.height}vh; background:${b.hue};
-      animation-duration:${b.waveDur}s, ${b.shimmerDur}s; animation-delay:${b.waveDelay}s, ${b.shimmerDelay}s; --peak:${finalOpacity};"></div>
-  `).join("\n");
-
-  const css = `
-    ${overlayBaseCss("aurora-container")}
-    .aurora-band {
-      position: absolute; width: 140vw; border-radius: 50%;
-      filter: blur(22px);
-      animation-name: aurora-wave, aurora-shimmer;
-      animation-timing-function: ease-in-out, ease-in-out;
-      animation-iteration-count: infinite, infinite;
-      animation-direction: alternate, alternate;
-      will-change: transform, opacity;
-    }
-    @keyframes aurora-wave {
-      0% { transform: translateX(0) translateY(0) scaleY(1); }
-      50% { transform: translateX(6vw) translateY(-2vh) scaleY(1.2); }
-      100% { transform: translateX(-4vw) translateY(1vh) scaleY(0.95); }
-    }
-    @keyframes aurora-shimmer {
-      0% { opacity: calc(var(--peak) * 0.45); }
-      100% { opacity: var(--peak); }
-    }
-  `;
-  return { css, html: `<div class="aurora-container" aria-hidden="true">${bandHtml}</div>` };
-}
-
 function renderComet(cfg, hass, hostEl) {
   // Komet: ein einzelner, dramatischer Streifen mit langem Schweif, der
   // deutlich seltener als Sternschnuppen vorbeizieht. "Anzahl/Frequenz"
@@ -1031,6 +1007,374 @@ function renderComet(cfg, hass, hostEl) {
   return { css, html };
 }
 
+function renderSquirrel(cfg, hass, hostEl) {
+  // Eichhörnchen: huscht schnell und hoppelnd über den Bildschirm - viel
+  // flotter als der Hund (kurze Durchquerungszeit), mit buschigem Schwanz.
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+  const finalOpacity = isHigh ? 1 : opacity;
+  const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
+  const dashPct = Math.min(30, (7 / interval) * 100).toFixed(2);
+  const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
+  const delaySec = (-(elapsedSec % interval)).toFixed(2);
+  const startHeight = typeof cfg._startHeight === "number" ? cfg._startHeight.toFixed(2) : "78.00";
+
+  const css = `
+    .squirrel-container {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      pointer-events: none; z-index: 9999; overflow: hidden;
+    }
+    .squirrel-box {
+      position: absolute; top: ${startHeight}vh; left: -100px; width: 80px; height: 45px;
+      animation-name: squirrel-dash; animation-timing-function: linear; animation-iteration-count: infinite;
+      animation-duration: ${interval}s; animation-delay: ${delaySec}s; will-change: transform;
+    }
+    .squirrel-hop {
+      animation: squirrel-hop 0.28s ease-in-out infinite alternate;
+    }
+    @keyframes squirrel-dash {
+      0% { transform: translateX(0); opacity: 0; }
+      1% { opacity: ${finalOpacity}; }
+      ${dashPct}% { transform: translateX(calc(100vw + 200px)); opacity: ${finalOpacity}; }
+      100% { transform: translateX(calc(100vw + 200px)); opacity: 0; }
+    }
+    @keyframes squirrel-hop {
+      0% { transform: translateY(0) rotate(0deg); }
+      100% { transform: translateY(-6px) rotate(-3deg); }
+    }
+  `;
+  const html = `
+    <div class="squirrel-container" style="opacity:${finalOpacity};" aria-hidden="true">
+      <div class="squirrel-box">
+        <div class="squirrel-hop">
+          <svg viewBox="0 0 80 45" preserveAspectRatio="xMidYMid meet">
+            <path d="M55,10 Q75,0 70,20 Q68,32 52,26 Z" fill="#a5672f"/>
+            <ellipse cx="35" cy="26" rx="18" ry="10" fill="#c17d3a"/>
+            <circle cx="52" cy="18" r="8" fill="#c17d3a"/>
+            <circle cx="49" cy="14" r="2" fill="#7a4a1f"/>
+            <circle cx="56" cy="20" r="1.3" fill="#2a1a10"/>
+            <path d="M20,34 Q16,40 14,44 M28,35 Q26,41 25,44" stroke="#8a5a28" stroke-width="3" stroke-linecap="round" fill="none"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  `;
+  return { css, html };
+}
+
+function renderBats(cfg, hass, hostEl) {
+  // Fledermäuse: mehrere kleine, flatternde Silhouetten auf wellenförmigen
+  // Flugbahnen - feste dunkle Farbe, unabhängig vom Theme.
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+  const count = getParticleCount(cfg.count_preset || "medium", "bats");
+
+  const bats = getCachedRandomSet("bats", count, () => ({
+    top: (Math.random() * 55).toFixed(2),
+    dur: (Math.random() * 6 + 9).toFixed(2),
+    delay: (Math.random() * -12).toFixed(2),
+    flapDur: (Math.random() * 0.2 + 0.25).toFixed(2),
+    baseOp: (Math.random() * 0.3 + 0.5).toFixed(2),
+    wobble: Math.floor(Math.random() * 10) + 6,
+  }));
+
+  const batHtml = bats.map((b) => {
+    const op = isHigh ? Math.max(parseFloat(b.baseOp), 0.85) : (parseFloat(b.baseOp) * opacity);
+    return `
+    <div class="bat" style="top:${b.top}vh; animation-duration:${b.dur}s; animation-delay:${b.delay}s; opacity:${op.toFixed(2)}; --wobble:${b.wobble}vh;">
+      <svg viewBox="0 0 40 20" class="bat-wings" style="animation-duration:${b.flapDur}s;">
+        <path d="M20,10 Q8,0 0,6 Q6,10 14,10 Q6,14 0,18 Q10,18 20,10 Z" fill="#1a1a1a"/>
+        <path d="M20,10 Q32,0 40,6 Q34,10 26,10 Q34,14 40,18 Q30,18 20,10 Z" fill="#1a1a1a"/>
+        <circle cx="20" cy="10" r="2.5" fill="#1a1a1a"/>
+      </svg>
+    </div>`;
+  }).join("\n");
+
+  const css = `
+    ${overlayBaseCss("bats-container")}
+    .bat {
+      position: absolute; left: -10vw; width: 40px;
+      animation-name: bat-fly; animation-timing-function: linear; animation-iteration-count: infinite;
+      will-change: transform;
+    }
+    .bat-wings {
+      width: 100%; height: auto; display: block;
+      animation-name: bat-flap; animation-timing-function: ease-in-out; animation-iteration-count: infinite; animation-direction: alternate;
+      transform-origin: center;
+    }
+    @keyframes bat-fly {
+      0%   { transform: translateX(0) translateY(0); }
+      25%  { transform: translateX(30vw) translateY(calc(-1 * var(--wobble))); }
+      50%  { transform: translateX(60vw) translateY(var(--wobble)); }
+      75%  { transform: translateX(90vw) translateY(calc(-1 * var(--wobble))); }
+      100% { transform: translateX(120vw) translateY(0); }
+    }
+    @keyframes bat-flap {
+      0% { transform: scaleY(1); }
+      100% { transform: scaleY(0.4); }
+    }
+  `;
+  return { css, html: `<div class="bats-container" aria-hidden="true">${batHtml}</div>` };
+}
+
+function renderOwl(cfg, hass, hostEl) {
+  // Eule: sitzt still in einer Ecke, blinzelt gelegentlich und dreht
+  // leicht den Kopf - ruhiger Begleiter, kein Durchlaufen wie beim Hund.
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+  const finalOpacity = isHigh ? 1 : opacity;
+
+  const css = `
+    .owl-container {
+      position: fixed; bottom: 0; left: 0; width: 140px; height: 140px;
+      pointer-events: none; z-index: 9999;
+    }
+    .owl-head {
+      animation: owl-turn 9s ease-in-out infinite;
+      transform-origin: 50% 60%;
+    }
+    .owl-eye-lid {
+      animation: owl-blink 6s ease-in-out infinite;
+      transform-origin: center;
+    }
+    @keyframes owl-turn {
+      0%, 40% { transform: rotate(0deg); }
+      50% { transform: rotate(-8deg); }
+      60%, 90% { transform: rotate(0deg); }
+      95% { transform: rotate(6deg); }
+      100% { transform: rotate(0deg); }
+    }
+    @keyframes owl-blink {
+      0%, 92%, 100% { transform: scaleY(0); }
+      95%, 97% { transform: scaleY(1); }
+    }
+  `;
+  const html = `
+    <div class="owl-container" style="opacity:${finalOpacity};" aria-hidden="true">
+      <svg viewBox="0 0 100 100" style="width:100%; height:100%;">
+        <ellipse cx="50" cy="70" rx="30" ry="26" fill="#6b4a2f"/>
+        <path d="M20,68 Q10,50 25,45 M80,68 Q90,50 75,45" fill="none" stroke="#6b4a2f" stroke-width="6" stroke-linecap="round"/>
+        <g class="owl-head">
+          <circle cx="50" cy="42" r="26" fill="#8a6238"/>
+          <path d="M35,20 L30,6 L42,18 Z" fill="#6b4a2f"/>
+          <path d="M65,20 L70,6 L58,18 Z" fill="#6b4a2f"/>
+          <circle cx="38" cy="40" r="12" fill="#f4ead9"/>
+          <circle cx="62" cy="40" r="12" fill="#f4ead9"/>
+          <circle cx="38" cy="40" r="7" fill="#e8b13a"/>
+          <circle cx="62" cy="40" r="7" fill="#e8b13a"/>
+          <circle cx="38" cy="40" r="3" fill="#1a1a1a"/>
+          <circle cx="62" cy="40" r="3" fill="#1a1a1a"/>
+          <rect class="owl-eye-lid" x="26" y="34" width="24" height="12" fill="#8a6238"/>
+          <rect class="owl-eye-lid" x="50" y="34" width="24" height="12" fill="#8a6238"/>
+          <path d="M46,48 L54,48 L50,56 Z" fill="#e8952a"/>
+        </g>
+      </svg>
+    </div>
+  `;
+  return { css, html };
+}
+
+function renderBee(cfg, hass, hostEl) {
+  // Biene: zickzackt in einem verschlungenen Pfad übers Bild, mit
+  // schnell flatternden Flügeln - läuft periodisch wie Hund/Weihnachtsmann.
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+  const finalOpacity = isHigh ? 1 : opacity;
+  const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
+  const zigzagPct = Math.min(35, (13 / interval) * 100).toFixed(2);
+  const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
+  const delaySec = (-(elapsedSec % interval)).toFixed(2);
+  const startHeight = typeof cfg._startHeight === "number" ? cfg._startHeight.toFixed(2) : "40.00";
+  const p1 = (parseFloat(zigzagPct) * 0.25).toFixed(2);
+  const p2 = (parseFloat(zigzagPct) * 0.5).toFixed(2);
+  const p3 = (parseFloat(zigzagPct) * 0.75).toFixed(2);
+
+  const css = `
+    .bee-container {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      pointer-events: none; z-index: 9999; overflow: hidden;
+    }
+    .bee-box {
+      position: absolute; top: ${startHeight}vh; left: -60px; width: 34px; height: 26px;
+      animation-name: bee-zigzag; animation-timing-function: ease-in-out; animation-iteration-count: infinite;
+      animation-duration: ${interval}s; animation-delay: ${delaySec}s; will-change: transform;
+    }
+    .bee-wing {
+      animation: bee-wing-flap 0.12s ease-in-out infinite alternate;
+      transform-origin: 10px 8px;
+    }
+    @keyframes bee-zigzag {
+      0% { transform: translate(0, 0); opacity: 0; }
+      1% { opacity: ${finalOpacity}; }
+      ${p1}% { transform: translate(25vw, -6vh); }
+      ${p2}% { transform: translate(50vw, 8vh); }
+      ${p3}% { transform: translate(75vw, -4vh); }
+      ${zigzagPct}% { transform: translate(calc(100vw + 80px), 3vh); opacity: ${finalOpacity}; }
+      100% { transform: translate(calc(100vw + 80px), 3vh); opacity: 0; }
+    }
+    @keyframes bee-wing-flap {
+      0% { transform: scaleX(1); }
+      100% { transform: scaleX(0.5); }
+    }
+  `;
+  const html = `
+    <div class="bee-container" style="opacity:${finalOpacity};" aria-hidden="true">
+      <div class="bee-box">
+        <svg viewBox="0 0 34 26" preserveAspectRatio="xMidYMid meet">
+          <ellipse class="bee-wing" cx="10" cy="6" rx="9" ry="5" fill="#e8f0ff" opacity="0.75"/>
+          <ellipse cx="20" cy="14" rx="11" ry="8" fill="#2a1a05"/>
+          <rect x="12" y="10" width="4" height="8" fill="#f5c518"/>
+          <rect x="20" y="10" width="4" height="8" fill="#f5c518"/>
+          <rect x="28" y="10" width="3" height="8" fill="#f5c518"/>
+          <circle cx="9" cy="14" r="4" fill="#1a1a1a"/>
+        </svg>
+      </div>
+    </div>
+  `;
+  return { css, html };
+}
+
+function renderClouds(cfg, hass, hostEl) {
+  // Wolken-Drift: mehrere weiche, verschwommene Wolkenformen ziehen ganz
+  // ruhig und langsam quer übers Bild (oberer Bereich).
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+  const count = getParticleCount(cfg.count_preset || "medium", "clouds");
+
+  const clouds = getCachedRandomSet("clouds", count, () => ({
+    top: (Math.random() * 30).toFixed(2),
+    scale: (Math.random() * 0.7 + 0.7).toFixed(2),
+    dur: (Math.random() * 40 + 60).toFixed(2),
+    delay: (Math.random() * -80).toFixed(2),
+    baseOp: (Math.random() * 0.25 + 0.35).toFixed(2),
+  }));
+
+  const cloudHtml = clouds.map((c) => {
+    const op = isHigh ? Math.max(parseFloat(c.baseOp), 0.6) : (parseFloat(c.baseOp) * opacity);
+    return `<div class="cloud" style="top:${c.top}vh; transform:scale(${c.scale}); animation-duration:${c.dur}s; animation-delay:${c.delay}s; opacity:${op.toFixed(2)};"></div>`;
+  }).join("\n");
+
+  const css = `
+    ${overlayBaseCss("clouds-container")}
+    .cloud {
+      position: absolute; left: -30vw; width: 22vw; height: 8vh;
+      background: #e8edf2; border-radius: 50%;
+      box-shadow: 6vw 1vh 0 -1vh #e8edf2, -5vw 1.5vh 0 -1.5vh #e8edf2, 3vw -1vh 0 -0.5vh #e8edf2;
+      filter: blur(6px);
+      animation-name: cloud-drift; animation-timing-function: linear; animation-iteration-count: infinite;
+      will-change: transform;
+    }
+    @keyframes cloud-drift {
+      0% { transform: translateX(0) scale(var(--s, 1)); }
+      100% { transform: translateX(160vw) scale(var(--s, 1)); }
+    }
+  `;
+  return { css, html: `<div class="clouds-container" aria-hidden="true">${cloudHtml}</div>` };
+}
+
+function renderDucks(cfg, hass, hostEl) {
+  // Enten-Familie: eine große Ente läuft voran, mehrere kleine Küken
+  // watscheln hinterher - läuft periodisch wie der Hund.
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+  const finalOpacity = isHigh ? 1 : opacity;
+  const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
+  const walkPct = Math.min(30, (22 / interval) * 100).toFixed(2);
+  const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
+  const delaySec = (-(elapsedSec % interval)).toFixed(2);
+  const startHeight = typeof cfg._startHeight === "number" ? cfg._startHeight.toFixed(2) : "75.00";
+
+  const css = `
+    .ducks-container {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      pointer-events: none; z-index: 9999; overflow: hidden;
+    }
+    .ducks-box {
+      position: absolute; top: ${startHeight}vh; left: -220px; width: 200px; height: 45px;
+      animation-name: ducks-walk; animation-timing-function: linear; animation-iteration-count: infinite;
+      animation-duration: ${interval}s; animation-delay: ${delaySec}s; will-change: transform;
+    }
+    .duck-waddle { animation: duck-waddle 0.5s ease-in-out infinite alternate; }
+    .duck-waddle.d2 { animation-delay: 0.08s; }
+    .duck-waddle.d3 { animation-delay: 0.16s; }
+    .duck-waddle.d4 { animation-delay: 0.24s; }
+    @keyframes ducks-walk {
+      0% { transform: translateX(0); opacity: 0; }
+      1% { opacity: ${finalOpacity}; }
+      ${walkPct}% { transform: translateX(calc(100vw + 300px)); opacity: ${finalOpacity}; }
+      100% { transform: translateX(calc(100vw + 300px)); opacity: 0; }
+    }
+    @keyframes duck-waddle {
+      0% { transform: rotate(-4deg) translateY(0); }
+      100% { transform: rotate(4deg) translateY(-2px); }
+    }
+  `;
+  const duckSvg = (scale, cls) => `
+    <g class="duck-waddle ${cls}" transform="scale(${scale})">
+      <ellipse cx="20" cy="20" rx="16" ry="11" fill="#e8a83a"/>
+      <circle cx="34" cy="12" r="8" fill="#e8a83a"/>
+      <path d="M40,12 L48,10 L40,16 Z" fill="#d4722e"/>
+      <circle cx="36" cy="10" r="1.3" fill="#1a1a1a"/>
+    </g>
+  `;
+  const html = `
+    <div class="ducks-container" style="opacity:${finalOpacity};" aria-hidden="true">
+      <div class="ducks-box">
+        <svg viewBox="0 0 200 45" preserveAspectRatio="xMidYMin meet">
+          <g transform="translate(0,4)">${duckSvg(1, "d1")}</g>
+          <g transform="translate(58,14)">${duckSvg(0.55, "d2")}</g>
+          <g transform="translate(88,18)">${duckSvg(0.5, "d3")}</g>
+          <g transform="translate(116,15)">${duckSvg(0.55, "d4")}</g>
+        </svg>
+      </div>
+    </div>
+  `;
+  return { css, html };
+}
+
+function renderWishStar(cfg, hass, hostEl) {
+  // Wunschstern-Funkeln: ein einzelner, extra heller Stern blitzt an einer
+  // festen zufälligen Position immer wieder kurz auf - unabhängig vom
+  // normalen Sternenhimmel-Effekt.
+  const color = resolveDynamicColor(cfg.color, hass, "#1a1a2e", "#ffffff", hostEl);
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+  const finalOpacity = isHigh ? 1 : opacity;
+  const cycleDur = { low: 26, medium: 16, high: 8 }[cfg.opacity_preset || "medium"] || 16;
+
+  const pos = getCachedRandomSet("wishstar", 1, () => ({
+    top: (Math.random() * 60 + 8).toFixed(2),
+    left: (Math.random() * 80 + 10).toFixed(2),
+  }))[0];
+
+  const css = `
+    .wishstar-container {
+      position: fixed; top: ${pos.top}vh; left: ${pos.left}vw; width: 60px; height: 60px;
+      pointer-events: none; z-index: 9999;
+      animation: wishstar-flash 7s ease-in-out infinite; --peak:${finalOpacity};
+    }
+    .wishstar-spark {
+      position: absolute; top: 50%; left: 50%; background: ${color};
+      box-shadow: 0 0 18px 4px ${color};
+    }
+    .wishstar-spark.v { width: 4px; height: 60px; transform: translate(-50%,-50%); }
+    .wishstar-spark.h { width: 60px; height: 4px; transform: translate(-50%,-50%); }
+    @keyframes wishstar-flash {
+      0%, 70% { opacity: 0; transform: scale(0.3); }
+      80% { opacity: var(--peak); transform: scale(1.1); }
+      88% { opacity: var(--peak); transform: scale(0.9); }
+      100% { opacity: 0; transform: scale(0.3); }
+    }
+  `;
+  const html = `
+    <div class="wishstar-container" aria-hidden="true">
+      <div class="wishstar-spark v"></div>
+      <div class="wishstar-spark h"></div>
+    </div>
+  `;
+  return { css, html };
+}
+
 function renderStars(cfg, hass, hostEl) {
   const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff", hostEl);
   const count = getParticleCount(cfg.count_preset || "medium", "stars");
@@ -1083,8 +1427,14 @@ const RENDERERS = {
   spider: renderSpider,
   stars: renderStars,
   dog: renderDog,
-  aurora: renderAurora,
   comet: renderComet,
+  squirrel: renderSquirrel,
+  bats: renderBats,
+  owl: renderOwl,
+  bee: renderBee,
+  clouds: renderClouds,
+  ducks: renderDucks,
+  wishstar: renderWishStar,
 };
 
 /* ============================== HAUPT-KARTE ============================== */
@@ -1280,23 +1630,31 @@ class WeatherEventOverlayCard extends HTMLElement {
       } else if (event === "santa" || event === "comet") {
         if (!this._periodicStartTimes[event]) this._periodicStartTimes[event] = Date.now();
         cfgForRender = { ...this._config, _startTime: this._periodicStartTimes[event] };
-      } else if (event === "dog") {
+      } else if (event === "dog" || event === "squirrel" || event === "bee" || event === "ducks") {
         // Höhe/Drift nur EINMAL pro Lauf-Zyklus würfeln und mitspeichern -
         // sonst würde ein Neu-Rendern mitten in der Animation zu einem
-        // sichtbaren Sprung auf eine neue Höhe führen.
-        if (!this._periodicStartTimes.dog) {
-          this._periodicStartTimes.dog = {
+        // sichtbaren Sprung auf eine neue Höhe führen. Jeder dieser
+        // Effekte hat einen eigenen sinnvollen Standard-Höhenbereich.
+        if (!this._periodicStartTimes[event]) {
+          const ranges = {
+            dog: [10, 80],
+            squirrel: [65, 88],
+            bee: [15, 60],
+            ducks: [60, 88],
+          };
+          const [min, max] = ranges[event] || [10, 80];
+          this._periodicStartTimes[event] = {
             start: Date.now(),
-            startHeight: Math.random() * 70 + 10,
+            startHeight: Math.random() * (max - min) + min,
             drift: Math.random() * 16 - 8,
           };
         }
-        const dogState = this._periodicStartTimes.dog;
+        const state = this._periodicStartTimes[event];
         cfgForRender = {
           ...this._config,
-          _startTime: dogState.start,
-          _startHeight: dogState.startHeight,
-          _drift: dogState.drift,
+          _startTime: state.start,
+          _startHeight: state.startHeight,
+          _drift: state.drift,
         };
       }
       const { css, html } = renderer(cfgForRender, this._hass, this);
@@ -1389,8 +1747,14 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="santa" ${c.event === "santa" ? "selected" : ""}>🎅 Weihnachtsmann</option>
             <option value="spider" ${c.event === "spider" ? "selected" : ""}>🕷️ Spinne mit Netz</option>
             <option value="dog" ${c.event === "dog" ? "selected" : ""}>🐕 Goldener Labrador</option>
-            <option value="aurora" ${c.event === "aurora" ? "selected" : ""}>🌌 Polarlicht</option>
             <option value="comet" ${c.event === "comet" ? "selected" : ""}>☄️ Komet</option>
+            <option value="squirrel" ${c.event === "squirrel" ? "selected" : ""}>🐿️ Eichhörnchen</option>
+            <option value="bats" ${c.event === "bats" ? "selected" : ""}>🦇 Fledermäuse</option>
+            <option value="owl" ${c.event === "owl" ? "selected" : ""}>🦉 Eule</option>
+            <option value="bee" ${c.event === "bee" ? "selected" : ""}>🐝 Biene</option>
+            <option value="clouds" ${c.event === "clouds" ? "selected" : ""}>🌤️ Wolken-Drift</option>
+            <option value="ducks" ${c.event === "ducks" ? "selected" : ""}>🦆 Enten-Familie</option>
+            <option value="wishstar" ${c.event === "wishstar" ? "selected" : ""}>⭐ Wunschstern-Funkeln</option>
           </select>
         `, isWeatherAuto
           ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft."
@@ -1419,19 +1783,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
           </select>
         `, isWeatherAuto
           ? "⚠️ Ein Wert für ALLE automatisch erkannten Effekte gemeinsam (Regen, Schnee, Hagel, Blitz, Nebel, Sturm) - nicht einzeln pro Effekt einstellbar."
-          : (c.event === "santa"
-              ? "Wie oft der Weihnachtsmann vorbeifliegt: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur einen Schlitten gibt)."
-              : (c.event === "dog"
-                  ? "Wie oft der Labrador durchläuft: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur einen Hund gibt)."
-                  : (c.event === "comet"
-                      ? "Wie oft der Komet vorbeizieht: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (deutlich seltener als Sternschnuppen)."
-                      : (c.event === "aurora"
-                          ? "Wie viele Lichtbänder gleichzeitig zu sehen sind."
-                          : "Wie viele Partikel gleichzeitig zu sehen sind."
-                        )
-                    )
-                )
-            )
+          : (COUNT_IS_INTERVAL_TEXT[c.event] || "Wie viele Partikel gleichzeitig zu sehen sind.")
         ) : ""}
 
         ${caps.opacity ? this._row("Deckkraft / Helligkeit", `
