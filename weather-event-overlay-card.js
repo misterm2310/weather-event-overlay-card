@@ -84,6 +84,13 @@ function getParticleCount(preset, eventType) {
       case "medium": default: return 30;
     }
   }
+  if (eventType === "aurora") {
+    switch (preset) {
+      case "low": return 3;
+      case "high": return 8;
+      case "medium": default: return 5;
+    }
+  }
   switch (preset) {
     case "low": return Math.round(max * 0.33);
     case "high": return max;
@@ -298,6 +305,8 @@ const EVENT_CAPABILITIES = {
   spider: { count: false, opacity: true, color: true },
   stars: { count: true, opacity: true, color: true },
   dog: { count: true, opacity: true, color: false },
+  aurora: { count: true, opacity: true, color: false },
+  comet: { count: true, opacity: true, color: true },
 };
 
 const BALLOON_COLORS = ["#FF4B4B", "#FF851B", "#FFDC00", "#2ECC40", "#0074D9", "#B10DC9", "#F012BE"];
@@ -912,6 +921,116 @@ function renderDog(cfg, hass, hostEl) {
   return { css, html };
 }
 
+function renderAurora(cfg, hass, hostEl) {
+  // Polarlicht: mehrere wabernde, halbtransparente Farbbänder (Grün/Türkis/
+  // Violett) oben im Bild - feste Farbpalette statt Theme-Abgleich, da die
+  // typischen Aurora-Farben selbst das Erkennungsmerkmal sind (wie beim
+  // Weihnachtsmann/Hund).
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+  const finalOpacity = isHigh ? 1 : opacity;
+  const count = getParticleCount(cfg.count_preset || "medium", "aurora");
+
+  const bands = getCachedRandomSet("aurora", count, () => ({
+    top: (Math.random() * 12).toFixed(2),
+    height: Math.floor(Math.random() * 22) + 26,
+    left: (Math.random() * 30 - 15).toFixed(2),
+    waveDur: (Math.random() * 8 + 14).toFixed(2),
+    waveDelay: (Math.random() * -12).toFixed(2),
+    shimmerDur: (Math.random() * 2 + 2.5).toFixed(2),
+    shimmerDelay: (Math.random() * -3).toFixed(2),
+    hue: Math.random() > 0.5
+      ? "linear-gradient(90deg, transparent, #22c55e99, #06b6d499, #a855f799, transparent)"
+      : "linear-gradient(90deg, transparent, #34d39999, #38bdf899, #c084fc99, transparent)",
+  }));
+
+  const bandHtml = bands.map((b) => `
+    <div class="aurora-band" style="top:${b.top}vh; left:${b.left}vw; height:${b.height}vh; background:${b.hue};
+      animation-duration:${b.waveDur}s, ${b.shimmerDur}s; animation-delay:${b.waveDelay}s, ${b.shimmerDelay}s; --peak:${finalOpacity};"></div>
+  `).join("\n");
+
+  const css = `
+    ${overlayBaseCss("aurora-container")}
+    .aurora-band {
+      position: absolute; width: 140vw; border-radius: 50%;
+      filter: blur(22px);
+      animation-name: aurora-wave, aurora-shimmer;
+      animation-timing-function: ease-in-out, ease-in-out;
+      animation-iteration-count: infinite, infinite;
+      animation-direction: alternate, alternate;
+      will-change: transform, opacity;
+    }
+    @keyframes aurora-wave {
+      0% { transform: translateX(0) translateY(0) scaleY(1); }
+      50% { transform: translateX(6vw) translateY(-2vh) scaleY(1.2); }
+      100% { transform: translateX(-4vw) translateY(1vh) scaleY(0.95); }
+    }
+    @keyframes aurora-shimmer {
+      0% { opacity: calc(var(--peak) * 0.45); }
+      100% { opacity: var(--peak); }
+    }
+  `;
+  return { css, html: `<div class="aurora-container" aria-hidden="true">${bandHtml}</div>` };
+}
+
+function renderComet(cfg, hass, hostEl) {
+  // Komet: ein einzelner, dramatischer Streifen mit langem Schweif, der
+  // deutlich seltener als Sternschnuppen vorbeizieht. "Anzahl/Frequenz"
+  // steuert wie beim Weihnachtsmann/Hund den Abstand zwischen den
+  // Durchgängen, nicht eine Partikelmenge. Nutzt dieselbe Startzeit-Technik
+  // wie Weihnachtsmann/Hund, damit ein Neu-Rendern die Animation nicht
+  // wieder auf 0 zurücksetzt.
+  const color = resolveDynamicColor(cfg.color, hass, "#1a3a5c", "#bfe9ff", hostEl);
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+  const finalOpacity = isHigh ? 1 : opacity;
+  const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
+  const flightSeconds = 3.5;
+  const flightPct = Math.min(30, (flightSeconds / interval) * 100).toFixed(2);
+  const fadePct = (parseFloat(flightPct) + 0.5).toFixed(2);
+  const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
+  const delaySec = (-(elapsedSec % interval)).toFixed(2);
+
+  const css = `
+    .comet-container {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      pointer-events: none; z-index: 9999; overflow: hidden;
+    }
+    .comet-box {
+      position: absolute; top: -10vh; left: -20vw; width: 220px; height: 5px;
+      animation-name: comet-fly; animation-timing-function: linear; animation-iteration-count: infinite;
+      animation-duration: ${interval}s; animation-delay: ${delaySec}s;
+      will-change: transform, opacity;
+    }
+    .comet-trail {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, ${color});
+      border-radius: 50%; filter: blur(1px);
+    }
+    .comet-head {
+      position: absolute; right: -3px; top: 50%; transform: translateY(-50%);
+      width: 8px; height: 8px; border-radius: 50%; background: ${color};
+      box-shadow: 0 0 14px 4px ${color};
+    }
+    @keyframes comet-fly {
+      0% { transform: translate(0, 0) rotate(35deg); opacity: 0; }
+      1% { opacity: ${finalOpacity}; }
+      ${flightPct}% { transform: translate(130vw, 100vh) rotate(35deg); opacity: ${finalOpacity}; }
+      ${fadePct}% { opacity: 0; }
+      100% { opacity: 0; transform: translate(130vw, 100vh) rotate(35deg); }
+    }
+  `;
+  const html = `
+    <div class="comet-container" aria-hidden="true">
+      <div class="comet-box">
+        <div class="comet-trail"></div>
+        <div class="comet-head"></div>
+      </div>
+    </div>
+  `;
+  return { css, html };
+}
+
 function renderStars(cfg, hass, hostEl) {
   const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff", hostEl);
   const count = getParticleCount(cfg.count_preset || "medium", "stars");
@@ -964,6 +1083,8 @@ const RENDERERS = {
   spider: renderSpider,
   stars: renderStars,
   dog: renderDog,
+  aurora: renderAurora,
+  comet: renderComet,
 };
 
 /* ============================== HAUPT-KARTE ============================== */
@@ -1156,9 +1277,9 @@ class WeatherEventOverlayCard extends HTMLElement {
       let cfgForRender = this._config;
       if (event === "snow") {
         cfgForRender = { ...this._config, _snowLevel: this._snowLevel };
-      } else if (event === "santa") {
-        if (!this._periodicStartTimes.santa) this._periodicStartTimes.santa = Date.now();
-        cfgForRender = { ...this._config, _startTime: this._periodicStartTimes.santa };
+      } else if (event === "santa" || event === "comet") {
+        if (!this._periodicStartTimes[event]) this._periodicStartTimes[event] = Date.now();
+        cfgForRender = { ...this._config, _startTime: this._periodicStartTimes[event] };
       } else if (event === "dog") {
         // Höhe/Drift nur EINMAL pro Lauf-Zyklus würfeln und mitspeichern -
         // sonst würde ein Neu-Rendern mitten in der Animation zu einem
@@ -1268,6 +1389,8 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="santa" ${c.event === "santa" ? "selected" : ""}>🎅 Weihnachtsmann</option>
             <option value="spider" ${c.event === "spider" ? "selected" : ""}>🕷️ Spinne mit Netz</option>
             <option value="dog" ${c.event === "dog" ? "selected" : ""}>🐕 Goldener Labrador</option>
+            <option value="aurora" ${c.event === "aurora" ? "selected" : ""}>🌌 Polarlicht</option>
+            <option value="comet" ${c.event === "comet" ? "selected" : ""}>☄️ Komet</option>
           </select>
         `, isWeatherAuto
           ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft."
@@ -1300,7 +1423,13 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
               ? "Wie oft der Weihnachtsmann vorbeifliegt: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur einen Schlitten gibt)."
               : (c.event === "dog"
                   ? "Wie oft der Labrador durchläuft: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur einen Hund gibt)."
-                  : "Wie viele Partikel gleichzeitig zu sehen sind."
+                  : (c.event === "comet"
+                      ? "Wie oft der Komet vorbeizieht: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (deutlich seltener als Sternschnuppen)."
+                      : (c.event === "aurora"
+                          ? "Wie viele Lichtbänder gleichzeitig zu sehen sind."
+                          : "Wie viele Partikel gleichzeitig zu sehen sind."
+                        )
+                    )
                 )
             )
         ) : ""}
