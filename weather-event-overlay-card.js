@@ -1,6 +1,6 @@
 /**
  * weather-event-overlay-card
- * Lovelace Custom Card — kombiniertes Wetter/Event-Overlay mit Catppuccin-Fix
+ * Lovelace Custom Card — kombiniertes Wetter/Event-Overlay
  */
 
 /* ============================== HELFER ============================== */
@@ -99,31 +99,24 @@ function getOpacityValue(preset) {
   }
 }
 
-// Erkennung speziell angepasst an Catppuccin & Custom Themes über CSS-Variablen-Analyse
+// Universelle Erkennung für alle Themes (Standard, Custom, Dark/Light Mode)
 function isDarkModeActive(hassInstance) {
   try {
-    // 1. Lese die echte Hintergrundfarbe oder Textfarbe aus dem aktuellen HA-Theme (DOM)
     const computed = getComputedStyle(document.documentElement);
     let testColor = computed.getPropertyValue("--card-background-color").trim() || 
                     computed.getPropertyValue("--primary-background-color").trim() ||
                     computed.getPropertyValue("--primary-text-color").trim();
 
     if (testColor) {
-      // Wenn es eine Hex-Angabe ist
       if (testColor.startsWith("#")) {
         const rgb = hexToRgb(testColor);
-        // Formel für Helligkeit (YIQ)
         const yiq = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
-        // Ist der Hintergrund dunkel oder der Text sehr hell? -> Dark Mode
         return yiq < 128;
       }
-      // Wenn es rgb(...) ist
       if (testColor.startsWith("rgb")) {
         const nums = testColor.match(/\d+/g);
         if (nums && nums.length >= 3) {
           const yiq = (parseInt(nums[0]) * 299 + parseInt(nums[1]) * 587 + parseInt(nums[2]) * 114) / 1000;
-          // Wenn es sich um eine Hintergrundfarbe handelt, ist < 128 dunkel. 
-          // Bei `--primary-text-color` ist es genau umgekehrt (heller Text = Dark Mode).
           if (testColor.includes("text")) {
             return yiq > 128;
           }
@@ -132,7 +125,6 @@ function isDarkModeActive(hassInstance) {
       }
     }
 
-    // 2. Fallback auf normale HA/Browser-Prüfungen
     if (hassInstance && hassInstance.themes && typeof hassInstance.themes.darkMode === "boolean") {
       return hassInstance.themes.darkMode;
     }
@@ -1022,7 +1014,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="auto" ${colorMode === "auto" ? "selected" : ""}>🌗 Auto (Theme-Abgleich)</option>
             <option value="custom" ${colorMode === "custom" ? "selected" : ""}>🎨 Manuelle Farbe</option>
           </select>
-        `, "Passt die Farbe automatisch an das Catppuccin-Theme an.") : ""}
+        `, "Passt die Farbe automatisch an das aktive Theme an.") : ""}
 
         ${caps.color && colorMode === "custom" ? `
         <div id="custom_color_picker">
@@ -1090,6 +1082,6 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: "weather-event-overlay-card",
   name: "Wetter & Event Overlay Card",
-  description: "Erweiterte Wetter- und Event-Overlay-Karte mit Catppuccin Theme Support.",
+  description: "Erweiterte Wetter- und Event-Overlay-Karte mit universellem Theme-Support.",
   preview: false,
 });
