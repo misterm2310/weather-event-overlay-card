@@ -1364,7 +1364,7 @@ function renderWishStar(cfg, hass, hostEl) {
       position: fixed; top: ${pos.top.toFixed(2)}vh; left: ${pos.left.toFixed(2)}vw; width: 16px; height: 16px;
       pointer-events: none; z-index: 9999; border-radius: 50%; background: ${color};
       box-shadow: 0 0 40px 10px ${color}, 0 0 4px rgba(160,160,160,0.9);
-      animation: wishstar-flash 3s ease-in-out 1;
+      animation: wishstar-flash 3s ease-in-out 1 forwards;
       will-change: opacity, transform;
     }
     @keyframes wishstar-flash {
