@@ -294,9 +294,10 @@ const EVENT_CAPABILITIES = {
   shooting_stars: { count: true, opacity: true, color: true },
   balloons: { count: true, opacity: true, color: false },
   lights: { count: true, opacity: true, color: false },
-  santa: { count: true, opacity: true, color: true },
+  santa: { count: true, opacity: true, color: false },
   spider: { count: false, opacity: true, color: true },
   stars: { count: true, opacity: true, color: true },
+  dog: { count: true, opacity: true, color: false },
 };
 
 const BALLOON_COLORS = ["#FF4B4B", "#FF851B", "#FFDC00", "#2ECC40", "#0074D9", "#B10DC9", "#F012BE"];
@@ -653,7 +654,10 @@ function renderStorm(cfg, hass, hostEl) {
 }
 
 function renderSanta(cfg, hass, hostEl) {
-  const color = resolveDynamicColor(cfg.color, hass, "#8b1a1a", "#e0393f", hostEl);
+  // Optik: komplett bunte Weihnachts-Illustration statt einfarbiger
+  // Silhouette - Farbmodus gibt's hier bewusst nicht (siehe
+  // EVENT_CAPABILITIES.santa unten), da mehrere feste Farben gleichzeitig
+  // gebraucht werden (rote Mütze, weißer Bommel/Bart, Hautfarbe, ...).
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
@@ -663,10 +667,10 @@ function renderSanta(cfg, hass, hostEl) {
   const css = `
     .santa-container {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      pointer-events: none; z-index: 9999; overflow: hidden; color: ${color};
+      pointer-events: none; z-index: 9999; overflow: hidden;
     }
     .santa-sleigh-box {
-      position: absolute; top: 8vh; right: -250px; width: 220px; height: 60px;
+      position: absolute; top: 8vh; right: -250px; width: 220px; height: 62px;
       animation: santa-fly ${interval}s linear infinite; will-change: transform;
     }
     @keyframes santa-fly {
@@ -679,26 +683,38 @@ function renderSanta(cfg, hass, hostEl) {
   const html = `
     <div class="santa-container" style="opacity:${finalOpacity};" aria-hidden="true">
       <div class="santa-sleigh-box">
-        <svg viewBox="0 0 320 70" preserveAspectRatio="xMidYMid meet" fill="currentColor" stroke="currentColor">
+        <svg viewBox="0 -20 320 90" preserveAspectRatio="xMidYMid meet">
           <defs>
+            <!-- Rentier: brauner Körper, dunkleres Geweih, blickt nach links (Flugrichtung) -->
             <g id="santa-reindeer">
-              <ellipse cx="35" cy="28" rx="17" ry="9"/>
-              <path d="M20,24 Q10,18 8,14" fill="none" stroke-width="7" stroke-linecap="round"/>
-              <ellipse cx="8" cy="14" rx="7" ry="6"/>
-              <circle cx="2" cy="16" r="2.5"/>
-              <path d="M8,9 L4,-3 M4,-3 L0,-7 M4,-3 L2,1 M8,9 L13,-4 M13,-4 L17,-8 M13,-4 L15,0" fill="none" stroke-width="2" stroke-linecap="round"/>
-              <path d="M22,35 Q16,44 12,50 M28,36 Q24,44 20,50 M46,36 Q54,42 58,50 M40,36 Q46,44 50,50" fill="none" stroke-width="3" stroke-linecap="round"/>
-              <path d="M52,24 Q57,20 55,27" fill="none" stroke-width="2" stroke-linecap="round"/>
+              <ellipse cx="35" cy="28" rx="17" ry="9" fill="#8b5a2b"/>
+              <path d="M20,24 Q10,18 8,14" fill="none" stroke="#8b5a2b" stroke-width="7" stroke-linecap="round"/>
+              <ellipse cx="8" cy="14" rx="7" ry="6" fill="#8b5a2b"/>
+              <circle cx="2" cy="16" r="2.3" fill="#4a2f18"/>
+              <path d="M8,9 L4,-3 M4,-3 L0,-7 M4,-3 L2,1 M8,9 L13,-4 M13,-4 L17,-8 M13,-4 L15,0"
+                    fill="none" stroke="#4a2f18" stroke-width="2" stroke-linecap="round"/>
+              <path d="M22,35 Q16,44 12,50 M28,36 Q24,44 20,50 M46,36 Q54,42 58,50 M40,36 Q46,44 50,50"
+                    fill="none" stroke="#5a3a1a" stroke-width="3" stroke-linecap="round"/>
+              <path d="M52,24 Q57,20 55,27" fill="none" stroke="#8b5a2b" stroke-width="2" stroke-linecap="round"/>
             </g>
           </defs>
           <use href="#santa-reindeer"/>
           <use href="#santa-reindeer" transform="translate(68,0)"/>
-          <path d="M60,18 Q100,22 148,26 M128,18 Q140,22 148,26" fill="none" stroke-width="1" opacity="0.6"/>
-          <path d="M148,44 Q142,30 154,20 Q162,13 172,13 L212,13 Q224,13 224,25 L224,37 Q224,44 214,44 Z"/>
-          <circle cx="178" cy="24" r="10"/>
-          <circle cx="178" cy="9" r="7"/>
-          <path d="M171,4 Q178,-8 189,-1 Q191,1 187,3 Q180,1 171,4 Z"/>
-          <circle cx="188" cy="-2" r="2.3"/>
+          <!-- Zügel -->
+          <path d="M60,18 Q100,22 148,26 M128,18 Q140,22 148,26" fill="none" stroke="#3a2a1a" stroke-width="1.2" opacity="0.8"/>
+          <!-- Schlitten: Rot mit Gold-Kufen -->
+          <path d="M148,44 Q142,30 154,20 Q162,13 172,13 L212,13 Q224,13 224,25 L224,37 Q224,44 214,44 Z"
+                fill="#b91c1c" stroke="#d4af37" stroke-width="2"/>
+          <!-- Weihnachtsmann: Mantel, Gürtel, Bart, Mütze mit Bommel -->
+          <ellipse cx="182" cy="27" rx="12" ry="14" fill="#c41e3a"/>
+          <ellipse cx="182" cy="40" rx="12" ry="3" fill="#ffffff"/>
+          <rect x="172" y="29" width="20" height="3" fill="#1a1a1a"/>
+          <rect x="180" y="28.5" width="4" height="4" fill="#d4af37"/>
+          <circle cx="182" cy="10" r="7" fill="#f4c2a1"/>
+          <path d="M175,12 Q182,24 189,12 Q188,18 182,20 Q176,18 175,12 Z" fill="#ffffff"/>
+          <path d="M175,5 Q165,-8 179,-13 Q184,-12 180,-6 Q177,-1 175,5 Z" fill="#c41e3a"/>
+          <ellipse cx="180" cy="4" rx="7" ry="2.5" fill="#ffffff"/>
+          <circle cx="179" cy="-13" r="2.5" fill="#ffffff"/>
         </svg>
       </div>
     </div>
@@ -762,6 +778,14 @@ function renderSpider(cfg, hass, hostEl) {
       35%, 65% { transform: translateY(180px); }
       45%, 55% { transform: translateY(170px); }
     }
+    .spider-eye {
+      animation: spider-eye-blink 1.4s ease-in-out infinite;
+    }
+    @keyframes spider-eye-blink {
+      0%, 40% { opacity: 1; filter: drop-shadow(0 0 3px #ff2222); }
+      50% { opacity: 0.25; filter: drop-shadow(0 0 1px #ff2222); }
+      60%, 100% { opacity: 1; filter: drop-shadow(0 0 3px #ff2222); }
+    }
   `;
 
   const html = `
@@ -782,9 +806,72 @@ function renderSpider(cfg, hass, hostEl) {
           <use href="#spider-legs-right" transform="translate(100,0) scale(-1,1)"/>
           <circle cx="50" cy="40" r="10" fill="#111"/>
           <ellipse cx="50" cy="62" rx="15" ry="19" fill="#111"/>
-          <circle cx="45" cy="35" r="2.5" fill="#ff0000" style="filter: drop-shadow(0 0 3px #ff2222);"/>
-          <circle cx="55" cy="35" r="2.5" fill="#ff0000" style="filter: drop-shadow(0 0 3px #ff2222);"/>
+          <circle class="spider-eye" cx="45" cy="35" r="2.5" fill="#ff0000"/>
+          <circle class="spider-eye" cx="55" cy="35" r="2.5" fill="#ff0000"/>
         </svg>
+      </div>
+    </div>
+  `;
+  return { css, html };
+}
+
+function renderDog(cfg, hass, hostEl) {
+  // Goldener Labrador: läuft periodisch quer durchs Bild - nicht mehr starr
+  // am unteren Rand, sondern bei jedem Rendern an einer neuen zufälligen
+  // Höhe (10-80% der Bildschirmhöhe) und mit leichter diagonaler Drift
+  // während des Laufs selbst, für eine natürlichere "läuft irgendwo durchs
+  // Bild"-Wirkung statt einer immer gleichen Spur. "Anzahl/Frequenz"
+  // steuert weiterhin, wie oft er durchläuft, statt einer Partikelmenge -
+  // deshalb auch kein Farbmodus (feste Fellfarbe).
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+  const finalOpacity = isHigh ? 1 : opacity;
+  const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
+  const walkPct = Math.min(30, (20 / interval) * 100).toFixed(2);
+  const startHeight = (Math.random() * 70 + 10).toFixed(2);
+  const driftHeight = (parseFloat(startHeight) + (Math.random() * 16 - 8)).toFixed(2);
+
+  const css = `
+    .dog-container {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      pointer-events: none; z-index: 9999; overflow: hidden;
+    }
+    .dog-walk-box {
+      position: absolute; top: ${startHeight}vh; left: -160px; width: 140px; height: 55px;
+      animation: dog-walk ${interval}s linear infinite; will-change: transform;
+    }
+    .dog-bob {
+      animation: dog-bob 0.55s ease-in-out infinite alternate;
+    }
+    @keyframes dog-walk {
+      0% { transform: translate(0, 0); }
+      ${walkPct}% { transform: translate(calc(100vw + 300px), ${(parseFloat(driftHeight) - parseFloat(startHeight)).toFixed(2)}vh); }
+      100% { transform: translate(calc(100vw + 300px), ${(parseFloat(driftHeight) - parseFloat(startHeight)).toFixed(2)}vh); }
+    }
+    @keyframes dog-bob {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-3px); }
+    }
+  `;
+
+  const html = `
+    <div class="dog-container" style="opacity:${finalOpacity};" aria-hidden="true">
+      <div class="dog-walk-box">
+        <div class="dog-bob">
+          <svg viewBox="0 0 120 55" preserveAspectRatio="xMidYMid meet">
+            <path d="M88,36 Q92,42 95,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
+            <path d="M78,36 Q76,42 74,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
+            <path d="M35,36 Q39,42 42,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
+            <path d="M25,36 Q21,42 18,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
+            <path d="M22,20 Q10,14 14,26 Q18,30 25,26 Z" fill="#d4a25c"/>
+            <ellipse cx="55" cy="25" rx="35" ry="14" fill="#d4a25c"/>
+            <ellipse cx="95" cy="18" rx="13" ry="11" fill="#d4a25c"/>
+            <path d="M90,12 Q80,10 82,22 Q86,26 92,20 Z" fill="#a67c3d"/>
+            <ellipse cx="106" cy="23" rx="7" ry="5.5" fill="#e8c78a"/>
+            <circle cx="112" cy="23" r="2" fill="#2a1a10"/>
+            <circle cx="97" cy="15" r="1.6" fill="#2a1a10"/>
+          </svg>
+        </div>
       </div>
     </div>
   `;
@@ -842,6 +929,7 @@ const RENDERERS = {
   santa: renderSanta,
   spider: renderSpider,
   stars: renderStars,
+  dog: renderDog,
 };
 
 /* ============================== HAUPT-KARTE ============================== */
@@ -1107,6 +1195,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="lights" ${c.event === "lights" ? "selected" : ""}>💡 Lichterkette</option>
             <option value="santa" ${c.event === "santa" ? "selected" : ""}>🎅 Weihnachtsmann</option>
             <option value="spider" ${c.event === "spider" ? "selected" : ""}>🕷️ Spinne mit Netz</option>
+            <option value="dog" ${c.event === "dog" ? "selected" : ""}>🐕 Goldener Labrador</option>
           </select>
         `, isWeatherAuto
           ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft."
