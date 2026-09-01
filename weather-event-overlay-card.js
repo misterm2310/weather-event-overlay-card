@@ -101,10 +101,6 @@ function getOpacityValue(preset) {
 }
 
 // Erkennung des Hell/Dunkel Modus
-// Verbesserung (Bugfix): berechnet die Helligkeit einer Farbe egal ob sie
-// als Hex ("#1c1c1c") oder als rgb()/rgba() vorliegt. Vorher wurde nur
-// rgb() verstanden - CSS-Variablen liefern aber oft Hex-Strings, und die
-// alte Regex hat daraus wirre Zahlen zusammengewürfelt statt "kein Treffer".
 function parseColorBrightness(colorStr) {
   if (!colorStr) return null;
   const str = colorStr.trim();
@@ -132,11 +128,6 @@ function parseColorBrightness(colorStr) {
 
 function isDarkModeActive(hassInstance) {
   try {
-    // Verbesserung (Bugfix): die TATSÄCHLICHE Hintergrundfarbe des
-    // Dashboards wird jetzt ZUERST geprüft, noch vor HA's "Dark Mode"-
-    // Schalter. Grund: wer ein dunkles Theme nutzt, ohne extra den
-    // System-Schalter umzulegen, hatte vorher fälschlich "hell" bekommen,
-    // weil der Schalter-Wert blind Vorrang hatte.
     const rootStyles = getComputedStyle(document.documentElement);
     const bgColor = rootStyles.getPropertyValue("--primary-background-color").trim();
     const brightness = parseColorBrightness(bgColor);
@@ -159,14 +150,12 @@ function isDarkModeActive(hassInstance) {
   }
 }
 
-function resolveDynamicColor(cfgColor, hassInstance, defaultLight = "#1e3a8a", defaultDark = "#a0c4ff") {
+function resolveDynamicColor(cfgColor, hassInstance, defaultLight = "#000000", defaultDark = "#ffffff") {
   if (cfgColor && cfgColor !== "auto") return cfgColor;
   const dark = isDarkModeActive(hassInstance);
   return dark ? defaultDark : defaultLight;
 }
 
-// Verbesserung (Aufräumen): zentrale Basis-CSS für alle Overlay-Container,
-// statt in jeder render*-Funktion dieselben 6 Zeilen zu wiederholen.
 function overlayBaseCss(className, extraProps = "") {
   return `
     .${className} {
@@ -177,31 +166,20 @@ function overlayBaseCss(className, extraProps = "") {
   `;
 }
 
-// Verbesserung (Sicherheit): sehr einfache Whitelist für benutzerdefinierte
-// Laub-SVG-Pfade, damit über die Config kein beliebiges HTML/JS eingeschleust
-// werden kann (z. B. <script> oder onerror-Attribute). Erlaubt nur die
-// üblichen SVG-Zeichenelemente und ihre gängigen Attribute.
 function sanitizeLeafShape(input) {
   if (typeof input !== "string" || !input.trim()) return null;
   const trimmed = input.trim();
 
-  // Verbotene Muster sofort ablehnen (Scripts, Event-Handler, externe Referenzen)
   const forbidden = /<script|javascript:|on\w+\s*=|<iframe|<object|<embed|xlink:href|href\s*=/i;
   if (forbidden.test(trimmed)) return null;
 
-  // Nur erlaubte Tags zulassen (path, polygon, circle, line, g, rect)
   const allowedTagPattern = /<\/?(path|polygon|circle|line|g|rect)\b[^>]*>/gi;
   const strippedOfAllowed = trimmed.replace(allowedTagPattern, "");
-  // Wenn nach Entfernen aller erlaubten Tags noch ein < übrig ist, steckt
-  // ein nicht erlaubtes Element drin -> ablehnen.
   if (strippedOfAllowed.includes("<")) return null;
 
   return trimmed;
 }
 
-// Verbesserung (Performance): einmalig zufällig erzeugte Positionsdaten für
-// Sternschnuppen und Blitz-Timing zwischenspeichern, damit ein Resize oder
-// Theme-Wechsel nicht bei jedem Re-Render neue Zufallswerte (= Flackern) erzeugt.
 const _randomCache = new Map();
 function getCachedRandomSet(key, count, factory) {
   const cacheKey = `${key}:${count}`;
@@ -213,12 +191,6 @@ function getCachedRandomSet(key, count, factory) {
 
 /* ============================ STATISCHE DATEN ============================ */
 
-// Verbesserung (optionale Wetter-Automatik): übersetzt den Zustand einer
-// HA weather-Entity (z. B. weather.home) automatisch in einen oder mehrere
-// Karten-Effekte. Regnet's laut Home Assistant -> Regen an. Bei "Schneeregen"
-// (snowy-rainy) laufen Schnee UND Regen gleichzeitig, bei Gewitter mit Regen
-// (lightning-rainy) laufen Blitz UND Regen gleichzeitig. Kein passender
-// Effekt -> ["off"].
 const WEATHER_STATE_MAP = {
   "rainy": ["rain"],
   "pouring": ["rain"],
@@ -233,21 +205,12 @@ const WEATHER_STATE_MAP = {
   "clear-night": ["stars"],
 };
 
-// Gibt IMMER ein Array zurück (auch bei einem einzelnen Effekt), damit die
-// Karte Zustände mit mehreren gleichzeitigen Effekten einheitlich behandeln
-// kann, ohne an jeder Stelle zwischen String und Array unterscheiden zu müssen.
 function mapWeatherStateToEvents(state) {
   return WEATHER_STATE_MAP[state] || ["off"];
 }
 
-// Verbesserung (GUI-Editor): Tabelle, welcher Effekt welche Regler
-// tatsächlich benutzt. Der Editor blendet Anzahl/Deckkraft/Farbmodus nur
-// ein, wenn der gewählte Effekt sie auch wirklich verwendet.
 const EVENT_CAPABILITIES = {
   off: { count: false, opacity: false, color: false },
-  // Automatik kann auf Regen/Schnee/Hagel/Nebel/Sturm (alle mit Farbe) oder
-  // Blitz (ohne Farbe) münden. Anzahl/Deckkraft wirken bei allen sechs,
-  // deshalb bleiben sie im Editor sichtbar - nur der Event-Typ wird ersetzt.
   weather_auto: { count: true, opacity: true, color: true },
   rain: { count: true, opacity: true, color: true },
   snow: { count: true, opacity: true, color: true },
@@ -259,12 +222,7 @@ const EVENT_CAPABILITIES = {
   shooting_stars: { count: true, opacity: true, color: true },
   balloons: { count: true, opacity: true, color: false },
   lights: { count: true, opacity: true, color: false },
-  // Anzahl steuert bei Weihnachtsmann den Abstand zwischen den Vorbeiflügen
-  // statt einer Partikelmenge (es gibt ja nur einen Schlitten). Farbmodus
-  // ist jetzt wieder aktiv, da die Silhouette einfarbig ist (wie Regen/Schnee).
   santa: { count: true, opacity: true, color: true },
-  // Bei der Spinne gibt's nur EIN Tier - Anzahl macht hier keinen Sinn.
-  // Farbmodus bleibt aktiv, da Netz/Faden sich Hell/Dunkel anpassen.
   spider: { count: false, opacity: true, color: true },
   stars: { count: true, opacity: true, color: true },
 };
@@ -316,14 +274,11 @@ const FLAKES_DATA = Array.from({ length: 50 }, (_, i) => ({
 /* ============================ RENDER-FUNKTIONEN ============================ */
 
 function renderRain(cfg, hass) {
-  const color = resolveDynamicColor(cfg.color, hass, "#1e3a8a", "#a0c4ff");
+  const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff");
   const count = getParticleCount(cfg.count_preset || "medium", "rain");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const drops = spreadSample(DROPS, count);
 
-  // Verbesserung: bei "Kräftig" jeden Tropfen auf einen hohen Mindestwert
-  // anheben (gleiche Logik wie bei Schnee) - sonst bleiben zufällig blasse
-  // Tropfen auch bei "Kräftig" blass.
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const dropHTML = drops.map((d) => {
     const op = isHigh
@@ -352,14 +307,11 @@ function renderRain(cfg, hass) {
 }
 
 function renderSnow(cfg, hass) {
-  const color = resolveDynamicColor(cfg.color, hass, "#222222", "#ffffff");
+  const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff");
   const count = getParticleCount(cfg.count_preset || "medium", "snow");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const flakes = spreadSample(FLAKES_DATA, count);
 
-  // Verbesserung: bei "Kräftig" jede Flocke auf einen hohen Mindestwert
-  // anheben, statt nur den ohnehin schon zufälligen Wert (f.op) zu deckeln.
-  // Vorher blieben blasse Flocken (f.op ~0.3) auch bei "Kräftig" blass.
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const flakeHTML = flakes.map((f) => {
     const op = isHigh
@@ -383,10 +335,6 @@ function renderSnow(cfg, hass) {
     }
   `;
 
-  // Verbesserung (Idee 4: Schneehöhe simulieren): cfg._snowLevel (0-100) wird
-  // von der Haupt-Karte per Timer langsam hochgezählt, solange Schnee aktiv
-  // ist, und übersetzt sich hier in eine wachsende Schneedecke unten am
-  // Bildschirmrand statt dass die Flocken einfach spurlos verschwinden.
   const snowLevel = typeof cfg._snowLevel === "number" ? cfg._snowLevel : 0;
   const accumHeight = Math.min(18, snowLevel * 0.18);
   const accumHtml = accumHeight > 0
@@ -400,14 +348,9 @@ function renderLeaves(cfg, hass) {
   const leafColors = Array.isArray(cfg.leaf_colors) && cfg.leaf_colors.length === 3 ? cfg.leaf_colors : ["#c9a227", "#a83232", "#d9812c"];
   const count = getParticleCount(cfg.count_preset || "medium", "leaves");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
-  // Verbesserung (Sicherheit): benutzerdefinierte leaf_shape wird jetzt
-  // durch die Whitelist geprüft. Fällt sie durch, greift automatisch die
-  // sichere Standardform statt irgendwas Ungefiltertes zu rendern.
   const leafShape = sanitizeLeafShape(cfg.leaf_shape) || DEFAULT_LEAF_SHAPE;
   const leaves = spreadSample(FLAKES_DATA, count);
 
-  // Verbesserung: bei "Kräftig" jedes Blatt auf einen hohen Mindestwert
-  // anheben (gleiche Logik wie bei Schnee/Regen).
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const leafHTML = leaves.map((f, i) => {
     const op = isHigh
@@ -480,11 +423,8 @@ function renderLights(cfg, hass) {
 function renderShootingStars(cfg, hass) {
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const count = getParticleCount(cfg.count_preset || "medium", "shooting_stars");
-  const color = resolveDynamicColor(cfg.color, hass, "#ffffff", "#ffffff");
+  const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff");
 
-  // Verbesserung (Performance): Positionen/Timing einmalig würfeln und
-  // zwischenspeichern, damit ein Resize oder Theme-Wechsel nicht jedes Mal
-  // ein neues Sternenmuster (= Flackern) erzeugt.
   const stars = getCachedRandomSet("shooting_stars", count, () => ({
     top: (Math.random() * 50).toFixed(2),
     left: (Math.random() * 100).toFixed(2),
@@ -539,15 +479,11 @@ function renderLightning(cfg, hass) {
 }
 
 function renderFog(cfg, hass) {
-  // Nebel bekommt genau wie die anderen Effekte eine Auto-Farbe: hell im
-  // Lightmode (dezentes Grauweiß), heller/dichter im Darkmode.
-  const color = resolveDynamicColor(cfg.color, hass, "#c7c7c7", "#e8e8e8");
+  const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const count = getParticleCount(cfg.count_preset || "medium", "fog");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
 
-  // Verbesserung (Performance): Positionen/Timing der Schwaden cachen,
-  // damit ein Resize/Theme-Wechsel nicht bei jedem Re-Render neu würfelt.
   const banks = getCachedRandomSet("fog", count, () => ({
     top: (Math.random() * 80).toFixed(2),
     width: Math.floor(Math.random() * 40) + 60,
@@ -559,8 +495,6 @@ function renderFog(cfg, hass) {
   }));
 
   const fogHTML = banks.map((b) => {
-    // Bei "Kräftig" auch hier einen Mindestwert anheben, damit Nebel spürbar
-    // dichter wirkt statt nur gedeckelt zu werden (gleiche Logik wie Regen/Schnee/Laub).
     const bankOp = isHigh ? Math.max(b.baseOp, 0.7) : (b.baseOp * opacity);
     const dir = b.reverse ? "fog-drift-reverse" : "fog-drift";
     return `<div class="fog-bank" style="top:${b.top}vh; width:${b.width}vw; height:${b.height}vh; animation-duration:${b.dur}s; animation-delay:${b.delay}s; animation-name:${dir}; opacity:${bankOp.toFixed(2)}; background:radial-gradient(ellipse at center, ${color} 0%, transparent 70%);"></div>`;
@@ -588,8 +522,7 @@ function renderFog(cfg, hass) {
 }
 
 function renderHail(cfg, hass) {
-  // Hagel: wie Regen, aber härtere, kleinere, schnellere Punkte statt Streifen.
-  const color = resolveDynamicColor(cfg.color, hass, "#8fa3b3", "#e8eef2");
+  const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff");
   const count = getParticleCount(cfg.count_preset || "medium", "hail");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
@@ -600,7 +533,6 @@ function renderHail(cfg, hass) {
       ? Math.min(1, Math.max(d.op, 0.85)).toFixed(2)
       : (d.op * opacity).toFixed(2);
     const size = Math.max(3, Math.round(d.size / 3));
-    // Hagel fällt schneller und härter als Regen (kürzere Animationsdauer).
     const dur = (parseFloat(d.dur) * 0.55).toFixed(2);
     return `<div class="hailstone" style="left:${d.l}vw; width:${size}px; height:${size}px; animation-duration:${dur}s; animation-delay:${d.d}s; opacity:${op}; background:${color};"></div>`;
   }).join("\n");
@@ -622,9 +554,7 @@ function renderHail(cfg, hass) {
 }
 
 function renderStorm(cfg, hass) {
-  // Sturm/Windböen: Partikel schießen schräg und schnell durchs Bild,
-  // statt gerade nach unten zu fallen wie bei Regen/Schnee.
-  const color = resolveDynamicColor(cfg.color, hass, "#556270", "#c8d2da");
+  const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff");
   const count = getParticleCount(cfg.count_preset || "medium", "storm");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
@@ -654,25 +584,12 @@ function renderStorm(cfg, hass) {
   return { css, html: `<div class="storm-container" aria-hidden="true">${gustHTML}</div>` };
 }
 
-
 function renderSanta(cfg, hass) {
-  // Optik: komplett neu als sauberes, einfarbiges Silhouetten-Design (wie
-  // Regen/Schnee/Nebel) statt bunter Detail-Illustration - dadurch auch
-  // wieder mit Farbmodus (Auto/Manuell) nutzbar. Das Rentier wird nur EINMAL
-  // gezeichnet und per <use> zweimal eingesetzt - garantiert identisch/
-  // symmetrisch, statt zwei von Hand leicht unterschiedliche Kopien.
-  // Weihnachtsrot: dunkles Rot im Hellmodus (gut lesbar auf hellem
-  // Hintergrund), kräftigeres Rot im Dunkelmodus (leuchtet mehr im Dunkeln).
   const color = resolveDynamicColor(cfg.color, hass, "#8b1a1a", "#e0393f");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
   const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
-  // Verbesserung (Geschwindigkeit): der Flug selbst dauert jetzt ~18
-  // Sekunden (vorher passierte die komplette Durchquerung nur innerhalb der
-  // ersten 3-4% der Animation, bei "Mittel" also in nur ~6-8s - viel zu
-  // hektisch). Der Prozentsatz wird passend zur gewählten Intervall-Länge
-  // berechnet, damit die 18 Sekunden bei jedem Preset gleich bleiben.
   const flightPct = Math.min(30, (18 / interval) * 100).toFixed(2);
 
   const css = `
@@ -698,7 +615,6 @@ function renderSanta(cfg, hass) {
       <div class="santa-sleigh-box">
         <svg viewBox="0 0 320 70" preserveAspectRatio="xMidYMid meet" fill="currentColor" stroke="currentColor">
           <defs>
-            <!-- Rentier blickt nach links (= Flugrichtung), Beine im Lauf-/Sprung-Schritt -->
             <g id="santa-reindeer">
               <ellipse cx="35" cy="28" rx="17" ry="9"/>
               <path d="M20,24 Q10,18 8,14" fill="none" stroke-width="7" stroke-linecap="round"/>
@@ -714,24 +630,19 @@ function renderSanta(cfg, hass) {
           <use href="#santa-reindeer"/>
           <use href="#santa-reindeer" transform="translate(68,0)"/>
           <path d="M60,18 Q100,22 148,26 M128,18 Q140,22 148,26" fill="none" stroke-width="1" opacity="0.6"/>
-          <!-- Schlitten: Kufe schwingt vorn (links, in Zugrichtung) nach oben -->
           <path d="M148,44 Q142,30 154,20 Q162,13 172,13 L212,13 Q224,13 224,25 L224,37 Q224,44 214,44 Z"/>
-          <!-- Weihnachtsmann sitzt vorn am Zügel -->
           <circle cx="178" cy="24" r="10"/>
           <circle cx="178" cy="9" r="7"/>
           <path d="M171,4 Q178,-8 189,-1 Q191,1 187,3 Q180,1 171,4 Z"/>
           <circle cx="188" cy="-2" r="2.3"/>
-</svg>
-</div>
-</div>
-`;
+        </svg>
+      </div>
+    </div>
+  `;
 
   return { css, html };
 }
 
-// Verbesserung (Optik): das Netz wird mathematisch berechnet (Speichen +
-// konzentrische Ringe von einer Ecke aus), statt mit freihändig geschätzten
-// Bezier-Pfaden - das ergibt ein garantiert symmetrisches, sauberes Netz.
 function buildCornerWebSvg(spokeCount, ringCount) {
   const cx = 100, cy = 0, radius = 100;
   const angles = [];
@@ -762,11 +673,7 @@ function buildCornerWebSvg(spokeCount, ringCount) {
 }
 
 function renderSpider(cfg, hass) {
-  // Optik: Netz in der Ecke + Spinne, die an einem Faden auf und ab seilt.
-  // Farbmodus bleibt aktiv (Netz/Faden passen sich Hell/Dunkel an), Kräftig
-  // hebt die Deckkraft wie bei den anderen Effekten auf volle 100% an. Die
-  // Augen bleiben bewusst immer leuchtend rot, unabhängig vom Theme.
-  const webColor = resolveDynamicColor(cfg.color, hass, "#4a4a4a", "#e5e5e5");
+  const webColor = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
@@ -798,10 +705,6 @@ function renderSpider(cfg, hass) {
     }
   `;
 
-  // Verbesserung (Optik): 8 Beine statt 6, per <use> perfekt gespiegelt
-  // (rechte Seite einmal gezeichnet, linke Seite ist eine exakte Kopie) -
-  // das sieht deutlich symmetrischer/sauberer aus als von Hand geschätzte
-  // Pfade auf beiden Seiten einzeln.
   const html = `
     <div class="spider-web-container" style="opacity:${finalOpacity};" aria-hidden="true">
       <svg class="corner-web" viewBox="0 0 100 100">${webSvg}</svg>
@@ -831,10 +734,7 @@ function renderSpider(cfg, hass) {
 }
 
 function renderStars(cfg, hass) {
-  // Sternenhimmel: funkelnde Punkte, Farbe passt sich Hell/Dunkel an (dunkel
-  // im Lightmode, strahlend weiß im Darkmode) - genau wie bei Regen/Schnee.
-  // Läuft automatisch bei "klarer Nachthimmel".
-  const color = resolveDynamicColor(cfg.color, hass, "#1a1a2e", "#ffffff");
+  const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff");
   const count = getParticleCount(cfg.count_preset || "medium", "stars");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
@@ -842,13 +742,9 @@ function renderStars(cfg, hass) {
   const stars = getCachedRandomSet("stars", count, () => ({
     top: (Math.random() * 85).toFixed(2),
     left: (Math.random() * 100).toFixed(2),
-    // Verbesserung (Sichtbarkeit): etwas größere Sterne (2-4.5px statt 1-3px),
-    // damit sie auch auf großen Tablet-/TV-Displays klar erkennbar sind.
     size: (Math.random() * 2.5 + 2).toFixed(2),
     dur: (Math.random() * 3 + 2).toFixed(2),
     delay: (Math.random() * -5).toFixed(2),
-    // Verbesserung (Sichtbarkeit): höherer Mindestwert (0.55 statt 0.4),
-    // damit auch der Funkeln-Tiefpunkt nicht zu blass wird.
     baseOp: (Math.random() * 0.4 + 0.55).toFixed(2),
   }));
 
@@ -857,10 +753,6 @@ function renderStars(cfg, hass) {
       ? Math.max(parseFloat(s.baseOp), 0.95)
       : Math.max(parseFloat(s.baseOp) * opacity, 0.35);
     const glow = (parseFloat(s.size) * 2.5).toFixed(2);
-    // Verbesserung (Sichtbarkeit): zusätzlicher dünner neutral-grauer Halo
-    // als "Sicherheitsnetz" - falls die Theme-Erkennung mal daneben liegt,
-    // bleibt der Stern trotzdem als heller Punkt sichtbar, egal auf welchem
-    // Hintergrund (dunkel oder hell).
     return `<div class="star" style="top:${s.top}vh; left:${s.left}vw; width:${s.size}px; height:${s.size}px; background:${color}; box-shadow: 0 0 ${glow}px ${color}, 0 0 1.5px rgba(160,160,160,0.9); animation-duration:${s.dur}s; animation-delay:${s.delay}s; --peak:${peak.toFixed(2)};"></div>`;
   }).join("\n");
 
@@ -929,9 +821,6 @@ class WeatherEventOverlayCard extends HTMLElement {
     this._render();
   }
 
-  // Verbesserung (Performance/Akku): pausiert alle CSS-Animationen, sobald
-  // das Browser-Tab im Hintergrund ist (Tablet an der Wand, Handy gesperrt
-  // etc.) - spart unnötig laufende Animationen, die eh keiner sieht.
   _onVisibilityChange() {
     if (!this.shadowRoot) return;
     const hidden = document.hidden;
@@ -979,11 +868,6 @@ class WeatherEventOverlayCard extends HTMLElement {
     }
   }
 
-  // Verbesserung (optionale Wetter-Automatik): "weather_auto" ist ein
-  // eigener Eintrag im Event-Dropdown statt eines separaten Schalters -
-  // so gibt's nur eine Stelle, die entscheidet, kein Widerspruchspotenzial.
-  // Gibt IMMER ein Array zurück, da manche Wetterzustände (Schneeregen,
-  // Gewitter mit Regen) zwei Effekte gleichzeitig auslösen.
   _resolveEvents() {
     const cfg = this._config || {};
     if (cfg.event === "weather_auto") {
@@ -1008,10 +892,6 @@ class WeatherEventOverlayCard extends HTMLElement {
     return document.createElement("weather-event-overlay-card-editor");
   }
 
-  // Verbesserung (Schneehöhe simulieren): solange Schnee (manuell,
-  // automatisch, oder als Teil einer Kombination wie Schneeregen) läuft,
-  // wächst die Schneedecke langsam an. Läuft kein Schnee mehr, wird die
-  // Ansammlung wieder zurückgesetzt.
   _updateSnowAccumulation(events) {
     const snowActive = events.includes("snow");
     if (snowActive) {
@@ -1037,11 +917,6 @@ class WeatherEventOverlayCard extends HTMLElement {
 
     this._updateSnowAccumulation(events);
 
-    // Verbesserung: mehrere gleichzeitige Effekte (z. B. Schnee+Regen bei
-    // Schneeregen, Blitz+Regen bei Gewitter mit Regen) werden einfach
-    // nacheinander gerendert und ihr CSS/HTML zusammengehängt - jeder
-    // Effekt-Container hat eigene, eindeutige CSS-Klassen, es gibt also
-    // keine Überschneidungen.
     let combinedCss = "";
     let combinedHtml = "";
     for (const event of events) {
@@ -1054,8 +929,6 @@ class WeatherEventOverlayCard extends HTMLElement {
     }
 
     this.shadowRoot.innerHTML = `<style>${baseStyle}${combinedCss}</style>${combinedHtml}`;
-    // Pause-Status neu anwenden, da innerHTML gerade komplett ersetzt wurde
-    // (und damit auch ein zuvor gesetzter Pause-<style> verloren ging).
     this._onVisibilityChange();
   }
 }
@@ -1082,12 +955,6 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
   }
 
   set hass(hass) {
-    // Verbesserung (Bugfix): vorher wurde bei JEDEM Home-Assistant-Update
-    // (mehrmals pro Sekunde) komplett neu gerendert - dadurch klappte ein
-    // gerade geöffnetes Dropdown sofort wieder zu, bevor man auswählen
-    // konnte. Jetzt wird nur neu gerendert, wenn sich die Liste der
-    // verfügbaren weather.*-Entities tatsächlich verändert hat (z. B. beim
-    // allerersten Laden) - normale State-Updates lösen kein Re-Render aus.
     const oldKey = this._weatherEntityListKey || "";
     const newEntities = hass && hass.states
       ? Object.keys(hass.states).filter((eid) => eid.startsWith("weather."))
@@ -1122,8 +989,6 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     const caps = EVENT_CAPABILITIES[c.event] || { count: false, opacity: false, color: false };
     const isWeatherAuto = c.event === "weather_auto";
 
-    // Verbesserung: alle weather.*-Entities aus HA einlesen und als echtes
-    // Dropdown anbieten, statt dass man die Entity-ID von Hand eintippen muss.
     const weatherEntities = this._hass && this._hass.states
       ? Object.keys(this._hass.states).filter((eid) => eid.startsWith("weather."))
       : [];
@@ -1258,8 +1123,6 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
 
 /* ============================== REGISTRIERUNG ============================== */
 
-// Verbesserung (Robustheit): Schutz gegen "already defined"-Fehler,
-// falls HA/HACS die Ressource mal doppelt nachlädt (z. B. nach einem Update).
 if (!customElements.get("weather-event-overlay-card")) {
   customElements.define("weather-event-overlay-card", WeatherEventOverlayCard);
 }
