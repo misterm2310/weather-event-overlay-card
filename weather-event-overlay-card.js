@@ -1,7 +1,6 @@
 /**
  * weather-event-overlay-card
- * Lovelace Custom Card — kombiniertes Wetter/Event-Overlay
- * (Regen, Schnee, Laub, Luftballons, Lichterkette, Sternschnuppen, Blitze) mit visuellem GUI-Editor.
+ * Lovelace Custom Card — kombiniertes Wetter/Event-Overlay mit Catppuccin-Fix
  */
 
 /* ============================== HELFER ============================== */
@@ -100,65 +99,43 @@ function getOpacityValue(preset) {
   }
 }
 
-function parseColorBrightness(colorStr) {
-  if (!colorStr) return null;
-  const str = colorStr.trim();
-
-  // Handle rgb / rgba
-  const rgbMatch = str.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
-  if (rgbMatch) {
-    const r = parseInt(rgbMatch[1], 10);
-    const g = parseInt(rgbMatch[2], 10);
-    const b = parseInt(rgbMatch[3], 10);
-    return (r * 299 + g * 587 + b * 114) / 1000;
-  }
-
-  // Handle hex
-  let hex = str;
-  if (hex.startsWith("#")) hex = hex.slice(1);
-  if (hex.length === 3) hex = hex.split("").map((c) => c + c).join("");
-  if (hex.length === 6) {
-    const r = parseInt(hex.slice(0, 2), 16);
-    const g = parseInt(hex.slice(2, 4), 16);
-    const b = parseInt(hex.slice(4, 6), 16);
-    if (![r, g, b].some(Number.isNaN)) {
-      return (r * 299 + g * 587 + b * 114) / 1000;
-    }
-  }
-  return null;
-}
-
-// Direkte Messung der echten Dashboard-Helligkeit im DOM
+// Erkennung speziell angepasst an Catppuccin & Custom Themes über CSS-Variablen-Analyse
 function isDarkModeActive(hassInstance) {
   try {
-    // 1. Suche nach HA Element und lese dessen tatsächliche CSS-Variablen aus
-    const haEl = document.querySelector("home-assistant") || document.querySelector("hui-view") || document.documentElement;
-    if (haEl) {
-      const styles = getComputedStyle(haEl);
-      for (const varName of ["--primary-background-color", "--card-background-color", "--background-color"]) {
-        const val = styles.getPropertyValue(varName).trim();
-        if (val) {
-          const brightness = parseColorBrightness(val);
-          if (brightness !== null) {
-            return brightness < 128; // < 128 bedeutet dunkler Hintergrund
+    // 1. Lese die echte Hintergrundfarbe oder Textfarbe aus dem aktuellen HA-Theme (DOM)
+    const computed = getComputedStyle(document.documentElement);
+    let testColor = computed.getPropertyValue("--card-background-color").trim() || 
+                    computed.getPropertyValue("--primary-background-color").trim() ||
+                    computed.getPropertyValue("--primary-text-color").trim();
+
+    if (testColor) {
+      // Wenn es eine Hex-Angabe ist
+      if (testColor.startsWith("#")) {
+        const rgb = hexToRgb(testColor);
+        // Formel für Helligkeit (YIQ)
+        const yiq = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
+        // Ist der Hintergrund dunkel oder der Text sehr hell? -> Dark Mode
+        return yiq < 128;
+      }
+      // Wenn es rgb(...) ist
+      if (testColor.startsWith("rgb")) {
+        const nums = testColor.match(/\d+/g);
+        if (nums && nums.length >= 3) {
+          const yiq = (parseInt(nums[0]) * 299 + parseInt(nums[1]) * 587 + parseInt(nums[2]) * 114) / 1000;
+          // Wenn es sich um eine Hintergrundfarbe handelt, ist < 128 dunkel. 
+          // Bei `--primary-text-color` ist es genau umgekehrt (heller Text = Dark Mode).
+          if (testColor.includes("text")) {
+            return yiq > 128;
           }
+          return yiq < 128;
         }
       }
     }
 
-    // 2. Fallback auf direktes Dokument
-    const rootStyles = getComputedStyle(document.documentElement);
-    const bg = rootStyles.getPropertyValue("--primary-background-color").trim();
-    const bBrightness = parseColorBrightness(bg);
-    if (bBrightness !== null) {
-      return bBrightness < 128;
-    }
-
-    // 3. Fallback auf Standard Home-Assistant Flag oder Browser Scheme
-    if (hassInstance && hassInstance.themes && hassInstance.themes.darkMode !== undefined) {
+    // 2. Fallback auf normale HA/Browser-Prüfungen
+    if (hassInstance && hassInstance.themes && typeof hassInstance.themes.darkMode === "boolean") {
       return hassInstance.themes.darkMode;
     }
-
     return window.matchMedia("(prefers-color-scheme: dark)").matches;
   } catch (e) {
     return true;
@@ -184,14 +161,11 @@ function overlayBaseCss(className, extraProps = "") {
 function sanitizeLeafShape(input) {
   if (typeof input !== "string" || !input.trim()) return null;
   const trimmed = input.trim();
-
   const forbidden = /<script|javascript:|on\w+\s*=|<iframe|<object|<embed|xlink:href|href\s*=/i;
   if (forbidden.test(trimmed)) return null;
-
   const allowedTagPattern = /<\/?(path|polygon|circle|line|g|rect)\b[^>]*>/gi;
   const strippedOfAllowed = trimmed.replace(allowedTagPattern, "");
   if (strippedOfAllowed.includes("<")) return null;
-
   return trimmed;
 }
 
@@ -518,11 +492,7 @@ function renderFog(cfg, hass) {
   const css = `
     ${overlayBaseCss("fog-container")}
     .fog-bank {
-      position: absolute;
-      left: -20vw;
-      border-radius: 50%;
-      filter: blur(18px);
-      will-change: transform;
+      position: absolute; left: -20vw; border-radius: 50%; filter: blur(18px); will-change: transform;
     }
     @keyframes fog-drift {
       0%   { transform: translateX(0); }
@@ -610,13 +580,11 @@ function renderSanta(cfg, hass) {
   const css = `
     .santa-container {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      pointer-events: none; z-index: 9999; overflow: hidden;
-      color: ${color};
+      pointer-events: none; z-index: 9999; overflow: hidden; color: ${color};
     }
     .santa-sleigh-box {
       position: absolute; top: 8vh; right: -250px; width: 220px; height: 60px;
-      animation: santa-fly ${interval}s linear infinite;
-      will-change: transform;
+      animation: santa-fly ${interval}s linear infinite; will-change: transform;
     }
     @keyframes santa-fly {
       0% { transform: translateX(0) translateY(0); }
@@ -635,10 +603,8 @@ function renderSanta(cfg, hass) {
               <path d="M20,24 Q10,18 8,14" fill="none" stroke-width="7" stroke-linecap="round"/>
               <ellipse cx="8" cy="14" rx="7" ry="6"/>
               <circle cx="2" cy="16" r="2.5"/>
-              <path d="M8,9 L4,-3 M4,-3 L0,-7 M4,-3 L2,1 M8,9 L13,-4 M13,-4 L17,-8 M13,-4 L15,0"
-                    fill="none" stroke-width="2" stroke-linecap="round"/>
-              <path d="M22,35 Q16,44 12,50 M28,36 Q24,44 20,50 M46,36 Q54,42 58,50 M40,36 Q46,44 50,50"
-                    fill="none" stroke-width="3" stroke-linecap="round"/>
+              <path d="M8,9 L4,-3 M4,-3 L0,-7 M4,-3 L2,1 M8,9 L13,-4 M13,-4 L17,-8 M13,-4 L15,0" fill="none" stroke-width="2" stroke-linecap="round"/>
+              <path d="M22,35 Q16,44 12,50 M28,36 Q24,44 20,50 M46,36 Q54,42 58,50 M40,36 Q46,44 50,50" fill="none" stroke-width="3" stroke-linecap="round"/>
               <path d="M52,24 Q57,20 55,27" fill="none" stroke-width="2" stroke-linecap="round"/>
             </g>
           </defs>
@@ -654,7 +620,6 @@ function renderSanta(cfg, hass) {
       </div>
     </div>
   `;
-
   return { css, html };
 }
 
@@ -683,7 +648,6 @@ function buildCornerWebSvg(spokeCount, ringCount) {
     for (let i = 1; i < pts.length; i++) d += `L ${pts[i].x} ${pts[i].y} `;
     ringsSvg += `<path d="${d}" fill="none" stroke="currentColor" stroke-width="0.6" opacity="${(0.35 + ring * 0.1).toFixed(2)}"/>`;
   }
-
   return `<path d="${spokesD}" fill="none" stroke="currentColor" stroke-width="0.7" opacity="0.7"/>${ringsSvg}`;
 }
 
@@ -697,17 +661,14 @@ function renderSpider(cfg, hass) {
   const css = `
     .spider-web-container {
       position: fixed; top: 0; right: 0; width: 300px; height: 300px;
-      pointer-events: none; z-index: 9999; overflow: visible;
-      color: ${webColor};
+      pointer-events: none; z-index: 9999; overflow: visible; color: ${webColor};
     }
     .corner-web {
-      position: absolute; top: 0; right: 0; width: 180px; height: 180px;
-      filter: drop-shadow(0 0 2px rgba(0,0,0,0.2));
+      position: absolute; top: 0; right: 0; width: 180px; height: 180px; filter: drop-shadow(0 0 2px rgba(0,0,0,0.2));
     }
     .hanging-spider-box {
       position: absolute; top: 40px; right: 50px; width: 26px; height: 26px;
-      animation: spider-drop 14s ease-in-out infinite;
-      will-change: transform;
+      animation: spider-drop 14s ease-in-out infinite; will-change: transform;
     }
     .spider-web-thread {
       position: absolute; top: -300px; left: 50%; width: 1px; height: 300px;
@@ -744,7 +705,6 @@ function renderSpider(cfg, hass) {
       </div>
     </div>
   `;
-
   return { css, html };
 }
 
@@ -775,8 +735,7 @@ function renderStars(cfg, hass) {
     ${overlayBaseCss("stars-container")}
     .star {
       position: absolute; border-radius: 50%;
-      animation: star-twinkle ease-in-out infinite alternate;
-      will-change: opacity, transform;
+      animation: star-twinkle ease-in-out infinite alternate; will-change: opacity, transform;
     }
     @keyframes star-twinkle {
       0% { opacity: calc(var(--peak) * 0.5); transform: scale(0.8); }
@@ -1024,7 +983,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="spider" ${c.event === "spider" ? "selected" : ""}>🕷️ Spinne mit Netz</option>
           </select>
         `, isWeatherAuto
-          ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft: 🌧️ Regen, ❄️ Schnee, 🧊 Hagel, ⚡ Blitz, 🌫️ Nebel oder 💨 Sturm - bei Sonne/Wolken/klarem Himmel läuft kein Effekt."
+          ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft."
           : "Welcher Effekt manuell dauerhaft angezeigt wird."
         )}
 
@@ -1038,10 +997,9 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
                     return `<option value="${eid}" ${c.weather_entity === eid ? "selected" : ""}>${friendly}</option>`;
                   }).join("")}
                 </select>
-              `, "Diese Wetter-Entity liefert den aktuellen Zustand (regnet, schneit, ...), nach dem sich der Effekt oben richtet.")
-            : this._row("Wetter-Sensor", `<input id="weather_entity" type="text" placeholder="weather.home" value="${c.weather_entity || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`, "Keine weather-Entity in HA gefunden - trag die Entity-ID hier manuell ein, z. B. weather.home.")
+              `, "Wetter-Entity für die automatische Steuerung.")
+            : this._row("Wetter-Sensor", `<input id="weather_entity" type="text" placeholder="weather.home" value="${c.weather_entity || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`, "Entity-ID manuell eintragen, z. B. weather.home.")
         ) : ""}
-
 
         ${caps.count ? this._row("Anzahl / Frequenz", `
           <select id="count_preset" style="width:100%; padding:6px;">
@@ -1049,13 +1007,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="medium" ${c.count_preset === "medium" ? "selected" : ""}>🔷 Mittel</option>
             <option value="high" ${c.count_preset === "high" ? "selected" : ""}>🔷 Viel / Häufig</option>
           </select>
-        `, isWeatherAuto
-          ? "⚠️ Ein Wert für ALLE automatisch erkannten Effekte gemeinsam (Regen, Schnee, Hagel, Blitz, Nebel, Sturm) - nicht einzeln pro Effekt einstellbar."
-          : (c.event === "santa"
-              ? "Wie oft der Weihnachtsmann vorbeifliegt: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min."
-              : "Wie viele Partikel gleichzeitig zu sehen sind."
-            )
-        ) : ""}
+        `, "Anzahl der Partikel.") : ""}
 
         ${caps.opacity ? this._row("Deckkraft / Helligkeit", `
           <select id="opacity_preset" style="width:100%; padding:6px;">
@@ -1063,20 +1015,14 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="medium" ${c.opacity_preset === "medium" ? "selected" : ""}>👁️ Dezent (60%)</option>
             <option value="high" ${c.opacity_preset === "high" ? "selected" : ""}>✨ Kräftig (100%)</option>
           </select>
-        `, isWeatherAuto
-          ? "⚠️ Ebenfalls EIN Wert für ALLE automatisch erkannten Effekte gemeinsam."
-          : "Wie stark/deutlich der Effekt sichtbar ist."
-        ) : ""}
+        `, "Sichtbarkeit des Effekts.") : ""}
 
         ${caps.color ? this._row("Farbmodus", `
           <select id="color_mode" style="width:100%; padding:6px;">
-            <option value="auto" ${colorMode === "auto" ? "selected" : ""}>🌗 Auto (Hell/Dunkel Modus)</option>
+            <option value="auto" ${colorMode === "auto" ? "selected" : ""}>🌗 Auto (Theme-Abgleich)</option>
             <option value="custom" ${colorMode === "custom" ? "selected" : ""}>🎨 Manuelle Farbe</option>
           </select>
-        `, isWeatherAuto
-          ? "Gilt nur, wenn gerade Regen, Schnee, Hagel, Nebel oder Sturm aktiv ist (nicht bei Blitz - der hat immer weißes Licht)."
-          : "Farbe automatisch nach Hell/Dunkel-Modus wählen oder selbst festlegen."
-        ) : ""}
+        `, "Passt die Farbe automatisch an das Catppuccin-Theme an.") : ""}
 
         ${caps.color && colorMode === "custom" ? `
         <div id="custom_color_picker">
@@ -1144,6 +1090,6 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: "weather-event-overlay-card",
   name: "Wetter & Event Overlay Card",
-  description: "Erweiterte Wetter- und Event-Overlay-Karte (Regen, Schnee, Blitze, Sterne, Ballons etc.) mit GUI-Editor.",
+  description: "Erweiterte Wetter- und Event-Overlay-Karte mit Catppuccin Theme Support.",
   preview: false,
 });
