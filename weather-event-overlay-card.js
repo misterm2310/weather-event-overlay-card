@@ -105,6 +105,13 @@ function getParticleCount(preset, eventType) {
       case "medium": default: return 4;
     }
   }
+  if (eventType === "frame") {
+    switch (preset) {
+      case "low": return 12;
+      case "high": return 26;
+      case "medium": default: return 18;
+    }
+  }
   switch (preset) {
     case "low": return Math.round(max * 0.33);
     case "high": return max;
@@ -335,6 +342,7 @@ const EVENT_CAPABILITIES = {
   owl: { count: false, opacity: true, color: false },
   bee: { count: true, opacity: true, color: false },
   clouds: { count: true, opacity: true, color: false },
+  frame: { count: true, opacity: true, color: false },
   wishstar: { count: false, opacity: true, color: true },
 };
 
@@ -1295,6 +1303,87 @@ function renderWishStar(cfg, hass, hostEl) {
   return { css, html };
 }
 
+// Vier saisonale Motive für den Rahmen-Effekt - jeweils eine kleine,
+// erkennbare Illustration in fester (nicht theme-abhängiger) Farbe.
+const FRAME_MOTIF_SPRING = `
+  <circle cx="20" cy="12" r="6" fill="#f7b6d2"/>
+  <circle cx="12" cy="20" r="6" fill="#f7b6d2"/>
+  <circle cx="28" cy="20" r="6" fill="#f7b6d2"/>
+  <circle cx="15" cy="27" r="6" fill="#f7b6d2"/>
+  <circle cx="25" cy="27" r="6" fill="#f7b6d2"/>
+  <circle cx="20" cy="20" r="5" fill="#f7d842"/>
+  <path d="M20,32 Q26,36 24,40" stroke="#5a9c4a" stroke-width="2" fill="none"/>
+  <ellipse cx="25" cy="37" rx="4" ry="2" fill="#5a9c4a"/>
+`;
+const FRAME_MOTIF_SUMMER = `
+  <path d="M20,38 Q16,20 20,4" stroke="#3f7a3a" stroke-width="2.5" fill="none"/>
+  <path d="M20,10 Q10,6 8,14 Q16,16 20,10 Z" fill="#4f9c46"/>
+  <path d="M20,18 Q30,14 32,22 Q24,24 20,18 Z" fill="#4f9c46"/>
+  <path d="M20,26 Q12,24 10,32 Q18,32 20,26 Z" fill="#4f9c46"/>
+  <circle cx="20" cy="4" r="3" fill="#f2c94c"/>
+`;
+const FRAME_MOTIF_AUTUMN = `
+  <path d="M20,4 C10,12 6,28 20,38 C34,28 30,12 20,4 Z" fill="#c9822a"/>
+  <path d="M20,8 L20,34" stroke="#8a5a1a" stroke-width="1.5"/>
+  <path d="M20,16 L14,12 M20,16 L26,12 M20,24 L13,20 M20,24 L27,20"
+        stroke="#8a5a1a" stroke-width="1" fill="none"/>
+`;
+const FRAME_MOTIF_WINTER = `
+  <path d="M20,4 L20,32" stroke="#bcdcf0" stroke-width="2"/>
+  <path d="M20,10 L12,4 M20,10 L28,4 M20,18 L12,12 M20,18 L28,12"
+        stroke="#bcdcf0" stroke-width="1.5" fill="none"/>
+  <path d="M20,32 L17,40 M20,32 L23,40" stroke="#dff0fb" stroke-width="2" stroke-linecap="round"/>
+`;
+
+const FRAME_SEASONS = {
+  spring: FRAME_MOTIF_SPRING,
+  summer: FRAME_MOTIF_SUMMER,
+  autumn: FRAME_MOTIF_AUTUMN,
+  winter: FRAME_MOTIF_WINTER,
+};
+
+function renderFrame(cfg, hass, hostEl) {
+  // Saisonaler Rahmen: kleine Motive (Blüten/Blätter/Zweige/Eis - je nach
+  // gewählter Jahreszeit) verteilt entlang aller vier Bildschirmkanten,
+  // wie ein dekorativer Bilderrahmen um den restlichen Bildschirminhalt.
+  // Feste Farben je Jahreszeit, kein Farbmodus.
+  const season = FRAME_SEASONS[cfg.frame_season] ? cfg.frame_season : "autumn";
+  const motifSvg = FRAME_SEASONS[season];
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+  const finalOpacity = isHigh ? 1 : opacity;
+  const count = getParticleCount(cfg.count_preset || "medium", "frame");
+
+  const motifs = getCachedRandomSet(`frame-${season}`, count, () => ({
+    jitter: (Math.random() * 3 - 1.5),
+    scale: (Math.random() * 0.25 + 0.85),
+    rotJitter: (Math.random() * 16 - 8),
+  }));
+
+  const perSide = Math.max(2, Math.ceil(count / 4));
+  const items = motifs.map((m, i) => {
+    const side = i % 4;
+    const posInSide = Math.floor(i / 4);
+    const t = (posInSide + 0.5) / perSide;
+    let top, left, rot;
+    if (side === 0) { top = 1.5 + m.jitter; left = t * 92 + 4; rot = 0; }
+    else if (side === 1) { top = t * 88 + 6; left = 96 + m.jitter * 0.3; rot = -90; }
+    else if (side === 2) { top = 96.5 + m.jitter; left = t * 92 + 4; rot = 180; }
+    else { top = t * 88 + 6; left = 2 + m.jitter * 0.3; rot = 90; }
+    rot += m.rotJitter;
+    return `<div class="frame-motif" style="top:${top.toFixed(2)}vh; left:${left.toFixed(2)}vw; transform:translate(-50%,-50%) rotate(${rot.toFixed(1)}deg) scale(${m.scale.toFixed(2)});"><svg viewBox="0 0 40 40" style="width:100%; height:100%;">${motifSvg}</svg></div>`;
+  }).join("\n");
+
+  const css = `
+    .frame-container {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      pointer-events: none; z-index: 9999;
+    }
+    .frame-motif { position: absolute; width: 42px; height: 42px; }
+  `;
+  return { css, html: `<div class="frame-container" style="opacity:${finalOpacity};" aria-hidden="true">${items}</div>` };
+}
+
 function renderStars(cfg, hass, hostEl) {
   const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff", hostEl);
   const count = getParticleCount(cfg.count_preset || "medium", "stars");
@@ -1352,6 +1441,7 @@ const RENDERERS = {
   owl: renderOwl,
   bee: renderBee,
   clouds: renderClouds,
+  frame: renderFrame,
   wishstar: renderWishStar,
 };
 
@@ -1466,6 +1556,7 @@ class WeatherEventOverlayCard extends HTMLElement {
       color_mode: "auto",
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
       weather_entity: "",
+      frame_season: "autumn",
       ...config,
     };
     this._render();
@@ -1635,6 +1726,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
       color_mode: "auto",
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
       weather_entity: "",
+      frame_season: "autumn",
       ...config,
     };
     if (this._suppressNextRender) {
@@ -1696,6 +1788,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="fog" ${c.event === "fog" ? "selected" : ""}>🌫️ Nebel</option>
             <option value="storm" ${c.event === "storm" ? "selected" : ""}>💨 Sturm</option>
             <option value="clouds" ${c.event === "clouds" ? "selected" : ""}>🌤️ Wolken-Drift</option>
+            <option value="frame" ${c.event === "frame" ? "selected" : ""}>🖼️ Saisonaler Rahmen</option>
             <option value="shooting_stars" ${c.event === "shooting_stars" ? "selected" : ""}>🌠 Sternschnuppen</option>
             <option value="stars" ${c.event === "stars" ? "selected" : ""}>✨ Sternenhimmel</option>
             <option value="wishstar" ${c.event === "wishstar" ? "selected" : ""}>⭐ Wunschstern-Funkeln</option>
@@ -1714,6 +1807,15 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
           ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft."
           : "Welcher Effekt manuell dauerhaft angezeigt wird."
         )}
+
+        ${c.event === "frame" ? this._row("Jahreszeit", `
+          <select id="frame_season" style="width:100%; padding:6px;">
+            <option value="spring" ${c.frame_season === "spring" ? "selected" : ""}>🌸 Frühling</option>
+            <option value="summer" ${c.frame_season === "summer" ? "selected" : ""}>☀️ Sommer</option>
+            <option value="autumn" ${c.frame_season === "autumn" ? "selected" : ""}>🍂 Herbst</option>
+            <option value="winter" ${c.frame_season === "winter" ? "selected" : ""}>❄️ Winter</option>
+          </select>
+        `, "Welches Motiv der Rahmen entlang der Bildschirmkanten zeigt.") : ""}
 
         ${isWeatherAuto ? (
           weatherEntities.length > 0
@@ -1769,6 +1871,11 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     `;
 
     this.querySelector("#event").addEventListener("change", (e) => this._update("event", e.target.value, true));
+
+    const frameSeasonSel = this.querySelector("#frame_season");
+    if (frameSeasonSel) {
+      frameSeasonSel.addEventListener("change", (e) => this._update("frame_season", e.target.value, true));
+    }
 
     const weatherEntitySel = this.querySelector("#weather_entity");
     if (weatherEntitySel) {
