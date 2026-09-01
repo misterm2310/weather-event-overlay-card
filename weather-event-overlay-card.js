@@ -100,29 +100,67 @@ function getOpacityValue(preset) {
 }
 
 // Universelle Erkennung für alle Themes (Standard, Custom, Dark/Light Mode)
-function isDarkModeActive(hassInstance) {
-  try {
-    const computed = getComputedStyle(document.documentElement);
-    let testColor = computed.getPropertyValue("--card-background-color").trim() || 
-                    computed.getPropertyValue("--primary-background-color").trim() ||
-                    computed.getPropertyValue("--primary-text-color").trim();
+// Verbesserung (Bugfix): statt die CSS-Variable selbst als Rohstring zu
+// parsen (unzuverlässig - Themes nutzen Hex, rgb(), oder Komma-getrennte
+// "R, G, B"-Tripel für --rgb-Varianten, und die Variable kann auf jeder
+// Kaskaden-Ebene gesetzt sein, nicht nur an <html>), wird ein unsichtbares
+// Test-Element mit `background-color: var(--card-background-color, ...)`
+// eingefügt. Der BROWSER selbst löst dann die Variable auf und liefert über
+// getComputedStyle().backgroundColor IMMER ein normalisiertes rgb()/rgba() -
+// egal welches Format/welche Ebene das jeweilige Theme nutzt.
+function colorStringToBrightness(colorStr) {
+  if (!colorStr || colorStr === "transparent" || colorStr === "rgba(0, 0, 0, 0)") return null;
+  const nums = colorStr.match(/[\d.]+/g);
+  if (!nums || nums.length < 3) return null;
+  const r = parseFloat(nums[0]), g = parseFloat(nums[1]), b = parseFloat(nums[2]);
+  return (r * 299 + g * 587 + b * 114) / 1000;
+}
 
-    if (testColor) {
-      if (testColor.startsWith("#")) {
-        const rgb = hexToRgb(testColor);
-        const yiq = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
-        return yiq < 128;
-      }
-      if (testColor.startsWith("rgb")) {
-        const nums = testColor.match(/\d+/g);
-        if (nums && nums.length >= 3) {
-          const yiq = (parseInt(nums[0]) * 299 + parseInt(nums[1]) * 587 + parseInt(nums[2]) * 114) / 1000;
-          if (testColor.includes("text")) {
-            return yiq > 128;
-          }
-          return yiq < 128;
-        }
-      }
+// Verbesserung (Bugfix): View-spezifische Themes (in HA über "theme:" auf
+// Dashboard-/View-Ebene statt global gesetzt) hinterlegen ihre Farb-
+// Variablen NUR auf dem Container dieser einen Seite - nicht auf <html>
+// oder <body> ganz oben. Die Prüfung nimmt deshalb jetzt ein Referenz-
+// Element entgegen (die Karte selbst, die korrekt innerhalb der jeweiligen
+// View im DOM-Baum sitzt) und testet AN DIESER STELLE, statt immer ganz
+// oben nachzuschauen - so werden auch View-Themes zuverlässig erkannt.
+function detectBackgroundBrightness(hostEl) {
+  try {
+    const candidates = [hostEl, hostEl && hostEl.shadowRoot, document.body, document.documentElement].filter(Boolean);
+
+    // Versuch 1: die tatsächlich gerenderte Hintergrundfarbe eines der
+    // Kandidaten direkt auslesen.
+    for (const el of candidates) {
+      if (typeof el.tagName === "undefined" && !(el instanceof ShadowRoot)) continue;
+      const target = el instanceof ShadowRoot ? el.host : el;
+      const brightness = colorStringToBrightness(getComputedStyle(target).backgroundColor);
+      if (brightness !== null) return brightness;
+    }
+
+    // Versuch 2 (Rückfallebene): unsichtbares Test-Element mit den
+    // gängigsten HA-Variablennamen, eingefügt GENAU AN DER STELLE der
+    // Karte (als Kind ihres eigenen Shadow-Roots, falls vorhanden - CSS-
+    // Variablen vererben sich über Shadow-Grenzen hinweg nach unten, das
+    // Test-Element bekommt also exakt die Werte, die auch die Karte selbst
+    // sehen würde) statt irgendwo global in <body>.
+    const probeParent = (hostEl && hostEl.shadowRoot) || document.body;
+    const probe = document.createElement("div");
+    probe.style.cssText =
+      "position:fixed; top:-9999px; left:-9999px; width:1px; height:1px; " +
+      "pointer-events:none; background-color: var(--card-background-color, var(--primary-background-color, var(--ha-card-background, transparent)));";
+    probeParent.appendChild(probe);
+    const bg = getComputedStyle(probe).backgroundColor;
+    probeParent.removeChild(probe);
+    return colorStringToBrightness(bg);
+  } catch (e) {
+    return null;
+  }
+}
+
+function isDarkModeActive(hassInstance, hostEl) {
+  try {
+    const brightness = detectBackgroundBrightness(hostEl);
+    if (brightness !== null) {
+      return brightness < 128;
     }
 
     if (hassInstance && hassInstance.themes && typeof hassInstance.themes.darkMode === "boolean") {
@@ -134,9 +172,9 @@ function isDarkModeActive(hassInstance) {
   }
 }
 
-function resolveDynamicColor(cfgColor, hassInstance, defaultLight = "#000000", defaultDark = "#ffffff") {
+function resolveDynamicColor(cfgColor, hassInstance, defaultLight = "#000000", defaultDark = "#ffffff", hostEl) {
   if (cfgColor && cfgColor !== "auto") return cfgColor;
-  const dark = isDarkModeActive(hassInstance);
+  const dark = isDarkModeActive(hassInstance, hostEl);
   return dark ? defaultDark : defaultLight;
 }
 
@@ -254,8 +292,8 @@ const FLAKES_DATA = Array.from({ length: 50 }, (_, i) => ({
 
 /* ============================ RENDER-FUNKTIONEN ============================ */
 
-function renderRain(cfg, hass) {
-  const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff");
+function renderRain(cfg, hass, hostEl) {
+  const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff", hostEl);
   const count = getParticleCount(cfg.count_preset || "medium", "rain");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const drops = spreadSample(DROPS, count);
@@ -287,8 +325,8 @@ function renderRain(cfg, hass) {
   return { css, html: `<div class="rain" aria-hidden="true">${dropHTML}</div>` };
 }
 
-function renderSnow(cfg, hass) {
-  const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff");
+function renderSnow(cfg, hass, hostEl) {
+  const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff", hostEl);
   const count = getParticleCount(cfg.count_preset || "medium", "snow");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const flakes = spreadSample(FLAKES_DATA, count);
@@ -325,7 +363,7 @@ function renderSnow(cfg, hass) {
   return { css, html: `<div class="snowflakes" aria-hidden="true">${flakeHTML}${accumHtml}</div>` };
 }
 
-function renderLeaves(cfg, hass) {
+function renderLeaves(cfg, hass, hostEl) {
   const leafColors = Array.isArray(cfg.leaf_colors) && cfg.leaf_colors.length === 3 ? cfg.leaf_colors : ["#c9a227", "#a83232", "#d9812c"];
   const count = getParticleCount(cfg.count_preset || "medium", "leaves");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
@@ -350,7 +388,7 @@ function renderLeaves(cfg, hass) {
   return { css, html: `<div class="leaves" aria-hidden="true">${leafHTML}</div>` };
 }
 
-function renderBalloons(cfg, hass) {
+function renderBalloons(cfg, hass, hostEl) {
   const count = getParticleCount(cfg.count_preset || "medium", "balloons");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const balloons = spreadSample(BALLOONS, count);
@@ -373,7 +411,7 @@ function renderBalloons(cfg, hass) {
   return { css, html: `<div class="balloons-container" aria-hidden="true">${balloonHTML}</div>` };
 }
 
-function renderLights(cfg, hass) {
+function renderLights(cfg, hass, hostEl) {
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const bulbCount = getParticleCount(cfg.count_preset || "medium", "lights");
   const colors = ["#ff3333", "#33cc33", "#3399ff", "#ffff33", "#ff9933", "#cc33cc"];
@@ -401,10 +439,10 @@ function renderLights(cfg, hass) {
   return { css, html };
 }
 
-function renderShootingStars(cfg, hass) {
+function renderShootingStars(cfg, hass, hostEl) {
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const count = getParticleCount(cfg.count_preset || "medium", "shooting_stars");
-  const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff");
+  const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff", hostEl);
 
   const stars = getCachedRandomSet("shooting_stars", count, () => ({
     top: (Math.random() * 50).toFixed(2),
@@ -435,7 +473,7 @@ function renderShootingStars(cfg, hass) {
   return { css, html };
 }
 
-function renderLightning(cfg, hass) {
+function renderLightning(cfg, hass, hostEl) {
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const speedFactor = getParticleCount(cfg.count_preset || "medium", "lightning");
   const dur = (6 / speedFactor).toFixed(1);
@@ -459,8 +497,8 @@ function renderLightning(cfg, hass) {
   return { css, html };
 }
 
-function renderFog(cfg, hass) {
-  const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff");
+function renderFog(cfg, hass, hostEl) {
+  const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff", hostEl);
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const count = getParticleCount(cfg.count_preset || "medium", "fog");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
@@ -498,8 +536,8 @@ function renderFog(cfg, hass) {
   return { css, html: `<div class="fog-container" aria-hidden="true">${fogHTML}</div>` };
 }
 
-function renderHail(cfg, hass) {
-  const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff");
+function renderHail(cfg, hass, hostEl) {
+  const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff", hostEl);
   const count = getParticleCount(cfg.count_preset || "medium", "hail");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
@@ -530,8 +568,8 @@ function renderHail(cfg, hass) {
   return { css, html: `<div class="hail" aria-hidden="true">${hailHTML}</div>` };
 }
 
-function renderStorm(cfg, hass) {
-  const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff");
+function renderStorm(cfg, hass, hostEl) {
+  const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff", hostEl);
   const count = getParticleCount(cfg.count_preset || "medium", "storm");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
@@ -561,8 +599,8 @@ function renderStorm(cfg, hass) {
   return { css, html: `<div class="storm-container" aria-hidden="true">${gustHTML}</div>` };
 }
 
-function renderSanta(cfg, hass) {
-  const color = resolveDynamicColor(cfg.color, hass, "#8b1a1a", "#e0393f");
+function renderSanta(cfg, hass, hostEl) {
+  const color = resolveDynamicColor(cfg.color, hass, "#8b1a1a", "#e0393f", hostEl);
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
@@ -643,8 +681,8 @@ function buildCornerWebSvg(spokeCount, ringCount) {
   return `<path d="${spokesD}" fill="none" stroke="currentColor" stroke-width="0.7" opacity="0.7"/>${ringsSvg}`;
 }
 
-function renderSpider(cfg, hass) {
-  const webColor = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff");
+function renderSpider(cfg, hass, hostEl) {
+  const webColor = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff", hostEl);
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
@@ -700,8 +738,8 @@ function renderSpider(cfg, hass) {
   return { css, html };
 }
 
-function renderStars(cfg, hass) {
-  const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff");
+function renderStars(cfg, hass, hostEl) {
+  const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff", hostEl);
   const count = getParticleCount(cfg.count_preset || "medium", "stars");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
@@ -763,6 +801,35 @@ class WeatherEventOverlayCard extends HTMLElement {
     this._onVisibilityChange = this._onVisibilityChange.bind(this);
     this._snowLevel = 0;
     this._snowTimer = null;
+    this._portalHost = null;
+    this._portalShadow = null;
+    this._visibilityPollTimer = null;
+  }
+
+  // Verbesserung (Bugfix): "position: fixed" wird nicht mehr relativ zum
+  // echten Bildschirm berechnet, sobald IRGENDEIN Eltern-Element einen CSS
+  // transform/filter/contain gesetzt hat - das kommt bei verschachtelten
+  // Dashboard-Layouts vor (z. B. "sections"-Views mit "visibility:"-
+  // Bedingungen). Lösung: die Effekte werden in einen eigenen Container
+  // direkt in <body> gerendert, komplett unabhängig von der Dashboard-
+  // Struktur, in der die Karte eigentlich eingebettet ist.
+  _ensurePortal() {
+    if (this._portalHost) return;
+    this._portalHost = document.createElement("div");
+    this._portalHost.style.cssText = "position:fixed; top:0; left:0; width:0; height:0; pointer-events:none;";
+    this._portalShadow = this._portalHost.attachShadow({ mode: "open" });
+    document.body.appendChild(this._portalHost);
+  }
+
+  // Die Karte selbst kann trotzdem versteckt sein (z. B. weil eine
+  // "visibility:"-Bedingung gerade nicht zutrifft, ohne die Karte komplett
+  // aus dem DOM zu entfernen). Der Portal-Container lebt unabhängig davon
+  // in <body> - dieser Abgleich sorgt dafür, dass er nur sichtbar ist,
+  // wenn die Karte es selbst auch wäre.
+  _syncPortalVisibility() {
+    if (!this._portalHost) return;
+    const isVisible = this.isConnected && this.offsetParent !== null;
+    this._portalHost.style.display = isVisible ? "" : "none";
   }
 
   connectedCallback() {
@@ -770,6 +837,11 @@ class WeatherEventOverlayCard extends HTMLElement {
     window.addEventListener("resize", this._onThemeChange);
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", this._onThemeChange);
     document.addEventListener("visibilitychange", this._onVisibilityChange);
+
+    this._ensurePortal();
+    this._syncPortalVisibility();
+    this._visibilityPollTimer = setInterval(() => this._syncPortalVisibility(), 700);
+    this._render();
   }
 
   disconnectedCallback() {
@@ -781,6 +853,15 @@ class WeatherEventOverlayCard extends HTMLElement {
       clearInterval(this._snowTimer);
       this._snowTimer = null;
     }
+    if (this._visibilityPollTimer) {
+      clearInterval(this._visibilityPollTimer);
+      this._visibilityPollTimer = null;
+    }
+    if (this._portalHost && this._portalHost.parentNode) {
+      this._portalHost.parentNode.removeChild(this._portalHost);
+    }
+    this._portalHost = null;
+    this._portalShadow = null;
   }
 
   _onThemeChange() {
@@ -788,17 +869,14 @@ class WeatherEventOverlayCard extends HTMLElement {
   }
 
   _onVisibilityChange() {
-    if (!this.shadowRoot) return;
+    const root = this._portalShadow;
+    if (!root) return;
     const hidden = document.hidden;
-    this.shadowRoot.host.style.setProperty(
-      "--overlay-animation-play-state",
-      hidden ? "paused" : "running"
-    );
-    let pauseStyle = this.shadowRoot.getElementById("pause-style");
+    let pauseStyle = root.getElementById("pause-style");
     if (!pauseStyle) {
       pauseStyle = document.createElement("style");
       pauseStyle.id = "pause-style";
-      this.shadowRoot.appendChild(pauseStyle);
+      root.appendChild(pauseStyle);
     }
     pauseStyle.textContent = hidden ? "* { animation-play-state: paused !important; }" : "";
   }
@@ -873,9 +951,12 @@ class WeatherEventOverlayCard extends HTMLElement {
 
   _render() {
     if (!this._config) return;
-    const events = this._resolveEvents();
-    const baseStyle = `:host { display: block; position: absolute; top: 0; left: 0; width: 0; height: 0; overflow: visible; pointer-events: none; background: none !important; }`;
+    // Der Portal-Container existiert erst, sobald die Karte im DOM hängt
+    // (connectedCallback). Wird _render() vorher aufgerufen, einfach
+    // abbrechen - connectedCallback rendert danach ohnehin automatisch nach.
+    if (!this._portalShadow) return;
 
+    const events = this._resolveEvents();
     this._updateSnowAccumulation(events);
 
     let combinedCss = "";
@@ -884,12 +965,12 @@ class WeatherEventOverlayCard extends HTMLElement {
       const renderer = RENDERERS[event];
       if (!renderer) continue;
       const cfgForRender = event === "snow" ? { ...this._config, _snowLevel: this._snowLevel } : this._config;
-      const { css, html } = renderer(cfgForRender, this._hass);
+      const { css, html } = renderer(cfgForRender, this._hass, this);
       combinedCss += css;
       combinedHtml += html;
     }
 
-    this.shadowRoot.innerHTML = `<style>${baseStyle}${combinedCss}</style>${combinedHtml}`;
+    this._portalShadow.innerHTML = `<style>${combinedCss}</style>${combinedHtml}`;
     this._onVisibilityChange();
   }
 }
