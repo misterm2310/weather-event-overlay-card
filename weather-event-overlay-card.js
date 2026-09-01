@@ -232,9 +232,8 @@ const EVENT_CAPABILITIES = {
   lights: { count: true, opacity: true, color: false },
   // Anzahl steuert bei Weihnachtsmann den Abstand zwischen den Vorbeiflügen
   // statt einer Partikelmenge (es gibt ja nur einen Schlitten). Farbmodus
-  // gibt's hier nicht - die Illustration ist eine feste bunte Szene
-  // (Gold/Rot/Weiß), kein einfarbiges Element zum Umschalten.
-  santa: { count: true, opacity: true, color: false },
+  // ist jetzt wieder aktiv, da die Silhouette einfarbig ist (wie Regen/Schnee).
+  santa: { count: true, opacity: true, color: true },
   // Bei der Spinne gibt's nur EIN Tier - Anzahl macht hier keinen Sinn.
   // Farbmodus bleibt aktiv, da Netz/Faden sich Hell/Dunkel anpassen.
   spider: { count: false, opacity: true, color: true },
@@ -628,10 +627,12 @@ function renderStorm(cfg, hass) {
 
 
 function renderSanta(cfg, hass) {
-  // Optik: Schlitten mit 2 Rentieren im festen Weihnachts-Farbschema (Gold/
-  // Rot/Weiß) - bewusst NICHT theme-abhängig, da es eine bunte Illustration
-  // ist und kein einfarbiges Element. Anzahl/Frequenz + Kräftig-Boost bleiben
-  // wie bei den anderen Effekten an die bestehenden Regler gekoppelt.
+  // Optik: komplett neu als sauberes, einfarbiges Silhouetten-Design (wie
+  // Regen/Schnee/Nebel) statt bunter Detail-Illustration - dadurch auch
+  // wieder mit Farbmodus (Auto/Manuell) nutzbar. Das Rentier wird nur EINMAL
+  // gezeichnet und per <use> zweimal eingesetzt - garantiert identisch/
+  // symmetrisch, statt zwei von Hand leicht unterschiedliche Kopien.
+  const color = resolveDynamicColor(cfg.color, hass, "#2a1e14", "#fbe9c8");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
@@ -641,9 +642,10 @@ function renderSanta(cfg, hass) {
     .santa-container {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       pointer-events: none; z-index: 9999; overflow: hidden;
+      color: ${color};
     }
     .santa-sleigh-box {
-      position: absolute; top: 8vh; right: -250px; width: 180px; height: 50px;
+      position: absolute; top: 8vh; right: -250px; width: 220px; height: 60px;
       animation: santa-fly ${interval}s linear infinite;
       will-change: transform;
     }
@@ -658,24 +660,69 @@ function renderSanta(cfg, hass) {
   const html = `
     <div class="santa-container" style="opacity:${finalOpacity};" aria-hidden="true">
       <div class="santa-sleigh-box">
-        <svg viewBox="0 0 200 60" style="width:100%; height:100%; fill:#d4af37;">
-          <!-- Rentier 1 -->
-          <path d="M 20 25 Q 15 15 10 20 M 10 20 Q 5 10 2 12 M 10 20 Q 12 10 16 8 M 20 25 L 35 25 L 40 40 M 25 40 L 23 50 M 35 40 L 37 50" stroke="currentColor" stroke-width="2" fill="none"/>
-          <!-- Rentier 2 -->
-          <path d="M 70 25 Q 65 15 60 20 M 60 20 Q 55 10 52 12 M 60 20 Q 62 10 66 8 M 70 25 L 85 25 L 90 40 M 75 40 L 73 50 M 85 40 L 87 50" stroke="currentColor" stroke-width="2" fill="none"/>
-          <!-- Zügel -->
-          <line x1="20" y1="28" x2="140" y2="32" stroke="rgba(255,255,255,0.6)" stroke-width="1"/>
-          <!-- Schlitten & Weihnachtsmann -->
-          <path d="M 130 45 C 120 45 115 35 125 25 C 130 20 145 20 150 28 C 155 20 170 20 175 35 C 180 45 170 50 150 50 Z" fill="#b91c1c"/>
-          <path d="M 120 52 L 180 52 Q 188 52 185 42" stroke="#d4af37" stroke-width="3" fill="none"/>
-          <circle cx="140" cy="18" r="6" fill="#ffffff"/> <!-- Mütze -->
-          <circle cx="140" cy="22" r="5" fill="#fca5a5"/> <!-- Gesicht -->
-        </svg>
-      </div>
-    </div>
-  `;
+        <svg viewBox="0 0 320 70" preserveAspectRatio="xMidYMid meet" fill="currentColor" stroke="currentColor">
+          <defs>
+            <!-- Rentier blickt nach links (= Flugrichtung), Beine im Lauf-/Sprung-Schritt -->
+            <g id="santa-reindeer">
+              <ellipse cx="35" cy="28" rx="17" ry="9"/>
+              <path d="M20,24 Q10,18 8,14" fill="none" stroke-width="7" stroke-linecap="round"/>
+              <ellipse cx="8" cy="14" rx="7" ry="6"/>
+              <circle cx="2" cy="16" r="2.5"/>
+              <path d="M8,9 L4,-3 M4,-3 L0,-7 M4,-3 L2,1 M8,9 L13,-4 M13,-4 L17,-8 M13,-4 L15,0"
+                    fill="none" stroke-width="2" stroke-linecap="round"/>
+              <path d="M22,35 Q16,44 12,50 M28,36 Q24,44 20,50 M46,36 Q54,42 58,50 M40,36 Q46,44 50,50"
+                    fill="none" stroke-width="3" stroke-linecap="round"/>
+              <path d="M52,24 Q57,20 55,27" fill="none" stroke-width="2" stroke-linecap="round"/>
+            </g>
+          </defs>
+          <use href="#santa-reindeer"/>
+          <use href="#santa-reindeer" transform="translate(68,0)"/>
+          <path d="M60,18 Q100,22 148,26 M128,18 Q140,22 148,26" fill="none" stroke-width="1" opacity="0.6"/>
+          <!-- Schlitten: Kufe schwingt vorn (links, in Zugrichtung) nach oben -->
+          <path d="M148,44 Q142,30 154,20 Q162,13 172,13 L212,13 Q224,13 224,25 L224,37 Q224,44 214,44 Z"/>
+          <!-- Weihnachtsmann sitzt vorn am Zügel -->
+          <circle cx="178" cy="24" r="10"/>
+          <circle cx="178" cy="9" r="7"/>
+          <path d="M171,4 Q178,-8 189,-1 Q191,1 187,3 Q180,1 171,4 Z"/>
+          <circle cx="188" cy="-2" r="2.3"/>
+</svg>
+</div>
+</div>
+`;
 
   return { css, html };
+}
+
+// Verbesserung (Optik): das Netz wird mathematisch berechnet (Speichen +
+// konzentrische Ringe von einer Ecke aus), statt mit freihändig geschätzten
+// Bezier-Pfaden - das ergibt ein garantiert symmetrisches, sauberes Netz.
+function buildCornerWebSvg(spokeCount, ringCount) {
+  const cx = 100, cy = 0, radius = 100;
+  const angles = [];
+  for (let i = 0; i < spokeCount; i++) {
+    angles.push(90 + (i * (90 / (spokeCount - 1))));
+  }
+  const toPoint = (angleDeg, r) => {
+    const rad = (angleDeg * Math.PI) / 180;
+    return { x: (cx + r * Math.cos(rad)).toFixed(1), y: (cy + r * Math.sin(rad)).toFixed(1) };
+  };
+
+  let spokesD = "";
+  angles.forEach((a) => {
+    const p = toPoint(a, radius);
+    spokesD += `M ${cx} ${cy} L ${p.x} ${p.y} `;
+  });
+
+  let ringsSvg = "";
+  for (let ring = 1; ring <= ringCount; ring++) {
+    const frac = ring / (ringCount + 1);
+    const pts = angles.map((a) => toPoint(a, radius * frac));
+    let d = `M ${pts[0].x} ${pts[0].y} `;
+    for (let i = 1; i < pts.length; i++) d += `L ${pts[i].x} ${pts[i].y} `;
+    ringsSvg += `<path d="${d}" fill="none" stroke="currentColor" stroke-width="0.6" opacity="${(0.35 + ring * 0.1).toFixed(2)}"/>`;
+  }
+
+  return `<path d="${spokesD}" fill="none" stroke="currentColor" stroke-width="0.7" opacity="0.7"/>${ringsSvg}`;
 }
 
 function renderSpider(cfg, hass) {
@@ -687,6 +734,7 @@ function renderSpider(cfg, hass) {
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
+  const webSvg = buildCornerWebSvg(6, 4);
 
   const css = `
     .spider-web-container {
@@ -699,7 +747,7 @@ function renderSpider(cfg, hass) {
       filter: drop-shadow(0 0 2px rgba(0,0,0,0.2));
     }
     .hanging-spider-box {
-      position: absolute; top: 40px; right: 50px; width: 24px; height: 24px;
+      position: absolute; top: 40px; right: 50px; width: 26px; height: 26px;
       animation: spider-drop 14s ease-in-out infinite;
       will-change: transform;
     }
@@ -714,21 +762,30 @@ function renderSpider(cfg, hass) {
     }
   `;
 
+  // Verbesserung (Optik): 8 Beine statt 6, per <use> perfekt gespiegelt
+  // (rechte Seite einmal gezeichnet, linke Seite ist eine exakte Kopie) -
+  // das sieht deutlich symmetrischer/sauberer aus als von Hand geschätzte
+  // Pfade auf beiden Seiten einzeln.
   const html = `
     <div class="spider-web-container" style="opacity:${finalOpacity};" aria-hidden="true">
-      <svg class="corner-web" viewBox="0 0 100 100">
-        <path d="M 100 0 L 0 0 Q 50 50 100 100 Z" fill="none" stroke="currentColor" stroke-width="0.8" opacity="0.5"/>
-        <path d="M 100 0 L 0 0 M 100 0 L 25 100 M 100 0 L 60 100 M 100 0 L 0 50" stroke="currentColor" stroke-width="0.5"/>
-        <path d="M 30 0 Q 60 30 100 30 M 50 0 Q 70 50 100 50 M 70 0 Q 85 70 100 70" fill="none" stroke="currentColor" stroke-width="0.5"/>
-      </svg>
+      <svg class="corner-web" viewBox="0 0 100 100">${webSvg}</svg>
       <div class="hanging-spider-box">
         <div class="spider-web-thread"></div>
-        <svg viewBox="0 0 100 100" style="width:100%; height:100%; fill:#111;">
-          <path d="M 40 45 Q 15 20 5 35 M 40 50 Q 10 45 0 55 M 40 55 Q 12 70 5 80 M 60 45 Q 85 20 95 35 M 60 50 Q 90 45 100 55 M 60 55 Q 88 70 95 80" stroke="#111" stroke-width="6" fill="none"/>
-          <circle cx="50" cy="40" r="12"/>
-          <circle cx="50" cy="65" r="18"/>
-          <circle cx="45" cy="33" r="2.5" fill="#ff0000" style="filter: drop-shadow(0 0 3px #ff2222);"/>
-          <circle cx="55" cy="33" r="2.5" fill="#ff0000" style="filter: drop-shadow(0 0 3px #ff2222);"/>
+        <svg viewBox="0 0 100 100" style="width:100%; height:100%;">
+          <defs>
+            <g id="spider-legs-right">
+              <path d="M58,42 Q75,32 88,18" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
+              <path d="M58,50 Q80,47 94,42" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
+              <path d="M58,58 Q80,62 92,74" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
+              <path d="M56,65 Q70,78 76,92" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
+            </g>
+          </defs>
+          <use href="#spider-legs-right"/>
+          <use href="#spider-legs-right" transform="translate(100,0) scale(-1,1)"/>
+          <circle cx="50" cy="40" r="10" fill="#111"/>
+          <ellipse cx="50" cy="62" rx="15" ry="19" fill="#111"/>
+          <circle cx="45" cy="35" r="2.5" fill="#ff0000" style="filter: drop-shadow(0 0 3px #ff2222);"/>
+          <circle cx="55" cy="35" r="2.5" fill="#ff0000" style="filter: drop-shadow(0 0 3px #ff2222);"/>
         </svg>
       </div>
     </div>
@@ -741,7 +798,7 @@ function renderStars(cfg, hass) {
   // Sternenhimmel: funkelnde Punkte, Farbe passt sich Hell/Dunkel an (warmes
   // Gold im Lightmode, kühles Weiß im Darkmode) - genau wie bei den anderen
   // Auto-Farbe-Effekten. Läuft automatisch bei "klarer Nachthimmel".
-  const color = resolveDynamicColor(cfg.color, hass, "#e8c97a", "#eaf2ff");
+  const color = resolveDynamicColor(cfg.color, hass, "#1a1a2e", "#ffffff");
   const count = getParticleCount(cfg.count_preset || "medium", "stars");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
