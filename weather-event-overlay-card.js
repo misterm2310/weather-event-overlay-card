@@ -1361,20 +1361,29 @@ function renderWishStar(cfg, hass, hostEl) {
 
   const css = `
     .wishstar {
-      position: fixed; top: ${pos.top.toFixed(2)}vh; left: ${pos.left.toFixed(2)}vw; width: 16px; height: 16px;
-      pointer-events: none; z-index: 9999; border-radius: 50%; background: ${color};
-      box-shadow: 0 0 40px 10px ${color}, 0 0 4px rgba(160,160,160,0.9);
+      position: fixed; top: ${pos.top.toFixed(2)}vh; left: ${pos.left.toFixed(2)}vw; width: 46px; height: 46px;
+      pointer-events: none; z-index: 9999;
       animation: wishstar-flash 3s ease-in-out 1 forwards;
+      filter: drop-shadow(0 0 14px ${color});
       will-change: opacity, transform;
     }
     @keyframes wishstar-flash {
-      0% { opacity: 0; transform: scale(0.3); }
-      30% { opacity: ${peak}; transform: scale(1.3); }
-      55% { opacity: ${peak}; transform: scale(1); }
-      100% { opacity: 0; transform: scale(0.3); }
+      0% { opacity: 0; transform: scale(0.3) rotate(0deg); }
+      30% { opacity: ${peak}; transform: scale(1.25) rotate(8deg); }
+      55% { opacity: ${peak}; transform: scale(1) rotate(0deg); }
+      100% { opacity: 0; transform: scale(0.3) rotate(0deg); }
     }
   `;
-  return { css, html: `<div class="wishstar" aria-hidden="true"></div>` };
+  const html = `
+    <div class="wishstar" aria-hidden="true">
+      <svg viewBox="0 0 100 100" style="width:100%; height:100%;">
+        <path d="M50,0 L57,43 L100,50 L57,57 L50,100 L43,57 L0,50 L43,43 Z" fill="${color}"/>
+        <circle cx="50" cy="50" r="12" fill="${color}"/>
+        <circle cx="50" cy="50" r="5" fill="#ffffff" opacity="0.9"/>
+      </svg>
+    </div>
+  `;
+  return { css, html };
 }
 
 function renderStars(cfg, hass, hostEl) {
