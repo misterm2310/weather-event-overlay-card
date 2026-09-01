@@ -123,34 +123,87 @@ function colorStringToBrightness(colorStr) {
 // Element entgegen (die Karte selbst, die korrekt innerhalb der jeweiligen
 // View im DOM-Baum sitzt) und testet AN DIESER STELLE, statt immer ganz
 // oben nachzuschauen - so werden auch View-Themes zuverlässig erkannt.
+// Verbesserung (Bugfix): läuft von der Karte aus schrittweise die
+// Ahnenkette nach oben ab - auch durch Shadow-DOM-Grenzen hindurch (über
+// .host, sobald man am Wurzelknoten eines Shadow-Trees ankommt). An jedem
+// Vorfahren wird die ECHTE berechnete background-color geprüft (eine
+// normale CSS-Eigenschaft, die der Browser IMMER auflöst - kein Rätselraten
+// über CSS-Variablennamen mehr nötig). Home Assistants eigene Elemente wie
+// <ha-card> setzen intern eine echte background-color passend zum
+// aktuellen Theme; die findet man so garantiert, egal auf welcher Ebene
+// im DOM-Baum das Theme (global oder nur für diese eine View) sitzt.
+function brightnessFromAnyColor(str) {
+  if (!str) return null;
+  const trimmed = str.trim();
+  if (!trimmed || trimmed === "transparent" || trimmed === "rgba(0, 0, 0, 0)") return null;
+  if (trimmed.startsWith("#")) {
+    const rgb = hexToRgb(trimmed);
+    return (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
+  }
+  const nums = trimmed.match(/[\d.]+/g);
+  if (!nums || nums.length < 3) return null;
+  const r = parseFloat(nums[0]), g = parseFloat(nums[1]), b = parseFloat(nums[2]);
+  return (r * 299 + g * 587 + b * 114) / 1000;
+}
+
+// Verbesserung (Bugfix): statt eines künstlichen Test-Elements mit
+// var()-Fallback-Kette (anfällig für CSS-Eigenheiten bei "invalid at
+// computed-value time") werden gängige HA-Theme-Variablen jetzt DIREKT
+// über getPropertyValue() ausgelesen - das funktioniert für jede
+// Custom Property, unabhängig davon, ob irgendein Element sie tatsächlich
+// für eine sichtbare Hintergrundfarbe nutzt. Custom Properties vererben
+// sich automatisch nach unten (auch über Shadow-DOM-Grenzen hinweg), daher
+// reicht oft schon die Karte selbst als Startpunkt. Zusätzlich wird die
+// Ahnenkette hochgewandert (auch durch Shadow-Grenzen über .host) und dort
+// jeweils auch die ECHTE berechnete background-color geprüft, für den Fall,
+// dass ein HA-Element (z. B. <ha-card>) sie tatsächlich sichtbar nutzt.
+const THEME_BG_VAR_NAMES = [
+  "--card-background-color",
+  "--primary-background-color",
+  "--ha-card-background",
+  "--secondary-background-color",
+  "--app-header-background-color",
+];
+
+function checkNodeForThemeColor(node) {
+  const style = getComputedStyle(node);
+  for (const varName of THEME_BG_VAR_NAMES) {
+    const brightness = brightnessFromAnyColor(style.getPropertyValue(varName));
+    if (brightness !== null) return brightness;
+  }
+  return brightnessFromAnyColor(style.backgroundColor);
+}
+
 function detectBackgroundBrightness(hostEl) {
   try {
-    const candidates = [hostEl, hostEl && hostEl.shadowRoot, document.body, document.documentElement].filter(Boolean);
+    let node = hostEl;
+    let depth = 0;
+    while (node && depth < 25) {
+      if (node.nodeType === 1) {
+        const brightness = checkNodeForThemeColor(node);
+        if (brightness !== null) return brightness;
+      }
+      if (node.parentElement) {
+        node = node.parentElement;
+      } else if (node.parentNode && node.parentNode.host) {
+        node = node.parentNode.host;
+      } else if (node.getRootNode) {
+        const root = node.getRootNode();
+        node = (root && root.host) ? root.host : null;
+      } else {
+        node = null;
+      }
+      depth++;
+    }
 
-    // Versuch 1: die tatsächlich gerenderte Hintergrundfarbe eines der
-    // Kandidaten direkt auslesen.
-    for (const el of candidates) {
-      if (typeof el.tagName === "undefined" && !(el instanceof ShadowRoot)) continue;
-      const target = el instanceof ShadowRoot ? el.host : el;
-      const brightness = colorStringToBrightness(getComputedStyle(target).backgroundColor);
+    // Rückfallebene: <body>/<html> direkt (z. B. im Editor-Kontext ohne hostEl).
+    for (const el of [document.body, document.documentElement]) {
+      if (!el) continue;
+      const brightness = checkNodeForThemeColor(el);
       if (brightness !== null) return brightness;
     }
 
-    // Versuch 2 (Rückfallebene): unsichtbares Test-Element mit den
-    // gängigsten HA-Variablennamen, eingefügt GENAU AN DER STELLE der
-    // Karte (als Kind ihres eigenen Shadow-Roots, falls vorhanden - CSS-
-    // Variablen vererben sich über Shadow-Grenzen hinweg nach unten, das
-    // Test-Element bekommt also exakt die Werte, die auch die Karte selbst
-    // sehen würde) statt irgendwo global in <body>.
-    const probeParent = (hostEl && hostEl.shadowRoot) || document.body;
-    const probe = document.createElement("div");
-    probe.style.cssText =
-      "position:fixed; top:-9999px; left:-9999px; width:1px; height:1px; " +
-      "pointer-events:none; background-color: var(--card-background-color, var(--primary-background-color, var(--ha-card-background, transparent)));";
-    probeParent.appendChild(probe);
-    const bg = getComputedStyle(probe).backgroundColor;
-    probeParent.removeChild(probe);
-    return colorStringToBrightness(bg);
+    return null;
   } catch (e) {
     return null;
   }
