@@ -105,7 +105,6 @@ function getParticleCount(preset, eventType) {
       case "medium": default: return 4;
     }
   }
-
   switch (preset) {
     case "low": return Math.round(max * 0.33);
     case "high": return max;
@@ -336,7 +335,6 @@ const EVENT_CAPABILITIES = {
   owl: { count: false, opacity: true, color: false },
   bee: { count: true, opacity: true, color: false },
   clouds: { count: true, opacity: true, color: false },
-  frame: { count: true, opacity: true, color: false },
   wishstar: { count: false, opacity: true, color: true },
 };
 
@@ -1297,104 +1295,6 @@ function renderWishStar(cfg, hass, hostEl) {
   return { css, html };
 }
 
-// Vier saisonale Motive für den Rahmen-Effekt - jeweils eine kleine,
-// erkennbare Illustration in fester (nicht theme-abhängiger) Farbe.
-// Verbesserung: statt einzelner Symbole mit Lücken dazwischen wird jetzt
-// ein kleines Kachel-Muster gebaut (Ranke + Motiv), das der Browser über
-// CSS background-repeat NAHTLOS und LÜCKENLOS entlang der kompletten Kante
-// wiederholt - wie eine Tapetenbordüre. Jede Jahreszeit hat ihre eigene
-// Kachel mit einer durchgehenden Ranken-Linie, die von Kachel zu Kachel
-// exakt weiterläuft (gleiche Höhe an beiden Kachel-Rändern).
-function buildFrameTileSvg(season) {
-  const vine = (color) => `<path d="M0,23 Q25,8 50,23 T100,23" stroke="${color}" stroke-width="3" fill="none"/>`;
-  if (season === "spring") {
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="46" viewBox="0 0 100 46">
-      ${vine("#5a9c4a")}
-      <circle cx="22" cy="15" r="6" fill="#f7b6d2"/><circle cx="22" cy="15" r="2.5" fill="#f7d842"/>
-      <circle cx="72" cy="15" r="6" fill="#f7b6d2"/><circle cx="72" cy="15" r="2.5" fill="#f7d842"/>
-      <path d="M35,19 Q40,7 47,17" stroke="#5a9c4a" stroke-width="2" fill="none"/>
-      <path d="M85,19 Q90,7 97,17" stroke="#5a9c4a" stroke-width="2" fill="none"/>
-    </svg>`;
-  }
-  if (season === "summer") {
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="46" viewBox="0 0 100 46">
-      ${vine("#3f7a3a")}
-      <path d="M22,19 Q14,10 8,16 Q16,20 22,19 Z" fill="#4f9c46"/>
-      <path d="M22,19 Q30,10 36,16 Q28,20 22,19 Z" fill="#4f9c46"/>
-      <path d="M72,19 Q64,10 58,16 Q66,20 72,19 Z" fill="#4f9c46"/>
-      <path d="M72,19 Q80,10 86,16 Q78,20 72,19 Z" fill="#4f9c46"/>
-    </svg>`;
-  }
-  if (season === "winter") {
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="46" viewBox="0 0 100 46">
-      ${vine("#bcdcf0")}
-      <path d="M22,19 L22,38 M18,26 L22,30 L26,26 M17,33 L22,37 L27,33" stroke="#dff0fb" stroke-width="2" fill="none" stroke-linecap="round"/>
-      <path d="M72,19 L72,38 M68,26 L72,30 L76,26 M67,33 L72,37 L77,33" stroke="#dff0fb" stroke-width="2" fill="none" stroke-linecap="round"/>
-    </svg>`;
-  }
-  // autumn (Standard)
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="46" viewBox="0 0 100 46">
-    ${vine("#8a5a1a")}
-    <path d="M22,15 C16,20 14,30 22,36 C30,30 28,20 22,15 Z" fill="#c9822a"/>
-    <path d="M22,18 L22,33" stroke="#8a5a1a" stroke-width="1"/>
-    <path d="M72,15 C66,20 64,30 72,36 C80,30 78,20 72,15 Z" fill="#a83232"/>
-    <path d="M72,18 L72,33" stroke="#8a5a1a" stroke-width="1"/>
-  </svg>`;
-}
-
-function renderFrame(cfg, hass, hostEl) {
-  // Saisonaler Rahmen: eine durchgehende Ranke (nahtlos gekachelt, siehe
-  // buildFrameTileSvg) läuft direkt an allen vier Bildschirmkanten entlang,
-  // ganz ohne Abstand zum Rand - wie ein umlaufender Bilderrahmen, der an
-  // den schwarzen TV-Rand anknüpft. Feste Farben je Jahreszeit.
-  const season = ["spring", "summer", "autumn", "winter"].includes(cfg.frame_season) ? cfg.frame_season : "autumn";
-  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
-  const isHigh = (cfg.opacity_preset || "medium") === "high";
-  const finalOpacity = isHigh ? 1 : opacity;
-  // Anzahl steuert die Dichte der Ranke: kleinere Kachel = mehr Wiederholungen
-  // auf derselben Strecke = dichteres Muster.
-  const tileWidth = { low: 140, medium: 100, high: 70 }[cfg.count_preset || "medium"] || 100;
-  const thickness = 46;
-
-  const tileSvg = buildFrameTileSvg(season);
-  const dataUrl = `url("data:image/svg+xml,${encodeURIComponent(tileSvg)}")`;
-
-  const css = `
-    .frame-strip {
-      position: fixed; z-index: 9999; pointer-events: none;
-      background-image: ${dataUrl};
-      background-size: ${tileWidth}px ${thickness}px;
-    }
-    .frame-strip.top {
-      top: 0; left: 0; width: 100vw; height: ${thickness}px;
-      background-repeat: repeat-x;
-    }
-    .frame-strip.bottom {
-      bottom: 0; left: 0; width: 100vw; height: ${thickness}px;
-      background-repeat: repeat-x;
-    }
-    .frame-strip.left {
-      top: 0; left: 0; width: 100vh; height: ${thickness}px;
-      transform-origin: top left; transform: rotate(90deg);
-      background-repeat: repeat-x;
-    }
-    .frame-strip.right {
-      top: 0; right: 0; width: 100vh; height: ${thickness}px;
-      transform-origin: top right; transform: rotate(-90deg);
-      background-repeat: repeat-x;
-    }
-  `;
-  const html = `
-    <div aria-hidden="true" style="opacity:${finalOpacity};">
-      <div class="frame-strip top"></div>
-      <div class="frame-strip bottom"></div>
-      <div class="frame-strip left"></div>
-      <div class="frame-strip right"></div>
-    </div>
-  `;
-  return { css, html };
-}
-
 function renderStars(cfg, hass, hostEl) {
   const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff", hostEl);
   const count = getParticleCount(cfg.count_preset || "medium", "stars");
@@ -1452,7 +1352,6 @@ const RENDERERS = {
   owl: renderOwl,
   bee: renderBee,
   clouds: renderClouds,
-  frame: renderFrame,
   wishstar: renderWishStar,
 };
 
@@ -1567,7 +1466,6 @@ class WeatherEventOverlayCard extends HTMLElement {
       color_mode: "auto",
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
       weather_entity: "",
-      frame_season: "autumn",
       ...config,
     };
     this._render();
@@ -1737,7 +1635,6 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
       color_mode: "auto",
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
       weather_entity: "",
-      frame_season: "autumn",
       ...config,
     };
     if (this._suppressNextRender) {
@@ -1799,7 +1696,6 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="fog" ${c.event === "fog" ? "selected" : ""}>🌫️ Nebel</option>
             <option value="storm" ${c.event === "storm" ? "selected" : ""}>💨 Sturm</option>
             <option value="clouds" ${c.event === "clouds" ? "selected" : ""}>🌤️ Wolken-Drift</option>
-            <option value="frame" ${c.event === "frame" ? "selected" : ""}>🖼️ Saisonaler Rahmen</option>
             <option value="shooting_stars" ${c.event === "shooting_stars" ? "selected" : ""}>🌠 Sternschnuppen</option>
             <option value="stars" ${c.event === "stars" ? "selected" : ""}>✨ Sternenhimmel</option>
             <option value="wishstar" ${c.event === "wishstar" ? "selected" : ""}>⭐ Wunschstern-Funkeln</option>
@@ -1818,15 +1714,6 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
           ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft."
           : "Welcher Effekt manuell dauerhaft angezeigt wird."
         )}
-
-        ${c.event === "frame" ? this._row("Jahreszeit", `
-          <select id="frame_season" style="width:100%; padding:6px;">
-            <option value="spring" ${c.frame_season === "spring" ? "selected" : ""}>🌸 Frühling</option>
-            <option value="summer" ${c.frame_season === "summer" ? "selected" : ""}>☀️ Sommer</option>
-            <option value="autumn" ${c.frame_season === "autumn" ? "selected" : ""}>🍂 Herbst</option>
-            <option value="winter" ${c.frame_season === "winter" ? "selected" : ""}>❄️ Winter</option>
-          </select>
-        `, "Welches Motiv der Rahmen entlang der Bildschirmkanten zeigt.") : ""}
 
         ${isWeatherAuto ? (
           weatherEntities.length > 0
@@ -1882,11 +1769,6 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     `;
 
     this.querySelector("#event").addEventListener("change", (e) => this._update("event", e.target.value, true));
-
-    const frameSeasonSel = this.querySelector("#frame_season");
-    if (frameSeasonSel) {
-      frameSeasonSel.addEventListener("change", (e) => this._update("frame_season", e.target.value, true));
-    }
 
     const weatherEntitySel = this.querySelector("#weather_entity");
     if (weatherEntitySel) {
