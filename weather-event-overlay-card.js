@@ -289,6 +289,8 @@ const WEATHER_STATE_MAP = {
   "windy": ["storm"],
   "windy-variant": ["storm"],
   "clear-night": ["stars"],
+  "cloudy": ["clouds"],
+  "partlycloudy": ["clouds"],
 };
 
 function mapWeatherStateToEvents(state) {
@@ -1048,12 +1050,12 @@ function renderSquirrel(cfg, hass, hostEl) {
       <div class="squirrel-box">
         <div class="squirrel-hop">
           <svg viewBox="0 0 80 45" preserveAspectRatio="xMidYMid meet">
-            <path d="M55,10 Q75,0 70,20 Q68,32 52,26 Z" fill="#a5672f"/>
-            <ellipse cx="35" cy="26" rx="18" ry="10" fill="#c17d3a"/>
-            <circle cx="52" cy="18" r="8" fill="#c17d3a"/>
-            <circle cx="49" cy="14" r="2" fill="#7a4a1f"/>
-            <circle cx="56" cy="20" r="1.3" fill="#2a1a10"/>
-            <path d="M20,34 Q16,40 14,44 M28,35 Q26,41 25,44" stroke="#8a5a28" stroke-width="3" stroke-linecap="round" fill="none"/>
+            <path d="M20,12 Q0,2 4,22 Q8,38 26,30 Z" fill="#a5672f"/>
+            <ellipse cx="42" cy="28" rx="16" ry="9" fill="#c17d3a"/>
+            <circle cx="62" cy="20" r="8" fill="#c17d3a"/>
+            <path d="M58,13 L56,6 L63,11 Z" fill="#a5672f"/>
+            <circle cx="65" cy="19" r="1.5" fill="#2a1a10"/>
+            <path d="M32,35 Q28,41 26,44 M40,36 Q38,42 37,44" stroke="#8a5a28" stroke-width="3" stroke-linecap="round" fill="none"/>
           </svg>
         </div>
       </div>
@@ -1083,9 +1085,10 @@ function renderBats(cfg, hass, hostEl) {
     return `
     <div class="bat" style="top:${b.top}vh; animation-duration:${b.dur}s; animation-delay:${b.delay}s; opacity:${op.toFixed(2)}; --wobble:${b.wobble}vh;">
       <svg viewBox="0 0 40 20" class="bat-wings" style="animation-duration:${b.flapDur}s;">
-        <path d="M20,10 Q8,0 0,6 Q6,10 14,10 Q6,14 0,18 Q10,18 20,10 Z" fill="#1a1a1a"/>
-        <path d="M20,10 Q32,0 40,6 Q34,10 26,10 Q34,14 40,18 Q30,18 20,10 Z" fill="#1a1a1a"/>
-        <circle cx="20" cy="10" r="2.5" fill="#1a1a1a"/>
+        <path d="M20,10 L2,0 L9,7 L0,10 L9,13 L2,20 Z" fill="#1a1a1a"/>
+        <path d="M20,10 L38,0 L31,7 L40,10 L31,13 L38,20 Z" fill="#1a1a1a"/>
+        <ellipse cx="20" cy="10" rx="3" ry="4" fill="#1a1a1a"/>
+        <path d="M17,7 L14,3 M23,7 L26,3" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round"/>
       </svg>
     </div>`;
   }).join("\n");
@@ -1126,8 +1129,8 @@ function renderOwl(cfg, hass, hostEl) {
 
   const css = `
     .owl-container {
-      position: fixed; bottom: 0; left: 0; width: 140px; height: 140px;
-      pointer-events: none; z-index: 9999;
+      position: fixed; bottom: 2vh; left: 1vw; width: 140px; height: 140px;
+      pointer-events: none; z-index: 999999;
     }
     .owl-head {
       animation: owl-turn 9s ease-in-out infinite;
@@ -1201,7 +1204,7 @@ function renderBee(cfg, hass, hostEl) {
     }
     .bee-wing {
       animation: bee-wing-flap 0.12s ease-in-out infinite alternate;
-      transform-origin: 10px 8px;
+      transform-origin: 20px 9px;
     }
     @keyframes bee-zigzag {
       0% { transform: translate(0, 0); opacity: 0; }
@@ -1213,15 +1216,16 @@ function renderBee(cfg, hass, hostEl) {
       100% { transform: translate(calc(100vw + 80px), 3vh); opacity: 0; }
     }
     @keyframes bee-wing-flap {
-      0% { transform: scaleX(1); }
-      100% { transform: scaleX(0.5); }
+      0% { transform: scaleY(1); }
+      100% { transform: scaleY(0.55); }
     }
   `;
   const html = `
     <div class="bee-container" style="opacity:${finalOpacity};" aria-hidden="true">
       <div class="bee-box">
         <svg viewBox="0 0 34 26" preserveAspectRatio="xMidYMid meet">
-          <ellipse class="bee-wing" cx="10" cy="6" rx="9" ry="5" fill="#e8f0ff" opacity="0.75"/>
+          <ellipse class="bee-wing" cx="13" cy="6" rx="8" ry="5" fill="#eef6ff" opacity="0.85" stroke="#c3d6ea" stroke-width="0.6"/>
+          <ellipse class="bee-wing" cx="27" cy="6" rx="8" ry="5" fill="#eef6ff" opacity="0.85" stroke="#c3d6ea" stroke-width="0.6"/>
           <ellipse cx="20" cy="14" rx="11" ry="8" fill="#2a1a05"/>
           <rect x="12" y="10" width="4" height="8" fill="#f5c518"/>
           <rect x="20" y="10" width="4" height="8" fill="#f5c518"/>
@@ -1246,11 +1250,11 @@ function renderClouds(cfg, hass, hostEl) {
     scale: (Math.random() * 0.7 + 0.7).toFixed(2),
     dur: (Math.random() * 40 + 60).toFixed(2),
     delay: (Math.random() * -80).toFixed(2),
-    baseOp: (Math.random() * 0.25 + 0.35).toFixed(2),
+    baseOp: (Math.random() * 0.12 + 0.14).toFixed(2),
   }));
 
   const cloudHtml = clouds.map((c) => {
-    const op = isHigh ? Math.max(parseFloat(c.baseOp), 0.6) : (parseFloat(c.baseOp) * opacity);
+    const op = isHigh ? Math.max(parseFloat(c.baseOp), 0.4) : (parseFloat(c.baseOp) * opacity);
     return `<div class="cloud" style="top:${c.top}vh; transform:scale(${c.scale}); animation-duration:${c.dur}s; animation-delay:${c.delay}s; opacity:${op.toFixed(2)};"></div>`;
   }).join("\n");
 
@@ -1311,10 +1315,13 @@ function renderDucks(cfg, hass, hostEl) {
   `;
   const duckSvg = (scale, cls) => `
     <g class="duck-waddle ${cls}" transform="scale(${scale})">
+      <path d="M2,18 Q-4,10 4,6 Q10,8 8,18 Z" fill="#d4722e"/>
       <ellipse cx="20" cy="20" rx="16" ry="11" fill="#e8a83a"/>
+      <path d="M14,14 Q22,12 24,22 Q18,24 14,14 Z" fill="#d4722e" opacity="0.6"/>
       <circle cx="34" cy="12" r="8" fill="#e8a83a"/>
       <path d="M40,12 L48,10 L40,16 Z" fill="#d4722e"/>
       <circle cx="36" cy="10" r="1.3" fill="#1a1a1a"/>
+      <path d="M16,30 L14,36 M24,30 L24,36" stroke="#d4722e" stroke-width="2.5" stroke-linecap="round"/>
     </g>
   `;
   const html = `
@@ -1352,24 +1359,21 @@ function renderWishStar(cfg, hass, hostEl) {
       position: fixed; top: ${pos.top}vh; left: ${pos.left}vw; width: 60px; height: 60px;
       pointer-events: none; z-index: 9999;
       animation: wishstar-flash 7s ease-in-out infinite; --peak:${finalOpacity};
+      filter: drop-shadow(0 0 10px ${color});
     }
-    .wishstar-spark {
-      position: absolute; top: 50%; left: 50%; background: ${color};
-      box-shadow: 0 0 18px 4px ${color};
-    }
-    .wishstar-spark.v { width: 4px; height: 60px; transform: translate(-50%,-50%); }
-    .wishstar-spark.h { width: 60px; height: 4px; transform: translate(-50%,-50%); }
     @keyframes wishstar-flash {
-      0%, 70% { opacity: 0; transform: scale(0.3); }
-      80% { opacity: var(--peak); transform: scale(1.1); }
-      88% { opacity: var(--peak); transform: scale(0.9); }
-      100% { opacity: 0; transform: scale(0.3); }
+      0%, 70% { opacity: 0; transform: scale(0.3) rotate(0deg); }
+      80% { opacity: var(--peak); transform: scale(1.1) rotate(8deg); }
+      88% { opacity: var(--peak); transform: scale(0.9) rotate(0deg); }
+      100% { opacity: 0; transform: scale(0.3) rotate(0deg); }
     }
   `;
   const html = `
     <div class="wishstar-container" aria-hidden="true">
-      <div class="wishstar-spark v"></div>
-      <div class="wishstar-spark h"></div>
+      <svg viewBox="0 0 60 60" style="width:100%; height:100%;">
+        <path d="M30,2 Q34,26 58,30 Q34,34 30,58 Q26,34 2,30 Q26,26 30,2 Z" fill="${color}"/>
+        <path d="M30,16 Q32,28 44,30 Q32,32 30,44 Q28,32 16,30 Q28,28 30,16 Z" fill="${color}" opacity="0.6"/>
+      </svg>
     </div>
   `;
   return { css, html };
