@@ -311,8 +311,6 @@ const COUNT_IS_INTERVAL_TEXT = {
   santa: "Wie oft der Weihnachtsmann vorbeifliegt: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur einen Schlitten gibt).",
   dog: "Wie oft der Labrador durchläuft: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur einen Hund gibt).",
   comet: "Wie oft der Komet vorbeizieht: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (deutlich seltener als Sternschnuppen).",
-  squirrel: "Wie oft das Eichhörnchen durchhuscht: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur eins gibt).",
-  ducks: "Wie oft die Enten-Familie durchwatschelt: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur eine Familie gibt).",
 };
 
 const EVENT_CAPABILITIES = {
@@ -333,15 +331,10 @@ const EVENT_CAPABILITIES = {
   stars: { count: true, opacity: true, color: true },
   dog: { count: true, opacity: true, color: false },
   comet: { count: true, opacity: true, color: true },
-  // Anzahl steuert bei Eichhörnchen, Biene und Enten-Familie den Abstand
-  // zwischen den Durchgängen (wie bei Weihnachtsmann/Hund), nicht eine
-  // Partikelmenge.
-  squirrel: { count: true, opacity: true, color: false },
   bats: { count: true, opacity: true, color: false },
   owl: { count: false, opacity: true, color: false },
   bee: { count: true, opacity: true, color: false },
   clouds: { count: true, opacity: true, color: false },
-  ducks: { count: true, opacity: true, color: false },
   wishstar: { count: false, opacity: true, color: true },
 };
 
@@ -1015,64 +1008,6 @@ function renderComet(cfg, hass, hostEl) {
   return { css, html };
 }
 
-function renderSquirrel(cfg, hass, hostEl) {
-  // Eichhörnchen: huscht schnell und hoppelnd über den Bildschirm - viel
-  // flotter als der Hund (kurze Durchquerungszeit), mit buschigem Schwanz.
-  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
-  const isHigh = (cfg.opacity_preset || "medium") === "high";
-  const finalOpacity = isHigh ? 1 : opacity;
-  const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
-  const dashPct = Math.min(30, (7 / interval) * 100).toFixed(2);
-  const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
-  const delaySec = (-(elapsedSec % interval)).toFixed(2);
-  const startHeight = typeof cfg._startHeight === "number" ? cfg._startHeight.toFixed(2) : "78.00";
-
-  const css = `
-    .squirrel-container {
-      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      pointer-events: none; z-index: 9999; overflow: hidden;
-    }
-    .squirrel-box {
-      position: absolute; top: ${startHeight}vh; left: -100px; width: 80px; height: 45px;
-      animation-name: squirrel-dash; animation-timing-function: linear; animation-iteration-count: infinite;
-      animation-duration: ${interval}s; animation-delay: ${delaySec}s; will-change: transform;
-    }
-    .squirrel-hop {
-      animation: squirrel-hop 0.28s ease-in-out infinite alternate;
-    }
-    @keyframes squirrel-dash {
-      0% { transform: translateX(0); opacity: 0; }
-      1% { opacity: ${finalOpacity}; }
-      ${dashPct}% { transform: translateX(calc(100vw + 200px)); opacity: ${finalOpacity}; }
-      100% { transform: translateX(calc(100vw + 200px)); opacity: 0; }
-    }
-    @keyframes squirrel-hop {
-      0% { transform: translateY(0) rotate(0deg); }
-      100% { transform: translateY(-6px) rotate(-3deg); }
-    }
-  `;
-  const html = `
-    <div class="squirrel-container" style="opacity:${finalOpacity};" aria-hidden="true">
-      <div class="squirrel-box">
-        <div class="squirrel-hop">
-          <svg viewBox="0 0 80 45" preserveAspectRatio="xMidYMid meet">
-            <path d="M20,12 Q0,2 4,22 Q8,38 26,30 Z" fill="#a5672f"/>
-            <ellipse cx="42" cy="28" rx="16" ry="9" fill="#c17d3a"/>
-            <circle cx="62" cy="20" r="8" fill="#c17d3a"/>
-            <path d="M58,13 L56,6 L63,11 Z" fill="#a5672f"/>
-            <circle cx="65" cy="19" r="1.5" fill="#2a1a10"/>
-            <path d="M32,35 Q28,42 27,45" stroke="#8a5a28" stroke-width="4" stroke-linecap="round" fill="none"/>
-            <path d="M42,36 Q40,43 39,46" stroke="#8a5a28" stroke-width="4" stroke-linecap="round" fill="none"/>
-            <ellipse cx="27" cy="46" rx="3" ry="2" fill="#7a4a1f"/>
-            <ellipse cx="39" cy="47" rx="3" ry="2" fill="#7a4a1f"/>
-          </svg>
-        </div>
-      </div>
-    </div>
-  `;
-  return { css, html };
-}
-
 function renderBats(cfg, hass, hostEl) {
   // Fledermäuse: mehrere kleine, flatternde Silhouetten auf wellenförmigen
   // Flugbahnen - feste dunkle Farbe, unabhängig vom Theme.
@@ -1130,20 +1065,26 @@ function renderBats(cfg, hass, hostEl) {
 }
 
 function renderOwl(cfg, hass, hostEl) {
-  // Eule: sitzt still in einer Ecke, blinzelt gelegentlich und dreht
-  // leicht den Kopf - ruhiger Begleiter, kein Durchlaufen wie beim Hund.
+  // Eule: sitzt auf einem Ast, blinzelt gelegentlich, dreht leicht den Kopf
+  // und "atmet" sanft - deutlich aufwendiger als eine reine Silhouette:
+  // Mond im Hintergrund, Federstruktur, Ohrbüschel, Glanzpunkte in den
+  // Augen, Krallen am Ast.
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
 
   const css = `
     .owl-container {
-      position: fixed; top: 2vh; left: 1vw; width: 85px; height: 85px;
+      position: fixed; top: 2vh; left: 1vw; width: 95px; height: 100px;
       pointer-events: none; z-index: 999999;
     }
     .owl-head {
       animation: owl-turn 9s ease-in-out infinite;
-      transform-origin: 50% 60%;
+      transform-origin: 50% 62%;
+    }
+    .owl-body {
+      animation: owl-breathe 4s ease-in-out infinite;
+      transform-origin: 50% 72%;
     }
     .owl-eye-lid {
       animation: owl-blink 6s ease-in-out infinite;
@@ -1156,6 +1097,10 @@ function renderOwl(cfg, hass, hostEl) {
       95% { transform: rotate(6deg); }
       100% { transform: rotate(0deg); }
     }
+    @keyframes owl-breathe {
+      0%, 100% { transform: scale(1, 1); }
+      50% { transform: scale(1.02, 0.98); }
+    }
     @keyframes owl-blink {
       0%, 92%, 100% { transform: scaleY(0); }
       95%, 97% { transform: scaleY(1); }
@@ -1163,22 +1108,36 @@ function renderOwl(cfg, hass, hostEl) {
   `;
   const html = `
     <div class="owl-container" style="opacity:${finalOpacity};" aria-hidden="true">
-      <svg viewBox="0 0 100 100" style="width:100%; height:100%;">
-        <ellipse cx="50" cy="70" rx="30" ry="26" fill="#6b4a2f"/>
-        <path d="M20,68 Q10,50 25,45 M80,68 Q90,50 75,45" fill="none" stroke="#6b4a2f" stroke-width="6" stroke-linecap="round"/>
+      <svg viewBox="0 0 120 130" style="width:100%; height:100%;">
+        <path d="M92,10 A14,14 0 1,0 92,38 A11,11 0 1,1 92,10 Z" fill="#f4ecd8" opacity="0.8"/>
+        <path d="M0,112 Q60,102 120,112 L120,120 Q60,110 0,120 Z" fill="#5a3d24"/>
+        <path d="M14,108 L4,100 M100,108 L112,100" stroke="#5a3d24" stroke-width="3" stroke-linecap="round"/>
+        <g class="owl-body">
+          <path d="M28,58 Q16,78 24,103 Q30,105 36,98 Q32,78 38,60 Z" fill="#5a3d24"/>
+          <path d="M92,58 Q104,78 96,103 Q90,105 84,98 Q88,78 82,60 Z" fill="#5a3d24"/>
+          <ellipse cx="60" cy="82" rx="32" ry="30" fill="#6b4a2f"/>
+          <ellipse cx="60" cy="88" rx="20" ry="22" fill="#8a6238"/>
+          <path d="M48,74 L60,82 L72,74 M46,84 L60,92 L74,84 M48,96 L60,104 L72,96"
+                fill="none" stroke="#6b4a2f" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M50,110 L46,118 M50,110 L50,120 M50,110 L54,118
+                    M70,110 L66,118 M70,110 L70,120 M70,110 L74,118"
+                stroke="#e8952a" stroke-width="2.5" stroke-linecap="round"/>
+        </g>
         <g class="owl-head">
-          <circle cx="50" cy="42" r="26" fill="#8a6238"/>
-          <path d="M35,20 L30,6 L42,18 Z" fill="#6b4a2f"/>
-          <path d="M65,20 L70,6 L58,18 Z" fill="#6b4a2f"/>
-          <circle cx="38" cy="40" r="12" fill="#f4ead9"/>
-          <circle cx="62" cy="40" r="12" fill="#f4ead9"/>
-          <circle cx="38" cy="40" r="7" fill="#e8b13a"/>
-          <circle cx="62" cy="40" r="7" fill="#e8b13a"/>
-          <circle cx="38" cy="40" r="3" fill="#1a1a1a"/>
-          <circle cx="62" cy="40" r="3" fill="#1a1a1a"/>
-          <rect class="owl-eye-lid" x="26" y="34" width="24" height="12" fill="#8a6238"/>
-          <rect class="owl-eye-lid" x="50" y="34" width="24" height="12" fill="#8a6238"/>
-          <path d="M46,48 L54,48 L50,56 Z" fill="#e8952a"/>
+          <path d="M40,24 L32,4 L48,20 Z" fill="#5a3d24"/>
+          <path d="M80,24 L88,4 L72,20 Z" fill="#5a3d24"/>
+          <circle cx="60" cy="47" r="28" fill="#8a6238"/>
+          <circle cx="48" cy="46" r="13" fill="#f4ead9"/>
+          <circle cx="72" cy="46" r="13" fill="#f4ead9"/>
+          <circle cx="48" cy="46" r="8" fill="#e8952a"/>
+          <circle cx="72" cy="46" r="8" fill="#e8952a"/>
+          <circle cx="48" cy="46" r="4" fill="#1a1a1a"/>
+          <circle cx="72" cy="46" r="4" fill="#1a1a1a"/>
+          <circle cx="46" cy="43" r="1.6" fill="#ffffff"/>
+          <circle cx="70" cy="43" r="1.6" fill="#ffffff"/>
+          <rect class="owl-eye-lid" x="35" y="39" width="26" height="14" fill="#8a6238"/>
+          <rect class="owl-eye-lid" x="59" y="39" width="26" height="14" fill="#8a6238"/>
+          <path d="M54,56 L66,56 L60,66 Z" fill="#e8952a"/>
         </g>
       </svg>
     </div>
@@ -1281,69 +1240,6 @@ function renderClouds(cfg, hass, hostEl) {
     }
   `;
   return { css, html: `<div class="clouds-container" aria-hidden="true">${cloudHtml}</div>` };
-}
-
-function renderDucks(cfg, hass, hostEl) {
-  // Enten-Familie: eine große Ente läuft voran, mehrere kleine Küken
-  // watscheln hinterher - läuft periodisch wie der Hund.
-  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
-  const isHigh = (cfg.opacity_preset || "medium") === "high";
-  const finalOpacity = isHigh ? 1 : opacity;
-  const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
-  const walkPct = Math.min(30, (22 / interval) * 100).toFixed(2);
-  const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
-  const delaySec = (-(elapsedSec % interval)).toFixed(2);
-  const startHeight = typeof cfg._startHeight === "number" ? cfg._startHeight.toFixed(2) : "75.00";
-
-  const css = `
-    .ducks-container {
-      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      pointer-events: none; z-index: 9999; overflow: hidden;
-    }
-    .ducks-box {
-      position: absolute; top: ${startHeight}vh; left: -220px; width: 200px; height: 45px;
-      animation-name: ducks-walk; animation-timing-function: linear; animation-iteration-count: infinite;
-      animation-duration: ${interval}s; animation-delay: ${delaySec}s; will-change: transform;
-    }
-    .duck-waddle { animation: duck-waddle 0.5s ease-in-out infinite alternate; }
-    .duck-waddle.d2 { animation-delay: 0.08s; }
-    .duck-waddle.d3 { animation-delay: 0.16s; }
-    .duck-waddle.d4 { animation-delay: 0.24s; }
-    @keyframes ducks-walk {
-      0% { transform: translateX(0); opacity: 0; }
-      1% { opacity: ${finalOpacity}; }
-      ${walkPct}% { transform: translateX(calc(100vw + 300px)); opacity: ${finalOpacity}; }
-      100% { transform: translateX(calc(100vw + 300px)); opacity: 0; }
-    }
-    @keyframes duck-waddle {
-      0% { transform: rotate(-4deg) translateY(0); }
-      100% { transform: rotate(4deg) translateY(-2px); }
-    }
-  `;
-  const duckSvg = (scale, cls) => `
-    <g class="duck-waddle ${cls}" transform="scale(${scale})">
-      <path d="M2,18 Q-4,10 4,6 Q10,8 8,18 Z" fill="#d4722e"/>
-      <ellipse cx="20" cy="20" rx="16" ry="11" fill="#e8a83a"/>
-      <path d="M14,14 Q22,12 24,22 Q18,24 14,14 Z" fill="#d4722e" opacity="0.6"/>
-      <circle cx="34" cy="12" r="8" fill="#e8a83a"/>
-      <path d="M40,12 L48,10 L40,16 Z" fill="#d4722e"/>
-      <circle cx="36" cy="10" r="1.3" fill="#1a1a1a"/>
-      <path d="M16,30 L14,36 M24,30 L24,36" stroke="#d4722e" stroke-width="2.5" stroke-linecap="round"/>
-    </g>
-  `;
-  const html = `
-    <div class="ducks-container" style="opacity:${finalOpacity};" aria-hidden="true">
-      <div class="ducks-box">
-        <svg viewBox="0 0 200 45" preserveAspectRatio="xMidYMin meet">
-          <g transform="translate(0,4)">${duckSvg(1, "d1")}</g>
-          <g transform="translate(58,14)">${duckSvg(0.55, "d2")}</g>
-          <g transform="translate(88,18)">${duckSvg(0.5, "d3")}</g>
-          <g transform="translate(116,15)">${duckSvg(0.55, "d4")}</g>
-        </svg>
-      </div>
-    </div>
-  `;
-  return { css, html };
 }
 
 function renderWishStar(cfg, hass, hostEl) {
@@ -1452,12 +1348,10 @@ const RENDERERS = {
   stars: renderStars,
   dog: renderDog,
   comet: renderComet,
-  squirrel: renderSquirrel,
   bats: renderBats,
   owl: renderOwl,
   bee: renderBee,
   clouds: renderClouds,
-  ducks: renderDucks,
   wishstar: renderWishStar,
 };
 
@@ -1696,16 +1590,13 @@ class WeatherEventOverlayCard extends HTMLElement {
       } else if (event === "santa" || event === "comet") {
         if (!this._periodicStartTimes[event]) this._periodicStartTimes[event] = Date.now();
         cfgForRender = { ...this._config, _startTime: this._periodicStartTimes[event] };
-      } else if (event === "dog" || event === "squirrel" || event === "ducks") {
+      } else if (event === "dog") {
         // Höhe/Drift nur EINMAL pro Lauf-Zyklus würfeln und mitspeichern -
         // sonst würde ein Neu-Rendern mitten in der Animation zu einem
-        // sichtbaren Sprung auf eine neue Höhe führen. Jeder dieser
-        // Effekte hat einen eigenen sinnvollen Standard-Höhenbereich.
+        // sichtbaren Sprung auf eine neue Höhe führen.
         if (!this._periodicStartTimes[event]) {
           const ranges = {
             dog: [10, 80],
-            squirrel: [65, 88],
-            ducks: [60, 88],
           };
           const [min, max] = ranges[event] || [10, 80];
           this._periodicStartTimes[event] = {
@@ -1815,11 +1706,9 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="santa" ${c.event === "santa" ? "selected" : ""}>🎅 Weihnachtsmann</option>
             <option value="spider" ${c.event === "spider" ? "selected" : ""}>🕷️ Spinne mit Netz</option>
             <option value="dog" ${c.event === "dog" ? "selected" : ""}>🐕 Goldener Labrador</option>
-            <option value="squirrel" ${c.event === "squirrel" ? "selected" : ""}>🐿️ Eichhörnchen</option>
             <option value="bats" ${c.event === "bats" ? "selected" : ""}>🦇 Fledermäuse</option>
             <option value="owl" ${c.event === "owl" ? "selected" : ""}>🦉 Eule</option>
             <option value="bee" ${c.event === "bee" ? "selected" : ""}>🐝 Bienen</option>
-            <option value="ducks" ${c.event === "ducks" ? "selected" : ""}>🦆 Enten-Familie</option>
           </select>
         `, isWeatherAuto
           ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft."
