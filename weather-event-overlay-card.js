@@ -852,6 +852,16 @@ function renderDog(cfg, hass, hostEl) {
       0% { transform: translateY(0); }
       100% { transform: translateY(-3px); }
     }
+    .dog-leg-a { animation: dog-leg-swing-a 0.55s ease-in-out infinite alternate; }
+    .dog-leg-b { animation: dog-leg-swing-b 0.55s ease-in-out infinite alternate; }
+    @keyframes dog-leg-swing-a {
+      0% { transform: rotate(-14deg); }
+      100% { transform: rotate(14deg); }
+    }
+    @keyframes dog-leg-swing-b {
+      0% { transform: rotate(14deg); }
+      100% { transform: rotate(-14deg); }
+    }
   `;
 
   const html = `
@@ -859,10 +869,18 @@ function renderDog(cfg, hass, hostEl) {
       <div class="dog-walk-box">
         <div class="dog-bob">
           <svg viewBox="0 0 120 55" preserveAspectRatio="xMidYMid meet">
-            <path d="M88,36 Q92,42 95,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
-            <path d="M78,36 Q76,42 74,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
-            <path d="M35,36 Q39,42 42,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
-            <path d="M25,36 Q21,42 18,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
+            <g class="dog-leg-a" style="transform-origin: 88px 36px;">
+              <path d="M88,36 Q92,42 95,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
+            </g>
+            <g class="dog-leg-b" style="transform-origin: 78px 36px;">
+              <path d="M78,36 Q76,42 74,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
+            </g>
+            <g class="dog-leg-b" style="transform-origin: 35px 36px;">
+              <path d="M35,36 Q39,42 42,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
+            </g>
+            <g class="dog-leg-a" style="transform-origin: 25px 36px;">
+              <path d="M25,36 Q21,42 18,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
+            </g>
             <path d="M22,20 Q10,14 14,26 Q18,30 25,26 Z" fill="#d4a25c"/>
             <ellipse cx="55" cy="25" rx="35" ry="14" fill="#d4a25c"/>
             <ellipse cx="95" cy="18" rx="13" ry="11" fill="#d4a25c"/>
