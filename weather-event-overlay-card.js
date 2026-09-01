@@ -100,7 +100,6 @@ function getOpacityValue(preset) {
   }
 }
 
-// Erkennung des Hell/Dunkel Modus
 function parseColorBrightness(colorStr) {
   if (!colorStr) return null;
   const str = colorStr.trim();
@@ -126,17 +125,18 @@ function parseColorBrightness(colorStr) {
   return null;
 }
 
+// Verbesserte Erkennung mit direktem Home-Assistant-Vorrang
 function isDarkModeActive(hassInstance) {
   try {
+    if (hassInstance && hassInstance.themes && hassInstance.themes.darkMode !== undefined) {
+      return hassInstance.themes.darkMode;
+    }
+
     const rootStyles = getComputedStyle(document.documentElement);
     const bgColor = rootStyles.getPropertyValue("--primary-background-color").trim();
     const brightness = parseColorBrightness(bgColor);
     if (brightness !== null) {
       return brightness < 128;
-    }
-
-    if (hassInstance && hassInstance.themes && hassInstance.themes.darkMode !== undefined) {
-      return hassInstance.themes.darkMode;
     }
 
     const haEl = document.querySelector("home-assistant");
