@@ -105,6 +105,13 @@ function getParticleCount(preset, eventType) {
       case "medium": default: return 4;
     }
   }
+  if (eventType === "confetti") {
+    switch (preset) {
+      case "low": return 20;
+      case "high": return 70;
+      case "medium": default: return 40;
+    }
+  }
   switch (preset) {
     case "low": return Math.round(max * 0.33);
     case "high": return max;
@@ -120,15 +127,15 @@ function getOpacityValue(preset) {
   }
 }
 
-// Universelle Erkennung für alle Themes (Standard, Custom, Dark/Light Mode)
-// Verbesserung (Bugfix): statt die CSS-Variable selbst als Rohstring zu
-// parsen (unzuverlässig - Themes nutzen Hex, rgb(), oder Komma-getrennte
-// "R, G, B"-Tripel für --rgb-Varianten, und die Variable kann auf jeder
-// Kaskaden-Ebene gesetzt sein, nicht nur an <html>), wird ein unsichtbares
-// Test-Element mit `background-color: var(--card-background-color, ...)`
-// eingefügt. Der BROWSER selbst löst dann die Variable auf und liefert über
-// getComputedStyle().backgroundColor IMMER ein normalisiertes rgb()/rgba() -
-// egal welches Format/welche Ebene das jeweilige Theme nutzt.
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function colorStringToBrightness(colorStr) {
   if (!colorStr || colorStr === "transparent" || colorStr === "rgba(0, 0, 0, 0)") return null;
   const nums = colorStr.match(/[\d.]+/g);
@@ -137,22 +144,6 @@ function colorStringToBrightness(colorStr) {
   return (r * 299 + g * 587 + b * 114) / 1000;
 }
 
-// Verbesserung (Bugfix): View-spezifische Themes (in HA über "theme:" auf
-// Dashboard-/View-Ebene statt global gesetzt) hinterlegen ihre Farb-
-// Variablen NUR auf dem Container dieser einen Seite - nicht auf <html>
-// oder <body> ganz oben. Die Prüfung nimmt deshalb jetzt ein Referenz-
-// Element entgegen (die Karte selbst, die korrekt innerhalb der jeweiligen
-// View im DOM-Baum sitzt) und testet AN DIESER STELLE, statt immer ganz
-// oben nachzuschauen - so werden auch View-Themes zuverlässig erkannt.
-// Verbesserung (Bugfix): läuft von der Karte aus schrittweise die
-// Ahnenkette nach oben ab - auch durch Shadow-DOM-Grenzen hindurch (über
-// .host, sobald man am Wurzelknoten eines Shadow-Trees ankommt). An jedem
-// Vorfahren wird die ECHTE berechnete background-color geprüft (eine
-// normale CSS-Eigenschaft, die der Browser IMMER auflöst - kein Rätselraten
-// über CSS-Variablennamen mehr nötig). Home Assistants eigene Elemente wie
-// <ha-card> setzen intern eine echte background-color passend zum
-// aktuellen Theme; die findet man so garantiert, egal auf welcher Ebene
-// im DOM-Baum das Theme (global oder nur für diese eine View) sitzt.
 function brightnessFromAnyColor(str) {
   if (!str) return null;
   const trimmed = str.trim();
@@ -167,17 +158,6 @@ function brightnessFromAnyColor(str) {
   return (r * 299 + g * 587 + b * 114) / 1000;
 }
 
-// Verbesserung (Bugfix): statt eines künstlichen Test-Elements mit
-// var()-Fallback-Kette (anfällig für CSS-Eigenheiten bei "invalid at
-// computed-value time") werden gängige HA-Theme-Variablen jetzt DIREKT
-// über getPropertyValue() ausgelesen - das funktioniert für jede
-// Custom Property, unabhängig davon, ob irgendein Element sie tatsächlich
-// für eine sichtbare Hintergrundfarbe nutzt. Custom Properties vererben
-// sich automatisch nach unten (auch über Shadow-DOM-Grenzen hinweg), daher
-// reicht oft schon die Karte selbst als Startpunkt. Zusätzlich wird die
-// Ahnenkette hochgewandert (auch durch Shadow-Grenzen über .host) und dort
-// jeweils auch die ECHTE berechnete background-color geprüft, für den Fall,
-// dass ein HA-Element (z. B. <ha-card>) sie tatsächlich sichtbar nutzt.
 const THEME_BG_VAR_NAMES = [
   "--card-background-color",
   "--primary-background-color",
@@ -217,7 +197,6 @@ function detectBackgroundBrightness(hostEl) {
       depth++;
     }
 
-    // Rückfallebene: <body>/<html> direkt (z. B. im Editor-Kontext ohne hostEl).
     for (const el of [document.body, document.documentElement]) {
       if (!el) continue;
       const brightness = checkNodeForThemeColor(el);
@@ -304,9 +283,6 @@ function mapWeatherStateToEvents(state) {
   return WEATHER_STATE_MAP[state] || ["off"];
 }
 
-// Verbesserung (GUI-Editor): bei diesen Effekten steuert "Anzahl/Frequenz"
-// den Abstand zwischen den Durchgängen (es gibt ja nur EINE Figur), nicht
-// eine Partikelmenge - der Hinweistext im Editor erklärt das passend dazu.
 const COUNT_IS_INTERVAL_TEXT = {
   santa: "Wie oft der Weihnachtsmann vorbeifliegt: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur einen Schlitten gibt).",
   dog: "Wie oft der Labrador durchläuft: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur einen Hund gibt).",
@@ -336,6 +312,7 @@ const EVENT_CAPABILITIES = {
   bee: { count: true, opacity: true, color: false },
   clouds: { count: true, opacity: true, color: false },
   wishstar: { count: false, opacity: true, color: true },
+  birthday: { count: true, opacity: true, color: false },
 };
 
 const BALLOON_COLORS = ["#FF4B4B", "#FF851B", "#FFDC00", "#2ECC40", "#0074D9", "#B10DC9", "#F012BE"];
@@ -692,18 +669,11 @@ function renderStorm(cfg, hass, hostEl) {
 }
 
 function renderSanta(cfg, hass, hostEl) {
-  // Optik: komplett bunte Weihnachts-Illustration statt einfarbiger
-  // Silhouette - Farbmodus gibt's hier bewusst nicht (siehe
-  // EVENT_CAPABILITIES.santa unten), da mehrere feste Farben gleichzeitig
-  // gebraucht werden (rote Mütze, weißer Bommel/Bart, Hautfarbe, ...).
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
   const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
   const flightPct = Math.min(30, (18 / interval) * 100).toFixed(2);
-  // Verbesserung (Bugfix): negativer animation-delay, berechnet aus der
-  // gemerkten Startzeit - lässt die Animation an der richtigen Stelle
-  // weiterlaufen, statt bei jedem Neu-Rendern wieder bei 0% zu beginnen.
   const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
   const delaySec = (-(elapsedSec % interval)).toFixed(2);
 
@@ -728,7 +698,6 @@ function renderSanta(cfg, hass, hostEl) {
       <div class="santa-sleigh-box">
         <svg viewBox="0 -20 320 90" preserveAspectRatio="xMidYMid meet">
           <defs>
-            <!-- Rentier: brauner Körper, dunkleres Geweih, blickt nach links (Flugrichtung) -->
             <g id="santa-reindeer">
               <ellipse cx="35" cy="28" rx="17" ry="9" fill="#8b5a2b"/>
               <path d="M20,24 Q10,18 8,14" fill="none" stroke="#8b5a2b" stroke-width="7" stroke-linecap="round"/>
@@ -743,12 +712,9 @@ function renderSanta(cfg, hass, hostEl) {
           </defs>
           <use href="#santa-reindeer"/>
           <use href="#santa-reindeer" transform="translate(68,0)"/>
-          <!-- Zügel -->
           <path d="M60,18 Q100,22 148,26 M128,18 Q140,22 148,26" fill="none" stroke="#3a2a1a" stroke-width="1.2" opacity="0.8"/>
-          <!-- Schlitten: Rot mit Gold-Kufen -->
           <path d="M148,44 Q142,30 154,20 Q162,13 172,13 L212,13 Q224,13 224,25 L224,37 Q224,44 214,44 Z"
                 fill="#b91c1c" stroke="#d4af37" stroke-width="2"/>
-          <!-- Weihnachtsmann: Mantel, Gürtel, Bart, Mütze mit Bommel -->
           <ellipse cx="182" cy="27" rx="12" ry="14" fill="#c41e3a"/>
           <ellipse cx="182" cy="40" rx="12" ry="3" fill="#ffffff"/>
           <rect x="172" y="29" width="20" height="3" fill="#1a1a1a"/>
@@ -859,29 +825,14 @@ function renderSpider(cfg, hass, hostEl) {
 }
 
 function renderDog(cfg, hass, hostEl) {
-  // Goldener Labrador: läuft periodisch quer durchs Bild - nicht mehr starr
-  // am unteren Rand, sondern bei jedem Rendern an einer neuen zufälligen
-  // Höhe (10-80% der Bildschirmhöhe) und mit leichter diagonaler Drift
-  // während des Laufs selbst, für eine natürlichere "läuft irgendwo durchs
-  // Bild"-Wirkung statt einer immer gleichen Spur. "Anzahl/Frequenz"
-  // steuert weiterhin, wie oft er durchläuft, statt einer Partikelmenge -
-  // deshalb auch kein Farbmodus (feste Fellfarbe).
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
   const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
   const walkPct = Math.min(30, (20 / interval) * 100).toFixed(2);
-  // Verbesserung (Bugfix): Höhe/Drift kommen jetzt von der Haupt-Karte
-  // (einmalig gewürfelt und gespeichert, siehe _render()), statt bei jedem
-  // Aufruf neu zufällig zu sein - sonst würde ein Neu-Rendern mitten in der
-  // Animation zu einem sichtbaren Sprung führen. Fallback auf Zufallswerte,
-  // falls die Funktion (z. B. in Tests) ohne diese Werte aufgerufen wird.
   const startHeight = (typeof cfg._startHeight === "number" ? cfg._startHeight : Math.random() * 70 + 10).toFixed(2);
   const drift = typeof cfg._drift === "number" ? cfg._drift : (Math.random() * 16 - 8);
   const driftHeight = (parseFloat(startHeight) + drift).toFixed(2);
-  // Negativer animation-delay aus der gemerkten Startzeit - lässt die
-  // Animation an der richtigen Stelle weiterlaufen, statt bei jedem
-  // Neu-Rendern wieder bei 0% zu beginnen.
   const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
   const delaySec = (-(elapsedSec % interval)).toFixed(2);
 
@@ -951,12 +902,6 @@ function renderDog(cfg, hass, hostEl) {
 }
 
 function renderComet(cfg, hass, hostEl) {
-  // Komet: ein einzelner, dramatischer Streifen mit langem Schweif, der
-  // deutlich seltener als Sternschnuppen vorbeizieht. "Anzahl/Frequenz"
-  // steuert wie beim Weihnachtsmann/Hund den Abstand zwischen den
-  // Durchgängen, nicht eine Partikelmenge. Nutzt dieselbe Startzeit-Technik
-  // wie Weihnachtsmann/Hund, damit ein Neu-Rendern die Animation nicht
-  // wieder auf 0 zurücksetzt.
   const color = resolveDynamicColor(cfg.color, hass, "#1a3a5c", "#bfe9ff", hostEl);
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
@@ -1009,8 +954,6 @@ function renderComet(cfg, hass, hostEl) {
 }
 
 function renderBats(cfg, hass, hostEl) {
-  // Fledermäuse: mehrere kleine, flatternde Silhouetten auf wellenförmigen
-  // Flugbahnen - feste dunkle Farbe, unabhängig vom Theme.
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const count = getParticleCount(cfg.count_preset || "medium", "bats");
@@ -1065,10 +1008,6 @@ function renderBats(cfg, hass, hostEl) {
 }
 
 function renderOwl(cfg, hass, hostEl) {
-  // Eule: sitzt auf einem Ast, blinzelt gelegentlich, dreht leicht den Kopf
-  // und "atmet" sanft - deutlich aufwendiger als eine reine Silhouette:
-  // Mond im Hintergrund, Federstruktur, Ohrbüschel, Glanzpunkte in den
-  // Augen, Krallen am Ast.
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
@@ -1089,6 +1028,7 @@ function renderOwl(cfg, hass, hostEl) {
     .owl-eye-lid {
       animation: owl-blink 6s ease-in-out infinite;
       transform-origin: center;
+      transform-box: fill-box;
     }
     @keyframes owl-turn {
       0%, 40% { transform: rotate(0deg); }
@@ -1102,8 +1042,8 @@ function renderOwl(cfg, hass, hostEl) {
       50% { transform: scale(1.02, 0.98); }
     }
     @keyframes owl-blink {
-      0%, 92%, 100% { transform: scaleY(0); }
-      95%, 97% { transform: scaleY(1); }
+      0%, 90%, 100% { transform: scaleY(0.05); }
+      95% { transform: scaleY(1); }
     }
   `;
   const html = `
@@ -1135,8 +1075,8 @@ function renderOwl(cfg, hass, hostEl) {
           <circle cx="72" cy="46" r="4" fill="#1a1a1a"/>
           <circle cx="46" cy="43" r="1.6" fill="#ffffff"/>
           <circle cx="70" cy="43" r="1.6" fill="#ffffff"/>
-          <rect class="owl-eye-lid" x="35" y="39" width="26" height="14" fill="#8a6238"/>
-          <rect class="owl-eye-lid" x="59" y="39" width="26" height="14" fill="#8a6238"/>
+          <circle class="owl-eye-lid" cx="48" cy="46" r="13" fill="#8a6238"/>
+          <circle class="owl-eye-lid" cx="72" cy="46" r="13" fill="#8a6238"/>
           <path d="M54,56 L66,56 L60,66 Z" fill="#e8952a"/>
         </g>
       </svg>
@@ -1146,9 +1086,6 @@ function renderOwl(cfg, hass, hostEl) {
 }
 
 function renderBee(cfg, hass, hostEl) {
-  // Bienen: mehrere gleichzeitig (Standard 5-6), jede mit eigenem
-  // Zickzack-Pfad über den kompletten Bildschirm verteilt - wie die
-  // Fledermäuse, nicht mehr nur eine einzelne periodisch durchfliegende.
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const count = getParticleCount(cfg.count_preset || "medium", "bee");
@@ -1205,8 +1142,6 @@ function renderBee(cfg, hass, hostEl) {
 }
 
 function renderClouds(cfg, hass, hostEl) {
-  // Wolken-Drift: mehrere weiche, verschwommene Wolkenformen ziehen ganz
-  // ruhig und langsam quer übers Bild (oberer Bereich).
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const count = getParticleCount(cfg.count_preset || "medium", "clouds");
@@ -1243,12 +1178,6 @@ function renderClouds(cfg, hass, hostEl) {
 }
 
 function renderWishStar(cfg, hass, hostEl) {
-  // Wunschstern-Funkeln: sieht aus wie ein Stern vom normalen Sternenhimmel
-  // (runder Punkt mit Glow) - leuchtet aber einmal auf, verschwindet dann
-  // wieder komplett und blitzt beim nächsten Zyklus an einer NEUEN Position
-  // auf. Die Position kommt von der Haupt-Karte (_wishstarPos), die sie bei
-  // jedem Zyklus per Timer neu würfelt - ein reiner CSS-Loop könnte nicht
-  // "teleportieren", nur an derselben Stelle bleiben.
   const color = resolveDynamicColor(cfg.color, hass, "#1a1a2e", "#ffffff", hostEl);
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
@@ -1296,40 +1225,177 @@ function renderWishStar(cfg, hass, hostEl) {
 }
 
 function renderStars(cfg, hass, hostEl) {
+  // Verbesserung (Ressourcen): Sterne "teleportieren" jetzt rein über CSS,
+  // ohne laufenden JS-Timer. Jeder Stern bekommt 4 zufällige Positionen
+  // fest in seine EIGENE Keyframe-Animation eingebacken (einmalig beim
+  // Rendern berechnet). Der Sprung zwischen den Positionen passiert exakt
+  // dann, wenn die Deckkraft gerade bei 0 ist (also während der Stern
+  // unsichtbar ist) - dadurch wirkt es wie ein Teleport, obwohl komplett
+  // vom Browser selbst animiert, ganz ohne wiederkehrende JS-Prüfungen.
   const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff", hostEl);
   const count = getParticleCount(cfg.count_preset || "medium", "stars");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
 
   const stars = getCachedRandomSet("stars", count, () => ({
-    top: (Math.random() * 85).toFixed(2),
-    left: (Math.random() * 100).toFixed(2),
+    waypoints: Array.from({ length: 4 }, () => ({
+      top: (Math.random() * 85).toFixed(2),
+      left: (Math.random() * 100).toFixed(2),
+    })),
     size: (Math.random() * 2.5 + 2).toFixed(2),
-    dur: (Math.random() * 3 + 2).toFixed(2),
-    delay: (Math.random() * -5).toFixed(2),
+    dur: (Math.random() * 6 + 14).toFixed(2),
+    delay: (Math.random() * -20).toFixed(2),
     baseOp: (Math.random() * 0.4 + 0.55).toFixed(2),
+    animId: Math.random().toString(36).slice(2, 9),
   }));
 
+  let keyframesCss = "";
   const starHTML = stars.map((s) => {
     const peak = isHigh
       ? Math.max(parseFloat(s.baseOp), 0.95)
       : Math.max(parseFloat(s.baseOp) * opacity, 0.35);
     const glow = (parseFloat(s.size) * 2.5).toFixed(2);
-    return `<div class="star" style="top:${s.top}vh; left:${s.left}vw; width:${s.size}px; height:${s.size}px; background:${color}; box-shadow: 0 0 ${glow}px ${color}, 0 0 1.5px rgba(160,160,160,0.9); animation-duration:${s.dur}s; animation-delay:${s.delay}s; --peak:${peak.toFixed(2)};"></div>`;
+    const [p1, p2, p3, p4] = s.waypoints;
+    const name = `star-tp-${s.animId}`;
+    // Vier Wegpunkte, je ein Viertel des Zyklus: aufblitzen -> halten ->
+    // verblassen -> (unsichtbar) Position wechseln -> nächster Wegpunkt.
+    keyframesCss += `
+      @keyframes ${name} {
+        0%   { opacity: 0; top:${p1.top}vh; left:${p1.left}vw; transform: scale(0.3); }
+        2%   { opacity: ${peak}; transform: scale(1.15); }
+        20%  { opacity: ${peak}; transform: scale(1); }
+        24%  { opacity: 0; transform: scale(0.3); }
+        25%  { opacity: 0; top:${p2.top}vh; left:${p2.left}vw; }
+        27%  { opacity: ${peak}; transform: scale(1.15); }
+        45%  { opacity: ${peak}; transform: scale(1); }
+        49%  { opacity: 0; transform: scale(0.3); }
+        50%  { opacity: 0; top:${p3.top}vh; left:${p3.left}vw; }
+        52%  { opacity: ${peak}; transform: scale(1.15); }
+        70%  { opacity: ${peak}; transform: scale(1); }
+        74%  { opacity: 0; transform: scale(0.3); }
+        75%  { opacity: 0; top:${p4.top}vh; left:${p4.left}vw; }
+        77%  { opacity: ${peak}; transform: scale(1.15); }
+        95%  { opacity: ${peak}; transform: scale(1); }
+        99%  { opacity: 0; transform: scale(0.3); }
+        100% { opacity: 0; top:${p1.top}vh; left:${p1.left}vw; }
+      }
+    `;
+    return `<div class="star" style="width:${s.size}px; height:${s.size}px; background:${color}; box-shadow: 0 0 ${glow}px ${color}, 0 0 1.5px rgba(160,160,160,0.9); animation-name:${name}; animation-duration:${s.dur}s; animation-delay:${s.delay}s;"></div>`;
   }).join("\n");
 
   const css = `
     ${overlayBaseCss("stars-container")}
     .star {
       position: absolute; border-radius: 50%;
-      animation: star-twinkle ease-in-out infinite alternate; will-change: opacity, transform;
+      animation-timing-function: linear; animation-iteration-count: infinite;
+      will-change: opacity, transform, top, left;
     }
-    @keyframes star-twinkle {
-      0% { opacity: calc(var(--peak) * 0.5); transform: scale(0.8); }
-      100% { opacity: var(--peak); transform: scale(1.2); }
-    }
+    ${keyframesCss}
   `;
   return { css, html: `<div class="stars-container" aria-hidden="true">${starHTML}</div>` };
+}
+
+function renderBirthday(cfg, hass, hostEl) {
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+
+  const balloonCount = getParticleCount(cfg.count_preset || "medium", "balloons");
+  const balloons = spreadSample(BALLOONS, balloonCount);
+  const balloonHTML = balloons.map((b) => `
+    <div class="bday-balloon-wrapper" style="left:${b.l}vw; animation-duration:${b.dur}s; animation-delay:${b.d}s; opacity:${opacity};">
+      <div class="bday-balloon" style="width:${b.size}px; height:${(b.size * 1.6)}px; color:${b.color};">
+        ${BALLOON_SVG}
+      </div>
+    </div>
+  `).join("\n");
+
+  const confettiColors = ["#ff4b4b", "#ffb703", "#8ecae6", "#06d6a0", "#f72585", "#ffd60a"];
+  const confettiCount = getParticleCount(cfg.count_preset || "medium", "confetti");
+  const confetti = getCachedRandomSet("birthday-confetti", confettiCount, () => ({
+    l: (Math.random() * 100).toFixed(2),
+    size: (Math.random() * 6 + 5).toFixed(1),
+    dur: (Math.random() * 3 + 3).toFixed(2),
+    delay: (Math.random() * -6).toFixed(2),
+    color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
+    baseOp: (Math.random() * 0.3 + 0.6).toFixed(2),
+  }));
+  const confettiHtml = confetti.map((c) => {
+    const op = isHigh ? Math.max(parseFloat(c.baseOp), 0.9) : (parseFloat(c.baseOp) * opacity);
+    return `<div class="confetti-piece" style="left:${c.l}vw; width:${c.size}px; height:${(c.size * 0.6).toFixed(1)}px; background:${c.color}; animation-duration:${c.dur}s; animation-delay:${c.delay}s; opacity:${op.toFixed(2)};"></div>`;
+  }).join("\n");
+
+  const text = (cfg.birthday_text && cfg.birthday_text.trim()) || "Happy Birthday!";
+  const safeText = escapeHtml(text);
+  const flagColors = ["#ff4b4b", "#ffb703", "#8ecae6", "#06d6a0", "#f72585"];
+  let flagsHtml = "";
+  const flagCount = 16;
+  for (let i = 0; i < flagCount; i++) {
+    const left = (i / (flagCount - 1)) * 100;
+    const color = flagColors[i % flagColors.length];
+    flagsHtml += `<div class="banner-flag" style="left:${left}%; background:${color};"></div>`;
+  }
+
+  const css = `
+    .bday-balloons-container, .confetti-container {
+      position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+      width: 100vw; height: 100vh; pointer-events: none; z-index: 9999; overflow: hidden;
+    }
+    .bday-balloon-wrapper { position:absolute; bottom:-20%; animation:balloon-rise linear infinite; will-change: transform; }
+    .bday-balloon { display:flex; align-items:center; justify-content:center; }
+    .bday-balloon svg { width:100%; height:100%; filter:drop-shadow(2px 4px 6px rgba(0,0,0,0.25)); }
+    @keyframes balloon-rise { 0% { transform: translateY(10vh); } 100% { transform: translateY(-120vh); } }
+
+    .confetti-piece {
+      position: absolute; top: -5%;
+      animation-name: confetti-fall; animation-timing-function: linear; animation-iteration-count: infinite;
+      will-change: transform;
+    }
+    @keyframes confetti-fall {
+      0%   { transform: translateY(0) rotate(0deg); }
+      100% { transform: translateY(115vh) rotate(540deg); }
+    }
+
+    .birthday-banner {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 60px;
+      pointer-events: none; z-index: 9999;
+    }
+    .banner-string {
+      position: absolute; top: 8px; left: 0; width: 100%; height: 1px;
+      background: rgba(255,255,255,0.4);
+    }
+    .banner-flag {
+      position: absolute; top: 8px; width: 16px; height: 20px;
+      clip-path: polygon(0 0, 100% 0, 50% 100%);
+      animation: banner-flag-sway 2.4s ease-in-out infinite;
+      transform-origin: top center;
+    }
+    @keyframes banner-flag-sway {
+      0%, 100% { transform: rotate(-4deg); }
+      50% { transform: rotate(4deg); }
+    }
+    .banner-text {
+      position: absolute; top: 26px; left: 50%; transform: translateX(-50%);
+      font-size: 28px; font-weight: 800; color: #ffffff;
+      text-shadow: 0 0 8px rgba(0,0,0,0.5), 2px 2px 0 #ff4b4b, -2px -2px 0 #06d6a0;
+      font-family: system-ui, -apple-system, sans-serif;
+      white-space: nowrap;
+      animation: banner-bounce 2s ease-in-out infinite;
+    }
+    @keyframes banner-bounce {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(-4px); }
+    }
+  `;
+  const html = `
+    <div class="bday-balloons-container" aria-hidden="true">${balloonHTML}</div>
+    <div class="confetti-container" aria-hidden="true">${confettiHtml}</div>
+    <div class="birthday-banner" aria-hidden="true">
+      <div class="banner-string"></div>
+      ${flagsHtml}
+      <div class="banner-text">${safeText}</div>
+    </div>
+  `;
+  return { css, html };
 }
 
 const RENDERERS = {
@@ -1353,6 +1419,7 @@ const RENDERERS = {
   bee: renderBee,
   clouds: renderClouds,
   wishstar: renderWishStar,
+  birthday: renderBirthday,
 };
 
 /* ============================== HAUPT-KARTE ============================== */
@@ -1368,23 +1435,12 @@ class WeatherEventOverlayCard extends HTMLElement {
     this._portalHost = null;
     this._portalShadow = null;
     this._visibilityPollTimer = null;
-    // Verbesserung (Bugfix): merkt sich, WANN ein periodischer Effekt
-    // (Hund, Weihnachtsmann) gestartet wurde. Wird die Karte zwischendurch
-    // neu gerendert (z. B. durch häufige State-Updates einer Timer-Entity
-    // im Dashboard), kann die Animation so weiterrechnen, statt jedes Mal
-    // wieder bei 0% anzufangen und nie eine komplette Runde zu schaffen.
     this._periodicStartTimes = {};
     this._wishstarTimer = null;
     this._wishstarPos = null;
+    this._starsReshuffleTimer = null;
   }
 
-  // Verbesserung (Bugfix): "position: fixed" wird nicht mehr relativ zum
-  // echten Bildschirm berechnet, sobald IRGENDEIN Eltern-Element einen CSS
-  // transform/filter/contain gesetzt hat - das kommt bei verschachtelten
-  // Dashboard-Layouts vor (z. B. "sections"-Views mit "visibility:"-
-  // Bedingungen). Lösung: die Effekte werden in einen eigenen Container
-  // direkt in <body> gerendert, komplett unabhängig von der Dashboard-
-  // Struktur, in der die Karte eigentlich eingebettet ist.
   _ensurePortal() {
     if (this._portalHost) return;
     this._portalHost = document.createElement("div");
@@ -1393,11 +1449,6 @@ class WeatherEventOverlayCard extends HTMLElement {
     document.body.appendChild(this._portalHost);
   }
 
-  // Die Karte selbst kann trotzdem versteckt sein (z. B. weil eine
-  // "visibility:"-Bedingung gerade nicht zutrifft, ohne die Karte komplett
-  // aus dem DOM zu entfernen). Der Portal-Container lebt unabhängig davon
-  // in <body> - dieser Abgleich sorgt dafür, dass er nur sichtbar ist,
-  // wenn die Karte es selbst auch wäre.
   _syncPortalVisibility() {
     if (!this._portalHost) return;
     const isVisible = this.isConnected && this.offsetParent !== null;
@@ -1428,6 +1479,10 @@ class WeatherEventOverlayCard extends HTMLElement {
     if (this._wishstarTimer) {
       clearInterval(this._wishstarTimer);
       this._wishstarTimer = null;
+    }
+    if (this._starsReshuffleTimer) {
+      clearInterval(this._starsReshuffleTimer);
+      this._starsReshuffleTimer = null;
     }
     if (this._visibilityPollTimer) {
       clearInterval(this._visibilityPollTimer);
@@ -1466,6 +1521,7 @@ class WeatherEventOverlayCard extends HTMLElement {
       color_mode: "auto",
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
       weather_entity: "",
+      birthday_text: "Happy Birthday!",
       ...config,
     };
     this._render();
@@ -1525,11 +1581,6 @@ class WeatherEventOverlayCard extends HTMLElement {
     }
   }
 
-  // Verbesserung: der Wunschstern soll einmal aufleuchten, verschwinden und
-  // dann an einer NEUEN Position wieder aufleuchten - nicht dauerhaft an
-  // derselben Stelle. Dafür braucht's einen JS-Timer, der bei jedem Zyklus
-  // eine frische Zufallsposition würfelt und neu rendert (ein reiner
-  // CSS-Loop würde immer an der gleichen Stelle bleiben).
   _updateWishstar(events) {
     if (events.includes("wishstar")) {
       if (!this._wishstarTimer) {
@@ -1541,11 +1592,6 @@ class WeatherEventOverlayCard extends HTMLElement {
           };
           this._render();
         };
-        // WICHTIG: Timer wird ZUERST gesetzt, bevor regen() das erste Mal
-        // läuft. regen() ruft _render() auf, was _updateWishstar() erneut
-        // aufruft - ohne den Timer vorher zu setzen, würde das eine
-        // Endlosschleife auslösen (regen() würde sich quasi selbst erneut
-        // anstoßen, bevor der erste Aufruf fertig ist).
         this._wishstarTimer = setInterval(regen, cycle);
         regen();
       }
@@ -1558,21 +1604,38 @@ class WeatherEventOverlayCard extends HTMLElement {
     }
   }
 
+  // Verbesserung (Ressourcen): statt jede Sekunde zu prüfen, welcher Stern
+  // "fällig" ist, mischt dieser Timer alle 4 Minuten AUF EINMAL die
+  // Positionen aller Sterne komplett neu (per Cache-Löschung + Neu-Rendern).
+  // Zwischen den Reshuffles läuft alles rein über CSS, ganz ohne
+  // JavaScript-Beteiligung - das spart 239 von 240 Sekunden komplett den
+  // Timer-Aufwand, verglichen mit einer Sekunden-Prüfung.
+  _updateStarsReshuffle(events) {
+    if (events.includes("stars")) {
+      if (!this._starsReshuffleTimer) {
+        this._starsReshuffleTimer = setInterval(() => {
+          const count = getParticleCount(this._config?.count_preset || "medium", "stars");
+          _randomCache.delete(`stars:${count}`);
+          this._render();
+        }, 240000);
+      }
+    } else {
+      if (this._starsReshuffleTimer) {
+        clearInterval(this._starsReshuffleTimer);
+        this._starsReshuffleTimer = null;
+      }
+    }
+  }
+
   _render() {
     if (!this._config) return;
-    // Der Portal-Container existiert erst, sobald die Karte im DOM hängt
-    // (connectedCallback). Wird _render() vorher aufgerufen, einfach
-    // abbrechen - connectedCallback rendert danach ohnehin automatisch nach.
     if (!this._portalShadow) return;
 
     const events = this._resolveEvents();
     this._updateSnowAccumulation(events);
     this._updateWishstar(events);
+    this._updateStarsReshuffle(events);
 
-    // Verbesserung (Bugfix): Startzeiten von Effekten aufräumen, die gerade
-    // nicht mehr laufen - so fängt ein Effekt beim nächsten Auswählen
-    // wieder frisch bei 0 an, statt eine alte, längst vergangene Startzeit
-    // weiterzuverwenden.
     for (const key of Object.keys(this._periodicStartTimes)) {
       if (!events.includes(key)) delete this._periodicStartTimes[key];
     }
@@ -1591,9 +1654,6 @@ class WeatherEventOverlayCard extends HTMLElement {
         if (!this._periodicStartTimes[event]) this._periodicStartTimes[event] = Date.now();
         cfgForRender = { ...this._config, _startTime: this._periodicStartTimes[event] };
       } else if (event === "dog") {
-        // Höhe/Drift nur EINMAL pro Lauf-Zyklus würfeln und mitspeichern -
-        // sonst würde ein Neu-Rendern mitten in der Animation zu einem
-        // sichtbaren Sprung auf eine neue Höhe führen.
         if (!this._periodicStartTimes[event]) {
           const ranges = {
             dog: [10, 80],
@@ -1635,6 +1695,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
       color_mode: "auto",
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
       weather_entity: "",
+      birthday_text: "Happy Birthday!",
       ...config,
     };
     if (this._suppressNextRender) {
@@ -1678,6 +1739,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     const colorMode = c.color_mode || (c.color === "auto" ? "auto" : "custom");
     const caps = EVENT_CAPABILITIES[c.event] || { count: false, opacity: false, color: false };
     const isWeatherAuto = c.event === "weather_auto";
+    const isBirthday = c.event === "birthday";
 
     const weatherEntities = this._hass && this._hass.states
       ? Object.keys(this._hass.states).filter((eid) => eid.startsWith("weather."))
@@ -1685,6 +1747,10 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
 
     this.innerHTML = `
       <div style="padding:8px 16px;">
+        <div id="live-preview" style="position:relative; width:100%; height:150px; overflow:hidden; border-radius:10px; margin-bottom:10px; background:linear-gradient(180deg, #16202e, #2c3e50); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);">
+          <div id="live-preview-stage" style="position:absolute; top:0; left:0; width:100vw; height:100vh; transform: scale(0.16); transform-origin: top left;"></div>
+          <div id="live-preview-msg" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.55); font-size:12px; text-align:center; padding:0 16px;"></div>
+        </div>
         ${this._row("Effekt", `
           <select id="event" style="width:100%; padding:6px;">
             <option value="off" ${c.event === "off" ? "selected" : ""}>Aus</option>
@@ -1703,6 +1769,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="leaves" ${c.event === "leaves" ? "selected" : ""}>🍂 Laub</option>
             <option value="balloons" ${c.event === "balloons" ? "selected" : ""}>🎈 Luftballons</option>
             <option value="lights" ${c.event === "lights" ? "selected" : ""}>💡 Lichterkette</option>
+            <option value="birthday" ${isBirthday ? "selected" : ""}>🎂 Geburtstags-Modus</option>
             <option value="santa" ${c.event === "santa" ? "selected" : ""}>🎅 Weihnachtsmann</option>
             <option value="spider" ${c.event === "spider" ? "selected" : ""}>🕷️ Spinne mit Netz</option>
             <option value="dog" ${c.event === "dog" ? "selected" : ""}>🐕 Goldener Labrador</option>
@@ -1714,6 +1781,10 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
           ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft."
           : "Welcher Effekt manuell dauerhaft angezeigt wird."
         )}
+
+        ${isBirthday ? this._row("Banner-Text", `
+          <input id="birthday_text" type="text" value="${c.birthday_text ? c.birthday_text.replace(/"/g, "&quot;") : ""}" placeholder="Happy Birthday!" style="width:100%; padding:6px; box-sizing:border-box;" />
+        `, "Text im Banner oben - z. B. 'Happy Birthday, Max!' für eine persönliche Note.") : ""}
 
         ${isWeatherAuto ? (
           weatherEntities.length > 0
@@ -1770,6 +1841,12 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
 
     this.querySelector("#event").addEventListener("change", (e) => this._update("event", e.target.value, true));
 
+    const birthdayTextInput = this.querySelector("#birthday_text");
+    if (birthdayTextInput) {
+      birthdayTextInput.addEventListener("input", (e) => this._update("birthday_text", e.target.value, false));
+      birthdayTextInput.addEventListener("change", (e) => this._update("birthday_text", e.target.value, false));
+    }
+
     const weatherEntitySel = this.querySelector("#weather_entity");
     if (weatherEntitySel) {
       weatherEntitySel.addEventListener("change", (e) => this._update("weather_entity", e.target.value.trim(), false));
@@ -1796,21 +1873,58 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     const colorPicker = this.querySelector("#color");
     if (colorPicker) {
       colorPicker.addEventListener("change", (e) => this._update("color", e.target.value, true));
+      colorPicker.addEventListener("input", (e) => this._update("color", e.target.value, false));
     }
+
+    this._updatePreview();
+  }
+
+  _updatePreview() {
+    const stage = this.querySelector("#live-preview-stage");
+    const msg = this.querySelector("#live-preview-msg");
+    if (!stage || !msg) return;
+    const c = this._config;
+    if (!c || c.event === "off") {
+      stage.innerHTML = "";
+      msg.textContent = "Kein Effekt ausgewählt.";
+      return;
+    }
+    if (c.event === "weather_auto") {
+      stage.innerHTML = "";
+      msg.textContent = "Vorschau nicht verfügbar bei 'Automatisch' - hängt vom aktuellen Live-Wetter ab.";
+      return;
+    }
+    const renderer = RENDERERS[c.event];
+    if (!renderer) {
+      stage.innerHTML = "";
+      msg.textContent = "";
+      return;
+    }
+    msg.textContent = "";
+    const { css, html } = renderer(c, this._hass, this);
+    stage.innerHTML = `<style>${css}</style>${html}`;
   }
 
   _update(key, value, rerender) {
     this._suppressNextRender = !rerender;
     this._config = { ...this._config, [key]: value };
     fireEvent(this, "config-changed", { config: this._config });
-    if (rerender) this._render();
+    if (rerender) {
+      this._render();
+    } else {
+      this._updatePreview();
+    }
   }
 
   _updateConfig(newValues, rerender) {
     this._suppressNextRender = !rerender;
     this._config = { ...this._config, ...newValues };
     fireEvent(this, "config-changed", { config: this._config });
-    if (rerender) this._render();
+    if (rerender) {
+      this._render();
+    } else {
+      this._updatePreview();
+    }
   }
 }
 
