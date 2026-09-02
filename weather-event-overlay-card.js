@@ -307,7 +307,7 @@ const EVENT_CAPABILITIES = {
   stars: { count: true, opacity: true, color: true },
   dog: { count: true, opacity: true, color: false },
   comet: { count: true, opacity: true, color: true },
-  bats: { count: true, opacity: true, color: false },
+  bats: { count: true, opacity: true, color: true },
   owl: { count: false, opacity: true, color: false },
   bee: { count: true, opacity: true, color: false },
   clouds: { count: true, opacity: true, color: true },
@@ -954,6 +954,12 @@ function renderComet(cfg, hass, hostEl) {
 }
 
 function renderBats(cfg, hass, hostEl) {
+  // Verbesserung (Bugfix): Fledermäuse waren fest schwarz - auf einem
+  // dunklen Theme-Hintergrund praktisch unsichtbar (gleiches Problem wie
+  // vorher bei den Wolken). Jetzt theme-abhängig: dunkles Grau-Violett auf
+  // hellem Hintergrund, helleres Grau-Violett auf dunklem Hintergrund -
+  // bleibt dabei bewusst "nächtlich" statt bunt.
+  const color = resolveDynamicColor(cfg.color, hass, "#2a2530", "#cbc4d9", hostEl);
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const count = getParticleCount(cfg.count_preset || "medium", "bats");
@@ -972,10 +978,10 @@ function renderBats(cfg, hass, hostEl) {
     return `
     <div class="bat" style="top:${b.top}vh; animation-duration:${b.dur}s; animation-delay:${b.delay}s; opacity:${op.toFixed(2)}; --wobble:${b.wobble}vh;">
       <svg viewBox="0 0 40 20" class="bat-wings" style="animation-duration:${b.flapDur}s;">
-        <path d="M20,10 L2,0 L9,7 L0,10 L9,13 L2,20 Z" fill="#1a1a1a"/>
-        <path d="M20,10 L38,0 L31,7 L40,10 L31,13 L38,20 Z" fill="#1a1a1a"/>
-        <ellipse cx="20" cy="10" rx="3" ry="4" fill="#1a1a1a"/>
-        <path d="M17,7 L14,3 M23,7 L26,3" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M20,10 L2,0 L9,7 L0,10 L9,13 L2,20 Z" fill="${color}"/>
+        <path d="M20,10 L38,0 L31,7 L40,10 L31,13 L38,20 Z" fill="${color}"/>
+        <ellipse cx="20" cy="10" rx="3" ry="4" fill="${color}"/>
+        <path d="M17,7 L14,3 M23,7 L26,3" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/>
       </svg>
     </div>`;
   }).join("\n");
