@@ -310,7 +310,7 @@ const EVENT_CAPABILITIES = {
   bats: { count: true, opacity: true, color: false },
   owl: { count: false, opacity: true, color: false },
   bee: { count: true, opacity: true, color: false },
-  clouds: { count: true, opacity: true, color: false },
+  clouds: { count: true, opacity: true, color: true },
   wishstar: { count: false, opacity: true, color: true },
   birthday: { count: true, opacity: true, color: false },
 };
@@ -1025,8 +1025,13 @@ function renderOwl(cfg, hass, hostEl) {
       animation: owl-breathe 4s ease-in-out infinite;
       transform-origin: 50% 72%;
     }
-    .owl-eye-lid {
-      animation: owl-blink 6s ease-in-out infinite;
+    .owl-eye-lid.left {
+      animation: owl-blink-left 9s ease-in-out infinite;
+      transform-origin: center;
+      transform-box: fill-box;
+    }
+    .owl-eye-lid.right {
+      animation: owl-blink-right 9s ease-in-out infinite;
       transform-origin: center;
       transform-box: fill-box;
     }
@@ -1041,9 +1046,13 @@ function renderOwl(cfg, hass, hostEl) {
       0%, 100% { transform: scale(1, 1); }
       50% { transform: scale(1.02, 0.98); }
     }
-    @keyframes owl-blink {
-      0%, 90%, 100% { transform: scaleY(0.05); }
-      95% { transform: scaleY(1); }
+    @keyframes owl-blink-left {
+      0%, 18%, 26%, 100% { transform: scaleY(0); }
+      22% { transform: scaleY(1); }
+    }
+    @keyframes owl-blink-right {
+      0%, 58%, 66%, 100% { transform: scaleY(0); }
+      62% { transform: scaleY(1); }
     }
   `;
   const html = `
@@ -1075,8 +1084,8 @@ function renderOwl(cfg, hass, hostEl) {
           <circle cx="72" cy="46" r="4" fill="#1a1a1a"/>
           <circle cx="46" cy="43" r="1.6" fill="#ffffff"/>
           <circle cx="70" cy="43" r="1.6" fill="#ffffff"/>
-          <circle class="owl-eye-lid" cx="48" cy="46" r="13" fill="#8a6238"/>
-          <circle class="owl-eye-lid" cx="72" cy="46" r="13" fill="#8a6238"/>
+          <circle class="owl-eye-lid left" cx="48" cy="46" r="13" fill="#8a6238"/>
+          <circle class="owl-eye-lid right" cx="72" cy="46" r="13" fill="#8a6238"/>
           <path d="M54,56 L66,56 L60,66 Z" fill="#e8952a"/>
         </g>
       </svg>
@@ -1142,6 +1151,11 @@ function renderBee(cfg, hass, hostEl) {
 }
 
 function renderClouds(cfg, hass, hostEl) {
+  // Verbesserung (Bugfix): Wolken waren fest hellgrau/weiß - auf einem
+  // hellen Theme-Hintergrund praktisch unsichtbar. Jetzt wie die anderen
+  // Wetter-Effekte theme-abhängig: dunkles Grau auf hellem Hintergrund,
+  // helles Grau auf dunklem Hintergrund.
+  const color = resolveDynamicColor(cfg.color, hass, "#6b7684", "#e8edf2", hostEl);
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const count = getParticleCount(cfg.count_preset || "medium", "clouds");
@@ -1156,15 +1170,14 @@ function renderClouds(cfg, hass, hostEl) {
 
   const cloudHtml = clouds.map((c) => {
     const op = isHigh ? Math.max(parseFloat(c.baseOp), 0.25) : (parseFloat(c.baseOp) * opacity);
-    return `<div class="cloud" style="top:${c.top}vh; transform:scale(${c.scale}); animation-duration:${c.dur}s; animation-delay:${c.delay}s; opacity:${op.toFixed(2)};"></div>`;
+    return `<div class="cloud" style="top:${c.top}vh; transform:scale(${c.scale}); animation-duration:${c.dur}s; animation-delay:${c.delay}s; opacity:${op.toFixed(2)}; background:${color}; box-shadow: 6vw 1vh 0 -1vh ${color}, -5vw 1.5vh 0 -1.5vh ${color}, 3vw -1vh 0 -0.5vh ${color};"></div>`;
   }).join("\n");
 
   const css = `
     ${overlayBaseCss("clouds-container")}
     .cloud {
       position: absolute; left: -30vw; width: 22vw; height: 8vh;
-      background: #e8edf2; border-radius: 50%;
-      box-shadow: 6vw 1vh 0 -1vh #e8edf2, -5vw 1.5vh 0 -1.5vh #e8edf2, 3vw -1vh 0 -0.5vh #e8edf2;
+      border-radius: 50%;
       filter: blur(6px);
       animation-name: cloud-drift; animation-timing-function: linear; animation-iteration-count: infinite;
       will-change: transform;
@@ -1901,7 +1914,17 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
       return;
     }
     msg.textContent = "";
-    const { css, html } = renderer(c, this._hass, this);
+    // Verbesserung (Bugfix): bei "Auto"-Farbmodus würde der Effekt sonst
+    // die Farbe des ECHTEN Home-Assistant-Editor-Fensters übernehmen (das
+    // kann hell sein) - unsere Vorschau-Box hat aber immer einen dunklen
+    // Hintergrund. Ohne diese Korrektur wären z. B. schwarze Regentropfen
+    // auf dunklem Grund unsichtbar. Die Vorschau erzwingt deshalb eine
+    // helle Farbe, unabhängig vom echten Dashboard-Theme.
+    const caps = EVENT_CAPABILITIES[c.event] || {};
+    const previewCfg = (caps.color && (c.color_mode || "auto") === "auto")
+      ? { ...c, color: "#ffffff" }
+      : c;
+    const { css, html } = renderer(previewCfg, this._hass, this);
     stage.innerHTML = `<style>${css}</style>${html}`;
   }
 
