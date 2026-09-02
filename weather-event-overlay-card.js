@@ -1485,7 +1485,14 @@ class WeatherEventOverlayCard extends HTMLElement {
   _ensurePortal() {
     if (this._portalHost) return;
     this._portalHost = document.createElement("div");
-    this._portalHost.style.cssText = "position:fixed; top:0; left:0; width:0; height:0; pointer-events:none;";
+    // Verbesserung (Bugfix): "position: fixed" allein reicht nicht immer -
+    // manche Custom Cards (z. B. Swipe-/Karussell-Karten mit Fade-Übergang)
+    // nutzen selbst einen hohen z-index für ihre eigenen Übergangs-
+    // Animationen und können dadurch über unseren Effekten liegen. Ein
+    // extrem hoher, praktisch nie überbotener z-index-Wert stellt sicher,
+    // dass unser Effekt-Container IMMER ganz oben liegt, egal was sonst
+    // noch auf der Seite ist.
+    this._portalHost.style.cssText = "position:fixed; top:0; left:0; width:0; height:0; pointer-events:none; z-index:2147483647;";
     this._portalShadow = this._portalHost.attachShadow({ mode: "open" });
     document.body.appendChild(this._portalHost);
   }
