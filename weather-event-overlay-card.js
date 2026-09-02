@@ -1155,7 +1155,7 @@ function renderClouds(cfg, hass, hostEl) {
   // hellen Theme-Hintergrund praktisch unsichtbar. Jetzt wie die anderen
   // Wetter-Effekte theme-abhängig: dunkles Grau auf hellem Hintergrund,
   // helles Grau auf dunklem Hintergrund.
-  const color = resolveDynamicColor(cfg.color, hass, "#6b7684", "#e8edf2", hostEl);
+  const color = resolveDynamicColor(cfg.color, hass, "#57626f", "#e8edf2", hostEl);
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const count = getParticleCount(cfg.count_preset || "medium", "clouds");
@@ -1165,11 +1165,11 @@ function renderClouds(cfg, hass, hostEl) {
     scale: (Math.random() * 0.7 + 0.7).toFixed(2),
     dur: (Math.random() * 40 + 60).toFixed(2),
     delay: (Math.random() * -80).toFixed(2),
-    baseOp: (Math.random() * 0.08 + 0.08).toFixed(2),
+    baseOp: (Math.random() * 0.18 + 0.28).toFixed(2),
   }));
 
   const cloudHtml = clouds.map((c) => {
-    const op = isHigh ? Math.max(parseFloat(c.baseOp), 0.25) : (parseFloat(c.baseOp) * opacity);
+    const op = isHigh ? Math.max(parseFloat(c.baseOp), 0.65) : (parseFloat(c.baseOp) * opacity);
     return `<div class="cloud" style="top:${c.top}vh; transform:scale(${c.scale}); animation-duration:${c.dur}s; animation-delay:${c.delay}s; opacity:${op.toFixed(2)}; background:${color}; box-shadow: 6vw 1vh 0 -1vh ${color}, -5vw 1.5vh 0 -1.5vh ${color}, 3vw -1vh 0 -0.5vh ${color};"></div>`;
   }).join("\n");
 
