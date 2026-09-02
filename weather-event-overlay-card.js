@@ -263,6 +263,10 @@ function getCachedRandomSet(key, count, factory) {
 
 /* ============================ STATISCHE DATEN ============================ */
 
+// Wie lange ein Effekt braucht, um beim Beenden sanft auszublenden statt
+// abrupt zu verschwinden.
+const FADE_DURATION_MS = 2500;
+
 const WEATHER_STATE_MAP = {
   "rainy": ["rain"],
   "pouring": ["rain"],
@@ -1166,13 +1170,21 @@ function renderClouds(cfg, hass, hostEl) {
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const count = getParticleCount(cfg.count_preset || "medium", "clouds");
 
-  const clouds = getCachedRandomSet("clouds", count, () => ({
-    top: (Math.random() * 82).toFixed(2),
-    scale: (Math.random() * 0.7 + 0.7).toFixed(2),
-    dur: (Math.random() * 40 + 60).toFixed(2),
-    delay: (Math.random() * -80).toFixed(2),
-    baseOp: (Math.random() * 0.18 + 0.28).toFixed(2),
-  }));
+  const clouds = getCachedRandomSet("clouds", count, (_, i) => {
+    // Verbesserung: Zeit-Versatz gleichmäßig über den Zyklus verteilt
+    // (Basis-Position nach Index) statt komplett zufällig - sonst können
+    // sich alle Wolken zufällig häufen und es entstehen Lücken ganz ohne
+    // sichtbare Wolke. Etwas Zufalls-Jitter obendrauf, damit es trotzdem
+    // nicht "maschinell" gleichmäßig aussieht.
+    const jitter = Math.random() * 12 - 6;
+    return {
+      top: (Math.random() * 82).toFixed(2),
+      scale: (Math.random() * 0.7 + 0.7).toFixed(2),
+      dur: (Math.random() * 40 + 60).toFixed(2),
+      delay: (-(i / count) * 85 + jitter).toFixed(2),
+      baseOp: (Math.random() * 0.18 + 0.28).toFixed(2),
+    };
+  });
 
   const cloudHtml = clouds.map((c) => {
     const op = isHigh ? Math.max(parseFloat(c.baseOp), 0.65) : (parseFloat(c.baseOp) * opacity);
@@ -1458,6 +1470,13 @@ class WeatherEventOverlayCard extends HTMLElement {
     this._wishstarTimer = null;
     this._wishstarPos = null;
     this._starsReshuffleTimer = null;
+    // Verbesserung: statt einen Effekt beim Beenden sofort komplett aus
+    // dem DOM zu entfernen, merkt sich diese Map, welche Effekte gerade
+    // "aktiv" sind und welche gerade "ausblenden" (mit Startzeitpunkt des
+    // Ausblendens). So kann jeder Effekt sanft verblassen statt abrupt zu
+    // verschwinden - siehe _updateEffectLayers() weiter unten.
+    this._effectLayers = new Map();
+    this._fadeRemovalTimers = new Map();
   }
 
   _ensurePortal() {
@@ -1503,6 +1522,10 @@ class WeatherEventOverlayCard extends HTMLElement {
       clearInterval(this._starsReshuffleTimer);
       this._starsReshuffleTimer = null;
     }
+    for (const timer of this._fadeRemovalTimers.values()) {
+      clearTimeout(timer);
+    }
+    this._fadeRemovalTimers.clear();
     if (this._visibilityPollTimer) {
       clearInterval(this._visibilityPollTimer);
       this._visibilityPollTimer = null;
@@ -1646,6 +1669,37 @@ class WeatherEventOverlayCard extends HTMLElement {
     }
   }
 
+  // Verbesserung: sorgt dafür, dass ein Effekt beim Beenden nicht sofort
+  // verschwindet, sondern erst als "ausblendend" markiert und nach der
+  // Fade-Dauer (FADE_DURATION_MS) endgültig entfernt wird. Wird ein Effekt
+  // während des Ausblendens wieder aktiviert (z. B. schnell wechselndes
+  // Wetter), springt er sofort zurück auf voll sichtbar.
+  _updateEffectLayers(events) {
+    for (const ev of events) {
+      const existing = this._effectLayers.get(ev);
+      if (!existing || existing.fadeStartedAt !== null) {
+        this._effectLayers.set(ev, { fadeStartedAt: null });
+      }
+    }
+    for (const [key, state] of this._effectLayers.entries()) {
+      if (!events.includes(key) && state.fadeStartedAt === null) {
+        state.fadeStartedAt = Date.now();
+        if (this._fadeRemovalTimers.has(key)) {
+          clearTimeout(this._fadeRemovalTimers.get(key));
+        }
+        const timer = setTimeout(() => {
+          const cur = this._effectLayers.get(key);
+          if (cur && cur.fadeStartedAt !== null) {
+            this._effectLayers.delete(key);
+            this._fadeRemovalTimers.delete(key);
+            this._render();
+          }
+        }, FADE_DURATION_MS + 150);
+        this._fadeRemovalTimers.set(key, timer);
+      }
+    }
+  }
+
   _render() {
     if (!this._config) return;
     if (!this._portalShadow) return;
@@ -1654,14 +1708,22 @@ class WeatherEventOverlayCard extends HTMLElement {
     this._updateSnowAccumulation(events);
     this._updateWishstar(events);
     this._updateStarsReshuffle(events);
+    this._updateEffectLayers(events);
 
+    // Verbesserung: Startzeiten periodischer Effekte (Hund, Weihnachtsmann,
+    // Komet) erst aufräumen, wenn der Effekt WIRKLICH komplett weg ist
+    // (auch aus den Fade-Layern) - sonst würde die Position/Startzeit
+    // während des sanften Ausblendens plötzlich zurückgesetzt und der
+    // Effekt würde beim Verblassen sichtbar "springen".
     for (const key of Object.keys(this._periodicStartTimes)) {
-      if (!events.includes(key)) delete this._periodicStartTimes[key];
+      if (!this._effectLayers.has(key)) delete this._periodicStartTimes[key];
     }
 
-    let combinedCss = "";
+    let combinedCss = `
+      @keyframes fx-fade-out { from { opacity: 1; } to { opacity: 0; } }
+    `;
     let combinedHtml = "";
-    for (const event of events) {
+    for (const [event, state] of this._effectLayers.entries()) {
       const renderer = RENDERERS[event];
       if (!renderer) continue;
       let cfgForRender = this._config;
@@ -1684,17 +1746,25 @@ class WeatherEventOverlayCard extends HTMLElement {
             drift: Math.random() * 16 - 8,
           };
         }
-        const state = this._periodicStartTimes[event];
+        const pState = this._periodicStartTimes[event];
         cfgForRender = {
           ...this._config,
-          _startTime: state.start,
-          _startHeight: state.startHeight,
-          _drift: state.drift,
+          _startTime: pState.start,
+          _startHeight: pState.startHeight,
+          _drift: pState.drift,
         };
       }
       const { css, html } = renderer(cfgForRender, this._hass, this);
       combinedCss += css;
-      combinedHtml += html;
+      // Fading-Layer bekommen eine "resume mid-animation"-Verzögerung wie
+      // bei santa/dog/comet: negativer animation-delay aus der bereits
+      // verstrichenen Ausblend-Zeit, damit ein Neu-Rendern während des
+      // Verblassens (z. B. durch andere laufende Timer) den Fade nicht
+      // wieder von vorne beginnen lässt.
+      const layerStyle = state.fadeStartedAt !== null
+        ? `animation: fx-fade-out ${(FADE_DURATION_MS / 1000).toFixed(2)}s linear forwards; animation-delay: -${((Date.now() - state.fadeStartedAt) / 1000).toFixed(2)}s;`
+        : "opacity: 1;";
+      combinedHtml += `<div style="${layerStyle}">${html}</div>`;
     }
 
     this._portalShadow.innerHTML = `<style>${combinedCss}</style>${combinedHtml}`;
