@@ -290,6 +290,7 @@ function mapWeatherStateToEvents(state) {
 const COUNT_IS_INTERVAL_TEXT = {
   santa: "Wie oft der Weihnachtsmann vorbeifliegt: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur einen Schlitten gibt).",
   dog: "Wie oft der Labrador durchläuft: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur einen Hund gibt).",
+  dog_peek: "Wie oft der Hundekopf auftaucht: Wenig ≈ alle 100 Sek., Mittel ≈ alle 60 Sek., Viel ≈ alle 30 Sek. (keine Partikelmenge, da es nur einen Kopf gibt).",
   comet: "Wie oft der Komet vorbeizieht: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (deutlich seltener als Sternschnuppen).",
 };
 
@@ -310,6 +311,7 @@ const EVENT_CAPABILITIES = {
   spider: { count: false, opacity: true, color: true },
   stars: { count: true, opacity: true, color: true },
   dog: { count: true, opacity: true, color: false },
+  dog_peek: { count: true, opacity: true, color: false },
   comet: { count: true, opacity: true, color: true },
   bats: { count: true, opacity: true, color: true },
   owl: { count: false, opacity: true, color: false },
@@ -846,7 +848,7 @@ function renderDog(cfg, hass, hostEl) {
       pointer-events: none; z-index: 9999; overflow: hidden;
     }
     .dog-walk-box {
-      position: absolute; top: ${startHeight}vh; left: -160px; width: 140px; height: 55px;
+      position: absolute; top: ${startHeight}vh; left: -185px; width: 165px; height: 55px;
       animation: dog-walk ${interval}s linear infinite; animation-delay: ${delaySec}s; will-change: transform;
     }
     .dog-bob {
@@ -877,7 +879,7 @@ function renderDog(cfg, hass, hostEl) {
     <div class="dog-container" style="opacity:${finalOpacity};" aria-hidden="true">
       <div class="dog-walk-box">
         <div class="dog-bob">
-          <svg viewBox="0 0 120 55" preserveAspectRatio="xMidYMid meet">
+          <svg viewBox="-25 0 145 55" preserveAspectRatio="xMidYMid meet">
             <g class="dog-leg-a" style="transform-origin: 88px 36px;">
               <path d="M88,36 Q92,42 95,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
             </g>
@@ -890,7 +892,7 @@ function renderDog(cfg, hass, hostEl) {
             <g class="dog-leg-a" style="transform-origin: 25px 36px;">
               <path d="M25,36 Q21,42 18,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
             </g>
-            <path d="M22,20 Q10,14 14,26 Q18,30 25,26 Z" fill="#d4a25c"/>
+            <path d="M24,22 Q4,8 -14,14 Q-8,24 2,26 Q10,28 24,24 Z" fill="#d4a25c"/>
             <ellipse cx="55" cy="25" rx="35" ry="14" fill="#d4a25c"/>
             <ellipse cx="95" cy="18" rx="13" ry="11" fill="#d4a25c"/>
             <path d="M90,12 Q80,10 82,22 Q86,26 92,20 Z" fill="#a67c3d"/>
@@ -900,6 +902,76 @@ function renderDog(cfg, hass, hostEl) {
           </svg>
         </div>
       </div>
+    </div>
+  `;
+  return { css, html };
+}
+
+function renderDogPeek(cfg, hass, hostEl) {
+  // Guck-Hund: ein Hundekopf (Schlappohren, Kulleraugen mit Glanzpunkt,
+  // große Schnauze - angelehnt an ein Kuscheltier-Foto) taucht am unteren
+  // Bildschirmrand auf, blinzelt ein paar Mal, verschwindet wieder nach
+  // unten und kommt nach einer Weile auf der ANDEREN Seite wieder. Zwei
+  // unabhängige "Slots" (links/rechts) mit demselben Zyklus, aber um eine
+  // halbe Zykluslänge versetzt, sodass nie beide gleichzeitig auftauchen.
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+  const finalOpacity = isHigh ? 1 : opacity;
+  const interval = { low: 100, medium: 60, high: 30 }[cfg.count_preset || "medium"] || 60;
+  const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
+  const delayLeftSec = (-(elapsedSec % interval)).toFixed(2);
+  const delayRightSec = (-(((elapsedSec + interval / 2) % interval))).toFixed(2);
+
+  const headSvg = `
+    <path d="M18,26 Q1,37 8,62 Q15,80 27,73 Q20,50 24,29 Z" fill="#b8863f"/>
+    <path d="M82,26 Q99,37 92,62 Q85,80 73,73 Q80,50 76,29 Z" fill="#b8863f"/>
+    <ellipse cx="50" cy="49" rx="34" ry="32" fill="#d9a866"/>
+    <path d="M29,32 Q35,27 41,31" stroke="#a67c3d" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M71,32 Q65,27 59,31" stroke="#a67c3d" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <circle cx="37" cy="43" r="7.5" fill="#241708"/>
+    <circle cx="63" cy="43" r="7.5" fill="#241708"/>
+    <circle cx="34.5" cy="40" r="2" fill="#ffffff"/>
+    <circle cx="60.5" cy="40" r="2" fill="#ffffff"/>
+    <circle class="dogpeek-eye-lid left" cx="37" cy="43" r="7.5" fill="#d9a866"/>
+    <circle class="dogpeek-eye-lid right" cx="63" cy="43" r="7.5" fill="#d9a866"/>
+    <ellipse cx="50" cy="61" rx="12" ry="9" fill="#1a1008"/>
+    <path d="M40,73 Q50,79 60,73" stroke="#1a1008" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  `;
+
+  const css = `
+    .dogpeek-box {
+      position: fixed; bottom: 0; width: 34vw; height: 27vw; max-width: 320px; max-height: 254px;
+      pointer-events: none; z-index: 9999;
+      animation-name: dogpeek-cycle; animation-timing-function: ease-in-out; animation-iteration-count: infinite;
+      animation-duration: ${interval}s; will-change: transform;
+    }
+    .dogpeek-box.left { left: 1vw; animation-delay: ${delayLeftSec}s; }
+    .dogpeek-box.right { right: 1vw; animation-delay: ${delayRightSec}s; }
+    @keyframes dogpeek-cycle {
+      0%   { transform: translateY(100%); }
+      4%   { transform: translateY(9%); }
+      20%  { transform: translateY(9%); }
+      25%  { transform: translateY(100%); }
+      100% { transform: translateY(100%); }
+    }
+    .dogpeek-eye-lid {
+      transform-origin: center; transform-box: fill-box;
+    }
+    .dogpeek-eye-lid.left { animation: dogpeek-blink-left 5s ease-in-out infinite; }
+    .dogpeek-eye-lid.right { animation: dogpeek-blink-right 5s ease-in-out infinite; }
+    @keyframes dogpeek-blink-left {
+      0%, 15%, 22%, 100% { transform: scaleY(0); }
+      18% { transform: scaleY(1); }
+    }
+    @keyframes dogpeek-blink-right {
+      0%, 45%, 52%, 100% { transform: scaleY(0); }
+      48% { transform: scaleY(1); }
+    }
+  `;
+  const html = `
+    <div aria-hidden="true" style="opacity:${finalOpacity};">
+      <div class="dogpeek-box left"><svg viewBox="0 0 100 90" style="width:100%; height:100%;">${headSvg}</svg></div>
+      <div class="dogpeek-box right"><svg viewBox="0 0 100 90" style="width:100%; height:100%;">${headSvg}</svg></div>
     </div>
   `;
   return { css, html };
@@ -1444,6 +1516,7 @@ const RENDERERS = {
   spider: renderSpider,
   stars: renderStars,
   dog: renderDog,
+  dog_peek: renderDogPeek,
   comet: renderComet,
   bats: renderBats,
   owl: renderOwl,
@@ -1748,7 +1821,7 @@ class WeatherEventOverlayCard extends HTMLElement {
         cfgForRender = { ...this._config, _snowLevel: this._snowLevel };
       } else if (event === "wishstar") {
         cfgForRender = { ...this._config, _wishstarPos: this._wishstarPos };
-      } else if (event === "santa" || event === "comet") {
+      } else if (event === "santa" || event === "comet" || event === "dog_peek") {
         if (!this._periodicStartTimes[event]) this._periodicStartTimes[event] = Date.now();
         cfgForRender = { ...this._config, _startTime: this._periodicStartTimes[event] };
       } else if (event === "dog") {
@@ -1879,6 +1952,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="santa" ${c.event === "santa" ? "selected" : ""}>🎅 Weihnachtsmann</option>
             <option value="spider" ${c.event === "spider" ? "selected" : ""}>🕷️ Spinne mit Netz</option>
             <option value="dog" ${c.event === "dog" ? "selected" : ""}>🐕 Goldener Labrador</option>
+            <option value="dog_peek" ${c.event === "dog_peek" ? "selected" : ""}>🐶 Guck-Hund (am Rand)</option>
             <option value="bats" ${c.event === "bats" ? "selected" : ""}>🦇 Fledermäuse</option>
             <option value="owl" ${c.event === "owl" ? "selected" : ""}>🦉 Eule</option>
             <option value="bee" ${c.event === "bee" ? "selected" : ""}>🐝 Bienen</option>
