@@ -1574,9 +1574,13 @@ class WeatherEventOverlayCard extends HTMLElement {
     const oldWeatherState = weatherEntity ? this._hass?.states?.[weatherEntity]?.state : undefined;
     this._hass = hass;
     const newWeatherState = weatherEntity ? hass?.states?.[weatherEntity]?.state : undefined;
+    // Sanftes Ausblenden nur bei einer ECHTEN automatischen Wetteränderung
+    // (nicht beim allerersten Rendern - da gibt's ja noch nichts, von dem
+    // aus geblendet werden könnte).
+    const isRealWeatherChange = this._hasRenderedOnce && oldWeatherState !== newWeatherState;
 
     if (!this._hasRenderedOnce || oldWeatherState !== newWeatherState) {
-      this._render();
+      this._render(isRealWeatherChange);
       this._hasRenderedOnce = true;
     }
   }
@@ -1674,7 +1678,7 @@ class WeatherEventOverlayCard extends HTMLElement {
   // Fade-Dauer (FADE_DURATION_MS) endgültig entfernt wird. Wird ein Effekt
   // während des Ausblendens wieder aktiviert (z. B. schnell wechselndes
   // Wetter), springt er sofort zurück auf voll sichtbar.
-  _updateEffectLayers(events) {
+  _updateEffectLayers(events, allowFade) {
     for (const ev of events) {
       const existing = this._effectLayers.get(ev);
       if (!existing || existing.fadeStartedAt !== null) {
@@ -1683,6 +1687,19 @@ class WeatherEventOverlayCard extends HTMLElement {
     }
     for (const [key, state] of this._effectLayers.entries()) {
       if (!events.includes(key) && state.fadeStartedAt === null) {
+        if (!allowFade) {
+          // Manueller Wechsel (Editor-Dropdown) oder interner Timer -
+          // sofort entfernen, kein Ausblenden. Sanftes Ausblenden gibt's
+          // nur, wenn sich das Wetter selbstständig ändert (siehe set
+          // hass() weiter oben) - dort schaut man ja nicht zwangsläufig
+          // gerade auf den Bildschirm.
+          this._effectLayers.delete(key);
+          if (this._fadeRemovalTimers.has(key)) {
+            clearTimeout(this._fadeRemovalTimers.get(key));
+            this._fadeRemovalTimers.delete(key);
+          }
+          continue;
+        }
         state.fadeStartedAt = Date.now();
         if (this._fadeRemovalTimers.has(key)) {
           clearTimeout(this._fadeRemovalTimers.get(key));
@@ -1700,7 +1717,7 @@ class WeatherEventOverlayCard extends HTMLElement {
     }
   }
 
-  _render() {
+  _render(allowFade = false) {
     if (!this._config) return;
     if (!this._portalShadow) return;
 
@@ -1708,7 +1725,7 @@ class WeatherEventOverlayCard extends HTMLElement {
     this._updateSnowAccumulation(events);
     this._updateWishstar(events);
     this._updateStarsReshuffle(events);
-    this._updateEffectLayers(events);
+    this._updateEffectLayers(events, allowFade);
 
     // Verbesserung: Startzeiten periodischer Effekte (Hund, Weihnachtsmann,
     // Komet) erst aufräumen, wenn der Effekt WIRKLICH komplett weg ist
