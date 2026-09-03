@@ -834,15 +834,15 @@ function renderSpider(cfg, hass, hostEl) {
 
 
 
+
 function renderTrain(cfg, hass, hostEl) {
-  // Dampflok, nah am Referenzbild nachgebaut. Wichtige Fixes gegenüber der
-  // ersten Version: Kessel sitzt jetzt wirklich (mit Überlappung) auf dem
-  // Rad-Fahrgestell statt mit Lücke darüber zu schweben; Schornstein sitzt
-  // direkt auf der Nase, Rauch steigt sichtbar darüber auf; Räder drehen
-  // sich jetzt zuverlässig um ihren EIGENEN Mittelpunkt (transform-box:
-  // fill-box statt manueller Pixel-Koordinaten, die je nach Browser
-  // uneinheitlich interpretiert werden können - gleiche Lehre wie beim
-  // Eulen-Blinzeln-Fix).
+  // Dampflok, nah am Referenzbild. Diesmal: kleinerer Maßstab, zwei
+  // Waggons (per wiederverwendbarer Helper-Funktion), und der Rauch-Bug
+  // behoben - der Rauch hatte GENAU DASSELBE Problem wie vorher die Räder
+  // (scale()/translate() ohne "transform-box: fill-box" skaliert relativ
+  // zum SVG-Nullpunkt statt zum eigenen Kreismittelpunkt, wodurch der
+  // Rauch beim Animieren weit weg vom Schornstein "springt" statt sauber
+  // aus ihm aufzusteigen).
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
@@ -852,7 +852,7 @@ function renderTrain(cfg, hass, hostEl) {
   const delaySec = (-(elapsedSec % interval)).toFixed(2);
 
   const smokeHtml = [0, 1, 2].map((i) => `
-    <circle class="train-smoke" cx="${202 - i * 7}" cy="${-2 - i * 8}" r="${5.5 + i * 1.4}" fill="#d9d9d9" stroke="#1a1a1a" stroke-width="1.5"
+    <circle class="train-smoke" cx="${314 - i * 7}" cy="${-2 - i * 8}" r="${5.5 + i * 1.4}" fill="#d9d9d9" stroke="#1a1a1a" stroke-width="1.5"
       style="animation-duration:${(2 + i * 0.2).toFixed(2)}s; animation-delay:${(i * 0.55).toFixed(2)}s;"/>
   `).join("");
 
@@ -862,13 +862,13 @@ function renderTrain(cfg, hass, hostEl) {
       pointer-events: none; z-index: 9999; overflow: hidden;
     }
     .train-box {
-      position: absolute; bottom: 0; left: -280px; width: 260px; height: 90px;
+      position: absolute; bottom: 0; left: -240px; width: 220px; height: 57px;
       animation: train-drive ${interval}s linear infinite; animation-delay: ${delaySec}s; will-change: transform;
     }
     @keyframes train-drive {
       0% { transform: translateX(0); }
-      ${walkPct}% { transform: translateX(calc(100vw + 300px)); }
-      100% { transform: translateX(calc(100vw + 300px)); }
+      ${walkPct}% { transform: translateX(calc(100vw + 260px)); }
+      100% { transform: translateX(calc(100vw + 260px)); }
     }
     .train-wheel {
       animation: train-wheel-spin 0.6s linear infinite;
@@ -877,6 +877,7 @@ function renderTrain(cfg, hass, hostEl) {
     @keyframes train-wheel-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     .train-smoke {
       animation-name: train-smoke-rise; animation-timing-function: ease-out; animation-iteration-count: infinite;
+      transform-box: fill-box; transform-origin: center;
     }
     @keyframes train-smoke-rise {
       0%   { transform: translate(0,0) scale(0.5); opacity: 0.9; }
@@ -884,10 +885,8 @@ function renderTrain(cfg, hass, hostEl) {
     }
   `;
 
-  // Jedes Rad ist eine eigene <g> mit Kreis+Nabe - "transform-box: fill-box"
-  // (aus der CSS-Klasse .train-wheel) sorgt dafür, dass sich JEDES Rad um
-  // seinen EIGENEN Mittelpunkt dreht, unabhängig von seiner Position im
-  // Bild - kein manuelles Ausrechnen von Koordinaten pro Rad mehr nötig.
+  // Jedes Rad dreht sich um seinen EIGENEN Mittelpunkt (transform-box:
+  // fill-box aus der CSS-Klasse), unabhängig von seiner Position im Bild.
   const wheel = (cx, cy, r) => `
     <g class="train-wheel">
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2"/>
@@ -895,58 +894,64 @@ function renderTrain(cfg, hass, hostEl) {
     </g>
   `;
 
+  // Ein Waggon als wiederverwendbarer Baustein, per translate(x,0) an
+  // beliebiger Stelle einsetzbar.
+  const wagon = (x) => `
+    <g transform="translate(${x},0)">
+      <path d="M2,30 Q9,22 20,26 Q31,20 43,25 Q55,20 66,26 Q75,23 81,28 L81,32 L2,32 Z" fill="#1a1a1a"/>
+      <path d="M0,32 L83,32 Q87,32 87,38 L87,48 Q87,52 83,52 L4,52 Q0,52 0,48 Z" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2.5"/>
+      <rect x="8" y="39" width="71" height="9" fill="#ffffff"/>
+      ${wheel(15, 58, 6.5)}
+      ${wheel(43, 58, 6.5)}
+      ${wheel(71, 58, 6.5)}
+    </g>
+  `;
+
   const html = `
     <div class="train-container" style="opacity:${finalOpacity};" aria-hidden="true">
       <div class="train-box">
-        <svg viewBox="0 -24 260 90" preserveAspectRatio="xMidYMid meet">
+        <svg viewBox="0 -24 350 90" preserveAspectRatio="xMidYMid meet">
           <!-- Boden-/Gleislinie -->
-          <path d="M2,58 L256,58" stroke="#1a1a1a" stroke-width="2"/>
+          <path d="M2,58 L346,58" stroke="#1a1a1a" stroke-width="2"/>
 
-          <!-- Waggon: schwarze Kohle-Silhouette oben -->
-          <path d="M10,30 Q18,22 30,26 Q42,20 55,25 Q68,20 80,26 Q90,23 96,28 L96,32 L10,32 Z" fill="#1a1a1a"/>
-          <!-- Waggon: roter Korpus -->
-          <path d="M8,32 L98,32 Q102,32 102,38 L102,48 Q102,52 98,52 L12,52 Q8,52 8,48 Z" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2.5"/>
-          <!-- Waggon: weißer Streifen -->
-          <rect x="16" y="39" width="78" height="9" fill="#ffffff"/>
-          <!-- Waggon: Räder -->
-          ${wheel(24, 58, 7)}
-          ${wheel(55, 58, 7)}
-          ${wheel(86, 58, 7)}
+          <!-- Zwei Waggons -->
+          ${wagon(4)}
+          ${wagon(101)}
 
-          <!-- Kupplung -->
-          <path d="M102,50 L112,50" stroke="#1a1a1a" stroke-width="2"/>
+          <!-- Kupplung zur Lok -->
+          <path d="M214,50 L224,50" stroke="#1a1a1a" stroke-width="2"/>
 
-          <!-- Fahrgestell-Rahmen (verbindet Räder mit Kessel, keine Lücke) -->
-          <rect x="126" y="42" width="96" height="8" fill="#3a3a3a"/>
+          <!-- Fahrgestell-Rahmen (verbindet Lok-Kessel mit den Rädern, keine Lücke) -->
+          <rect x="238" y="42" width="96" height="8" fill="#3a3a3a"/>
 
-          <!-- Roter Kessel - sitzt jetzt DIREKT auf dem Fahrgestell -->
-          <rect x="128" y="18" width="60" height="26" rx="10" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2.5"/>
-          <path d="M144,18 L144,8 M151,18 L149,10" stroke="#ee1c1c" stroke-width="2.5" stroke-linecap="round"/>
+          <!-- Roter Kessel - sitzt direkt auf dem Fahrgestell -->
+          <rect x="240" y="18" width="60" height="26" rx="10" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2.5"/>
+          <path d="M256,18 L256,8 M263,18 L261,10" stroke="#ee1c1c" stroke-width="2.5" stroke-linecap="round"/>
 
-          <!-- Kabinen-Aufbau (heller Block mit Faehnchen), sitzt auf dem Kessel -->
-          <path d="M182,8 L182,2 L188,8 Z" fill="#ee1c1c"/>
-          <rect x="160" y="6" width="24" height="22" rx="2" fill="#f5f0e6" stroke="#1a1a1a" stroke-width="2.5"/>
-          <path d="M164,22 L168,12" stroke="#1a1a1a" stroke-width="2"/>
+          <!-- Kabinen-Aufbau mit Fähnchen, sitzt auf dem Kessel -->
+          <path d="M294,8 L294,2 L300,8 Z" fill="#ee1c1c"/>
+          <rect x="272" y="6" width="24" height="22" rx="2" fill="#f5f0e6" stroke="#1a1a1a" stroke-width="2.5"/>
+          <path d="M276,22 L280,12" stroke="#1a1a1a" stroke-width="2"/>
 
           <!-- Schwarze runde Nase, direkt am Kessel -->
-          <path d="M186,18 Q212,13 226,24 Q226,37 216,42 Q198,44 186,40 Z" fill="#1a1a1a"/>
-          <circle cx="217" cy="26" r="2.3" fill="#ee1c1c"/>
+          <path d="M298,18 Q324,13 338,24 Q338,37 328,42 Q310,44 298,40 Z" fill="#1a1a1a"/>
+          <circle cx="329" cy="26" r="2.3" fill="#ee1c1c"/>
 
-          <!-- Schornstein (Trichter), sitzt direkt auf der Nase -->
-          <path d="M199,17 L195,5 Q195,1 201,1 L212,1 Q218,1 218,5 L214,17 Z" fill="#f5f0e6" stroke="#1a1a1a" stroke-width="2.5"/>
+          <!-- Schornstein, sitzt direkt auf der Nase -->
+          <path d="M311,17 L307,5 Q307,1 313,1 L324,1 Q330,1 330,5 L326,17 Z" fill="#f5f0e6" stroke="#1a1a1a" stroke-width="2.5"/>
 
           <!-- Dampf, steigt sichtbar über dem Schornstein auf -->
           <g>${smokeHtml}</g>
 
           <!-- Kuhfänger -->
-          <path d="M225,42 Q236,46 242,54 L220,54 Z" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2"/>
-          <path d="M126,58 L120,54 M118,58 L112,53" stroke="#ee1c1c" stroke-width="2" stroke-linecap="round"/>
+          <path d="M337,42 Q348,46 354,54 L332,54 Z" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2"/>
+          <path d="M238,58 L232,54 M230,58 L224,53" stroke="#ee1c1c" stroke-width="2" stroke-linecap="round"/>
 
           <!-- Räder Lok (groß, dicht unter dem Kessel, verbunden) -->
-          <path d="M148,50 L182,50" stroke="#1a1a1a" stroke-width="3"/>
-          ${wheel(146, 54, 10)}
-          ${wheel(182, 54, 10)}
-          ${wheel(214, 56, 7)}
+          <path d="M260,50 L294,50" stroke="#1a1a1a" stroke-width="3"/>
+          ${wheel(258, 54, 10)}
+          ${wheel(294, 54, 10)}
+          ${wheel(326, 56, 7)}
         </svg>
       </div>
     </div>
