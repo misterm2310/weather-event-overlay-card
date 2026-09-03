@@ -866,13 +866,13 @@ function renderTrain(cfg, hass, hostEl) {
       pointer-events: none; z-index: 9999; overflow: hidden;
     }
     .train-box {
-      position: absolute; bottom: 1vh; left: -230px; width: 210px; height: 57px;
+      position: absolute; bottom: 1vh; left: -160px; width: 137px; height: 37px;
       animation: train-drive ${interval}s linear infinite; animation-delay: ${delaySec}s; will-change: transform;
     }
     @keyframes train-drive {
       0% { transform: translateX(0); }
-      ${walkPct}% { transform: translateX(calc(100vw + 250px)); }
-      100% { transform: translateX(calc(100vw + 250px)); }
+      ${walkPct}% { transform: translateX(calc(100vw + 180px)); }
+      100% { transform: translateX(calc(100vw + 180px)); }
     }
     .train-wheel {
       animation: train-wheel-spin 0.6s linear infinite;
