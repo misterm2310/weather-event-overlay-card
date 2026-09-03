@@ -835,14 +835,16 @@ function renderSpider(cfg, hass, hostEl) {
 
 
 
+
 function renderTrain(cfg, hass, hostEl) {
-  // Dampflok, nah am Referenzbild. Diesmal: kleinerer Maßstab, zwei
-  // Waggons (per wiederverwendbarer Helper-Funktion), und der Rauch-Bug
-  // behoben - der Rauch hatte GENAU DASSELBE Problem wie vorher die Räder
-  // (scale()/translate() ohne "transform-box: fill-box" skaliert relativ
-  // zum SVG-Nullpunkt statt zum eigenen Kreismittelpunkt, wodurch der
-  // Rauch beim Animieren weit weg vom Schornstein "springt" statt sauber
-  // aus ihm aufzusteigen).
+  // Dampflok, nah am Referenzbild. Neu: die Lok selbst sitzt jetzt in
+  // einer eigenen <g transform="translate(...)">-Gruppe mit LOKALEN
+  // Koordinaten (statt überall Koordinaten von Hand zu verschieben) - so
+  // lässt sich der Abstand zu den Waggons einfach über einen einzigen
+  // Versatz-Wert einstellen. Waggons sitzen jetzt enger an der Lok.
+  // Außerdem: "bottom" nicht mehr exakt auf 0, sondern leicht nach oben
+  // versetzt - falls echte Geräte-/App-UI-Elemente die exakte
+  // Bildschirmkante verdecken (gleiches Prinzip wie beim Eulen-Fix).
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
@@ -851,8 +853,10 @@ function renderTrain(cfg, hass, hostEl) {
   const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
   const delaySec = (-(elapsedSec % interval)).toFixed(2);
 
+  const LOCO_X = 202; // Versatz der Lok-Gruppe - steuert den Abstand zu den Waggons
+
   const smokeHtml = [0, 1, 2].map((i) => `
-    <circle class="train-smoke" cx="${314 - i * 7}" cy="${-2 - i * 8}" r="${5.5 + i * 1.4}" fill="#d9d9d9" stroke="#1a1a1a" stroke-width="1.5"
+    <circle class="train-smoke" cx="${76 - i * 7}" cy="${-2 - i * 8}" r="${5.5 + i * 1.4}" fill="#d9d9d9" stroke="#1a1a1a" stroke-width="1.5"
       style="animation-duration:${(2 + i * 0.2).toFixed(2)}s; animation-delay:${(i * 0.55).toFixed(2)}s;"/>
   `).join("");
 
@@ -862,13 +866,13 @@ function renderTrain(cfg, hass, hostEl) {
       pointer-events: none; z-index: 9999; overflow: hidden;
     }
     .train-box {
-      position: absolute; bottom: 0; left: -240px; width: 220px; height: 57px;
+      position: absolute; bottom: 1vh; left: -230px; width: 210px; height: 57px;
       animation: train-drive ${interval}s linear infinite; animation-delay: ${delaySec}s; will-change: transform;
     }
     @keyframes train-drive {
       0% { transform: translateX(0); }
-      ${walkPct}% { transform: translateX(calc(100vw + 260px)); }
-      100% { transform: translateX(calc(100vw + 260px)); }
+      ${walkPct}% { transform: translateX(calc(100vw + 250px)); }
+      100% { transform: translateX(calc(100vw + 250px)); }
     }
     .train-wheel {
       animation: train-wheel-spin 0.6s linear infinite;
@@ -885,8 +889,6 @@ function renderTrain(cfg, hass, hostEl) {
     }
   `;
 
-  // Jedes Rad dreht sich um seinen EIGENEN Mittelpunkt (transform-box:
-  // fill-box aus der CSS-Klasse), unabhängig von seiner Position im Bild.
   const wheel = (cx, cy, r) => `
     <g class="train-wheel">
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2"/>
@@ -894,8 +896,6 @@ function renderTrain(cfg, hass, hostEl) {
     </g>
   `;
 
-  // Ein Waggon als wiederverwendbarer Baustein, per translate(x,0) an
-  // beliebiger Stelle einsetzbar.
   const wagon = (x) => `
     <g transform="translate(${x},0)">
       <path d="M2,30 Q9,22 20,26 Q31,20 43,25 Q55,20 66,26 Q75,23 81,28 L81,32 L2,32 Z" fill="#1a1a1a"/>
@@ -907,51 +907,51 @@ function renderTrain(cfg, hass, hostEl) {
     </g>
   `;
 
+  // Die komplette Lok in lokalen Koordinaten (0 = eigener Anfang), wird
+  // per translate(LOCO_X,0) an die richtige Stelle geschoben.
+  const locoHtml = `
+    <g transform="translate(${LOCO_X},0)">
+      <!-- Fahrgestell-Rahmen -->
+      <rect x="0" y="42" width="96" height="8" fill="#3a3a3a"/>
+      <!-- Roter Kessel -->
+      <rect x="2" y="18" width="60" height="26" rx="10" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2.5"/>
+      <path d="M18,18 L18,8 M25,18 L23,10" stroke="#ee1c1c" stroke-width="2.5" stroke-linecap="round"/>
+      <!-- Kabinen-Aufbau mit Fähnchen -->
+      <path d="M56,8 L56,2 L62,8 Z" fill="#ee1c1c"/>
+      <rect x="34" y="6" width="24" height="22" rx="2" fill="#f5f0e6" stroke="#1a1a1a" stroke-width="2.5"/>
+      <path d="M38,22 L42,12" stroke="#1a1a1a" stroke-width="2"/>
+      <!-- Schwarze runde Nase -->
+      <path d="M60,18 Q86,13 100,24 Q100,37 90,42 Q72,44 60,40 Z" fill="#1a1a1a"/>
+      <circle cx="91" cy="26" r="2.3" fill="#ee1c1c"/>
+      <!-- Schornstein -->
+      <path d="M73,17 L69,5 Q69,1 75,1 L86,1 Q92,1 92,5 L88,17 Z" fill="#f5f0e6" stroke="#1a1a1a" stroke-width="2.5"/>
+      <!-- Dampf -->
+      <g>${smokeHtml}</g>
+      <!-- Kuhfänger -->
+      <path d="M99,42 Q110,46 116,54 L94,54 Z" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2"/>
+      <!-- Räder Lok -->
+      <path d="M22,50 L56,50" stroke="#1a1a1a" stroke-width="3"/>
+      ${wheel(20, 54, 10)}
+      ${wheel(56, 54, 10)}
+      ${wheel(88, 56, 7)}
+    </g>
+  `;
+
   const html = `
     <div class="train-container" style="opacity:${finalOpacity};" aria-hidden="true">
       <div class="train-box">
-        <svg viewBox="0 -24 350 90" preserveAspectRatio="xMidYMid meet">
+        <svg viewBox="0 -24 330 90" preserveAspectRatio="xMidYMid meet">
           <!-- Boden-/Gleislinie -->
-          <path d="M2,58 L346,58" stroke="#1a1a1a" stroke-width="2"/>
+          <path d="M2,58 L326,58" stroke="#1a1a1a" stroke-width="2"/>
 
-          <!-- Zwei Waggons -->
+          <!-- Zwei Waggons, enger beieinander -->
           ${wagon(4)}
-          ${wagon(101)}
+          ${wagon(97)}
 
           <!-- Kupplung zur Lok -->
-          <path d="M214,50 L224,50" stroke="#1a1a1a" stroke-width="2"/>
+          <path d="M184,50 L${LOCO_X},50" stroke="#1a1a1a" stroke-width="2"/>
 
-          <!-- Fahrgestell-Rahmen (verbindet Lok-Kessel mit den Rädern, keine Lücke) -->
-          <rect x="238" y="42" width="96" height="8" fill="#3a3a3a"/>
-
-          <!-- Roter Kessel - sitzt direkt auf dem Fahrgestell -->
-          <rect x="240" y="18" width="60" height="26" rx="10" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2.5"/>
-          <path d="M256,18 L256,8 M263,18 L261,10" stroke="#ee1c1c" stroke-width="2.5" stroke-linecap="round"/>
-
-          <!-- Kabinen-Aufbau mit Fähnchen, sitzt auf dem Kessel -->
-          <path d="M294,8 L294,2 L300,8 Z" fill="#ee1c1c"/>
-          <rect x="272" y="6" width="24" height="22" rx="2" fill="#f5f0e6" stroke="#1a1a1a" stroke-width="2.5"/>
-          <path d="M276,22 L280,12" stroke="#1a1a1a" stroke-width="2"/>
-
-          <!-- Schwarze runde Nase, direkt am Kessel -->
-          <path d="M298,18 Q324,13 338,24 Q338,37 328,42 Q310,44 298,40 Z" fill="#1a1a1a"/>
-          <circle cx="329" cy="26" r="2.3" fill="#ee1c1c"/>
-
-          <!-- Schornstein, sitzt direkt auf der Nase -->
-          <path d="M311,17 L307,5 Q307,1 313,1 L324,1 Q330,1 330,5 L326,17 Z" fill="#f5f0e6" stroke="#1a1a1a" stroke-width="2.5"/>
-
-          <!-- Dampf, steigt sichtbar über dem Schornstein auf -->
-          <g>${smokeHtml}</g>
-
-          <!-- Kuhfänger -->
-          <path d="M337,42 Q348,46 354,54 L332,54 Z" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2"/>
-          <path d="M238,58 L232,54 M230,58 L224,53" stroke="#ee1c1c" stroke-width="2" stroke-linecap="round"/>
-
-          <!-- Räder Lok (groß, dicht unter dem Kessel, verbunden) -->
-          <path d="M260,50 L294,50" stroke="#1a1a1a" stroke-width="3"/>
-          ${wheel(258, 54, 10)}
-          ${wheel(294, 54, 10)}
-          ${wheel(326, 56, 7)}
+          ${locoHtml}
         </svg>
       </div>
     </div>
