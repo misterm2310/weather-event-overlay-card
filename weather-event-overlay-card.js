@@ -834,11 +834,11 @@ function renderSpider(cfg, hass, hostEl) {
 
 
 function renderTrain(cfg, hass, hostEl) {
-  // Dampflok: fährt ganz am unteren Bildschirmrand entlang (bottom:0,
-  // nicht nur "fast unten"). Diesmal eine wirklich erkennbare Lok-Silhouette
-  // (runder Kessel, Schornstein mit Rauch, Kabine, Kuhfänger vorne, großes
-  // Triebrad mit Pleuelstange) statt eines einfachen Blocks - plus zwei
-  // angehängte Waggons dahinter.
+  // Dampflok, nah am mitgeschickten Referenzbild nachgebaut: Trichter-
+  // Schornstein mit aufsteigendem Rauch, schwarze runde Nase, roter Kessel,
+  // heller Kabinenaufbau mit kleinem Fähnchen, roter Kuhfänger vorne,
+  // verbundene rote Räder mit schwarzer Nabe. Fährt ganz unten (bottom:0),
+  // kleinerer Maßstab als zuvor, alle Räder drehen sich einzeln.
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
@@ -848,8 +848,8 @@ function renderTrain(cfg, hass, hostEl) {
   const delaySec = (-(elapsedSec % interval)).toFixed(2);
 
   const smokeHtml = [0, 1, 2].map((i) => `
-    <circle class="train-smoke" cx="317" cy="8" r="6" fill="#cfcfcf"
-      style="animation-duration:${(1.8 + i * 0.15).toFixed(2)}s; animation-delay:${(i * 0.6).toFixed(2)}s;"/>
+    <circle class="train-smoke" cx="${204 - i * 6}" cy="${-4 - i * 7}" r="${5.5 + i * 1.3}" fill="#d9d9d9" stroke="#1a1a1a" stroke-width="1.5"
+      style="animation-duration:${(2 + i * 0.2).toFixed(2)}s; animation-delay:${(i * 0.55).toFixed(2)}s;"/>
   `).join("");
 
   const css = `
@@ -858,90 +858,81 @@ function renderTrain(cfg, hass, hostEl) {
       pointer-events: none; z-index: 9999; overflow: hidden;
     }
     .train-box {
-      position: absolute; bottom: 0; left: -400px; width: 380px; height: 90px;
+      position: absolute; bottom: 0; left: -280px; width: 260px; height: 88px;
       animation: train-drive ${interval}s linear infinite; animation-delay: ${delaySec}s; will-change: transform;
     }
     @keyframes train-drive {
       0% { transform: translateX(0); }
-      ${walkPct}% { transform: translateX(calc(100vw + 420px)); }
-      100% { transform: translateX(calc(100vw + 420px)); }
+      ${walkPct}% { transform: translateX(calc(100vw + 300px)); }
+      100% { transform: translateX(calc(100vw + 300px)); }
     }
-    .train-wheel-big { animation: train-wheel-spin 0.6s linear infinite; transform-origin: 280px 70px; }
-    .train-wheel-small { animation: train-wheel-spin 0.6s linear infinite; transform-origin: center; }
-    .train-wagon-wheel { animation: train-wheel-spin 0.8s linear infinite; transform-origin: center; }
+    .train-wheel { animation: train-wheel-spin 0.6s linear infinite; }
+    @keyframes train-wheel-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     .train-smoke {
       animation-name: train-smoke-rise; animation-timing-function: ease-out; animation-iteration-count: infinite;
     }
-    @keyframes train-wheel-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     @keyframes train-smoke-rise {
-      0%   { transform: translate(0,0) scale(0.4); opacity: 0.75; }
-      100% { transform: translate(-14px,-42px) scale(1.7); opacity: 0; }
+      0%   { transform: translate(0,0) scale(0.5); opacity: 0.9; }
+      100% { transform: translate(-16px,-30px) scale(1.5); opacity: 0; }
     }
   `;
 
-  const wagon = (x, color) => `
-    <g transform="translate(${x},0)">
-      <rect x="0" y="34" width="76" height="30" rx="4" fill="${color}"/>
-      <rect x="6" y="40" width="20" height="14" rx="2" fill="rgba(255,255,255,0.35)"/>
-      <rect x="32" y="40" width="20" height="14" rx="2" fill="rgba(255,255,255,0.35)"/>
-      <g class="train-wagon-wheel" style="transform-origin: 18px 72px;">
-        <circle cx="18" cy="72" r="9" fill="#232323"/>
-        <circle cx="18" cy="72" r="3" fill="#8a8a8a"/>
-      </g>
-      <g class="train-wagon-wheel" style="transform-origin: 58px 72px;">
-        <circle cx="58" cy="72" r="9" fill="#232323"/>
-        <circle cx="58" cy="72" r="3" fill="#8a8a8a"/>
-      </g>
+  const wheel = (cx, cy, r) => `
+    <g class="train-wheel" style="transform-origin: ${cx}px ${cy}px;">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2"/>
+      <circle cx="${cx}" cy="${cy}" r="${r * 0.34}" fill="#1a1a1a"/>
     </g>
   `;
 
   const html = `
     <div class="train-container" style="opacity:${finalOpacity};" aria-hidden="true">
       <div class="train-box">
-        <svg viewBox="0 0 380 90" preserveAspectRatio="xMidYMid meet">
-          <!-- Kupplungen -->
-          <path d="M76,58 L94,58 M170,58 L188,58 M264,58 L282,58" stroke="#5a5a5a" stroke-width="3"/>
+        <svg viewBox="0 -22 260 88" preserveAspectRatio="xMidYMid meet">
+          <!-- Boden-/Gleislinie -->
+          <path d="M2,58 L256,58" stroke="#1a1a1a" stroke-width="2"/>
 
-          <!-- Waggon 1 (hinten) + Waggon 2 -->
-          ${wagon(4, "#3a7bd5")}
-          ${wagon(96, "#e8952a")}
+          <!-- Waggon: schwarze Kohle-Silhouette oben -->
+          <path d="M10,30 Q18,22 30,26 Q42,20 55,25 Q68,20 80,26 Q90,23 96,28 L96,32 L10,32 Z" fill="#1a1a1a"/>
+          <!-- Waggon: roter Korpus -->
+          <path d="M8,32 L98,32 Q102,32 102,38 L102,48 Q102,52 98,52 L12,52 Q8,52 8,48 Z" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2.5"/>
+          <!-- Waggon: weißer Streifen -->
+          <rect x="16" y="39" width="78" height="9" fill="#ffffff"/>
+          <!-- Waggon: Räder -->
+          ${wheel(24, 58, 7)}
+          ${wheel(55, 58, 7)}
+          ${wheel(86, 58, 7)}
 
-          <!-- Lok: Kabine -->
-          <rect x="192" y="14" width="42" height="46" rx="3" fill="#7a2020"/>
-          <rect x="200" y="22" width="14" height="14" rx="2" fill="rgba(255,255,255,0.4)"/>
+          <!-- Kupplung -->
+          <path d="M102,50 L112,50" stroke="#1a1a1a" stroke-width="2"/>
 
-          <!-- Lok: Kessel -->
-          <rect x="228" y="26" width="118" height="34" rx="16" fill="#b7343a"/>
-          <rect x="228" y="26" width="118" height="10" rx="5" fill="#d4454c"/>
+          <!-- Kabinen-Aufbau (heller Block mit Faehnchen) -->
+          <path d="M182,10 L182,4 L188,10 Z" fill="#ee1c1c"/>
+          <rect x="160" y="10" width="24" height="24" rx="2" fill="#f5f0e6" stroke="#1a1a1a" stroke-width="2.5"/>
+          <path d="M164,26 L168,16" stroke="#1a1a1a" stroke-width="2"/>
 
-          <!-- Dampfdom -->
-          <path d="M262,26 Q262,14 274,14 Q286,14 286,26 Z" fill="#8a2a2a"/>
+          <!-- Roter Kessel -->
+          <rect x="128" y="20" width="58" height="20" rx="9" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2.5"/>
+          <path d="M144,20 L144,10 M151,20 L149,12" stroke="#ee1c1c" stroke-width="2.5" stroke-linecap="round"/>
 
-          <!-- Schornstein + Rauch -->
-          <g transform="translate(10,0)">${smokeHtml}</g>
-          <path d="M311,26 Q311,6 317,6 Q323,6 323,26 Z" fill="#2a2a2a"/>
-          <ellipse cx="317" cy="6" rx="10" ry="3.5" fill="#1a1a1a"/>
+          <!-- Schwarze runde Nase -->
+          <path d="M184,20 Q210,15 224,26 Q224,37 216,41 Q198,43 184,40 Z" fill="#1a1a1a"/>
+          <circle cx="216" cy="28" r="2.3" fill="#ee1c1c"/>
 
-          <!-- Kuhfänger vorne -->
-          <path d="M346,58 L368,58 L360,40 L346,40 Z" fill="#2a2a2a"/>
-          <path d="M349,58 L353,40 M356,58 L360,40" stroke="#4a4a4a" stroke-width="2"/>
+          <!-- Schornstein (Trichter), sitzt auf der Nase -->
+          <path d="M198,19 L194,7 Q194,3 200,3 L211,3 Q217,3 217,7 L213,19 Z" fill="#f5f0e6" stroke="#1a1a1a" stroke-width="2.5"/>
 
-          <!-- Räder + Pleuelstange -->
-          <rect x="248" y="66" width="64" height="5" fill="#5a5a5a"/>
-          <g class="train-wheel-small" style="transform-origin: 250px 72px;">
-            <circle cx="250" cy="72" r="12" fill="#232323"/>
-            <circle cx="250" cy="72" r="4" fill="#8a8a8a"/>
-          </g>
-          <g class="train-wheel-big">
-            <circle cx="280" cy="70" r="17" fill="#232323"/>
-            <circle cx="280" cy="70" r="5" fill="#8a8a8a"/>
-            <rect x="278" y="53" width="4" height="34" fill="#8a8a8a"/>
-            <rect x="263" y="68" width="34" height="4" fill="#8a8a8a"/>
-          </g>
-          <g class="train-wheel-small" style="transform-origin: 312px 72px;">
-            <circle cx="312" cy="72" r="12" fill="#232323"/>
-            <circle cx="312" cy="72" r="4" fill="#8a8a8a"/>
-          </g>
+          <!-- Dampf, steigt über dem Schornstein auf -->
+          <g>${smokeHtml}</g>
+
+          <!-- Kuhfänger -->
+          <path d="M223,41 Q234,45 240,54 L218,54 Z" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2"/>
+          <path d="M126,58 L120,54 M118,58 L112,53" stroke="#ee1c1c" stroke-width="2" stroke-linecap="round"/>
+
+          <!-- Räder Lok (verbunden) -->
+          <path d="M150,52 L180,52" stroke="#1a1a1a" stroke-width="3"/>
+          ${wheel(148, 58, 8)}
+          ${wheel(180, 58, 8)}
+          ${wheel(212, 58, 6)}
         </svg>
       </div>
     </div>
