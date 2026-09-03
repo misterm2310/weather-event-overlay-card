@@ -290,6 +290,9 @@ function mapWeatherStateToEvents(state) {
 const COUNT_IS_INTERVAL_TEXT = {
   santa: "Wie oft der Weihnachtsmann vorbeifliegt: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur einen Schlitten gibt).",
   dog: "Wie oft der Labrador durchläuft: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur einen Hund gibt).",
+  unicorn: "Wie oft das Einhorn durchtrabt: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur eins gibt).",
+  train: "Wie oft die Dampflok vorbeituckert: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur eine gibt).",
+  peek_critter: "Wie oft die Maus irgendwo kurz auftaucht: Wenig ≈ alle 3 Min., Mittel ≈ alle 100 Sek., Viel ≈ alle 50 Sek. (keine Partikelmenge, da es nur eine gibt).",
 
   comet: "Wie oft der Komet vorbeizieht: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (deutlich seltener als Sternschnuppen).",
 };
@@ -311,6 +314,9 @@ const EVENT_CAPABILITIES = {
   spider: { count: false, opacity: true, color: true },
   stars: { count: true, opacity: true, color: true },
   dog: { count: true, opacity: true, color: false },
+  unicorn: { count: true, opacity: true, color: false },
+  train: { count: true, opacity: true, color: false },
+  peek_critter: { count: true, opacity: true, color: false },
 
   comet: { count: true, opacity: true, color: true },
   bats: { count: true, opacity: true, color: true },
@@ -823,6 +829,209 @@ function renderSpider(cfg, hass, hostEl) {
           <ellipse cx="50" cy="62" rx="15" ry="19" fill="#111"/>
           <circle class="spider-eye" cx="45" cy="35" r="2.5" fill="#ff0000"/>
           <circle class="spider-eye" cx="55" cy="35" r="2.5" fill="#ff0000"/>
+        </svg>
+      </div>
+    </div>
+  `;
+  return { css, html };
+}
+
+function renderPeekCritter(cfg, hass, hostEl) {
+  // Wimmelbild-Tier: eine kleine Maus taucht kurz und OHNE Ankündigung an
+  // einer zufälligen Stelle irgendwo auf dem Bildschirm auf, bleibt kurz
+  // stehen und verschwindet wieder komplett - wie bei einem Versteckspiel/
+  // Wimmelbild. Position kommt von der Haupt-Karte (_peekCritterPos, per
+  // Timer neu gewürfelt), Größe/Drehung leicht zufällig für den
+  // "zufällig irgendwo versteckt"-Effekt.
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+  const peak = isHigh ? 1 : Math.max(opacity, 0.55);
+  const pos = cfg._peekCritterPos || { top: 45, left: 45, scale: 1, rot: 0, flip: 1 };
+
+  const css = `
+    .peek-critter {
+      position: fixed; top: ${pos.top.toFixed(2)}vh; left: ${pos.left.toFixed(2)}vw;
+      width: 60px; height: 40px;
+      pointer-events: none; z-index: 9999;
+      transform: scale(${pos.scale.toFixed(2)}) rotate(${pos.rot.toFixed(1)}deg) scaleX(${pos.flip});
+      animation: peek-critter-flash 2.6s ease-in-out 1 forwards;
+      will-change: opacity, transform;
+    }
+    @keyframes peek-critter-flash {
+      0%   { opacity: 0; }
+      12%  { opacity: ${peak}; }
+      75%  { opacity: ${peak}; }
+      100% { opacity: 0; }
+    }
+  `;
+  const html = `
+    <div class="peek-critter" aria-hidden="true">
+      <svg viewBox="0 0 60 40" style="width:100%; height:100%;">
+        <path d="M46,20 Q58,10 56,22 Q54,28 46,24 Z" fill="#9a8b7a"/>
+        <ellipse cx="28" cy="24" rx="20" ry="13" fill="#a89a89"/>
+        <circle cx="14" cy="16" r="6" fill="#a89a89"/>
+        <circle cx="10" cy="12" r="3.5" fill="#c9bcaa"/>
+        <circle cx="18" cy="11" r="3.5" fill="#c9bcaa"/>
+        <circle cx="8" cy="18" r="1.5" fill="#241708"/>
+        <circle cx="4" cy="20" r="1.6" fill="#e0958a"/>
+        <path d="M2,22 L-4,20 M2,23 L-5,24" stroke="#5a4f42" stroke-width="0.8" fill="none"/>
+      </svg>
+    </div>
+  `;
+  return { css, html };
+}
+
+function renderUnicorn(cfg, hass, hostEl) {
+  // Regenbogen-Einhorn: trabt periodisch durchs Bild wie der Labrador,
+  // aber mit weißem Fell, buntem Regenbogen-Mähne/Schweif und Horn -
+  // rein verspielter Bonus-Effekt, feste Farben.
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+  const finalOpacity = isHigh ? 1 : opacity;
+  const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
+  const walkPct = Math.min(30, (20 / interval) * 100).toFixed(2);
+  const startHeight = (typeof cfg._startHeight === "number" ? cfg._startHeight : Math.random() * 70 + 10).toFixed(2);
+  const drift = typeof cfg._drift === "number" ? cfg._drift : (Math.random() * 16 - 8);
+  const driftHeight = (parseFloat(startHeight) + drift).toFixed(2);
+  const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
+  const delaySec = (-(elapsedSec % interval)).toFixed(2);
+
+  const css = `
+    .unicorn-container {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      pointer-events: none; z-index: 9999; overflow: hidden;
+    }
+    .unicorn-walk-box {
+      position: absolute; top: ${startHeight}vh; left: -170px; width: 150px; height: 58px;
+      animation: unicorn-walk ${interval}s linear infinite; animation-delay: ${delaySec}s; will-change: transform;
+    }
+    .unicorn-bob {
+      animation: dog-bob 0.55s ease-in-out infinite alternate;
+    }
+    @keyframes unicorn-walk {
+      0% { transform: translate(0, 0); }
+      ${walkPct}% { transform: translate(calc(100vw + 320px), ${(parseFloat(driftHeight) - parseFloat(startHeight)).toFixed(2)}vh); }
+      100% { transform: translate(calc(100vw + 320px), ${(parseFloat(driftHeight) - parseFloat(startHeight)).toFixed(2)}vh); }
+    }
+    .unicorn-leg-a { animation: dog-leg-swing-a 0.55s ease-in-out infinite alternate; }
+    .unicorn-leg-b { animation: dog-leg-swing-b 0.55s ease-in-out infinite alternate; }
+    .unicorn-mane-strand {
+      animation: unicorn-mane-wave 1.4s ease-in-out infinite alternate;
+    }
+    @keyframes unicorn-mane-wave {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-3px); }
+    }
+  `;
+
+  const html = `
+    <div class="unicorn-container" style="opacity:${finalOpacity};" aria-hidden="true">
+      <div class="unicorn-walk-box">
+        <div class="unicorn-bob">
+          <svg viewBox="0 0 130 58" preserveAspectRatio="xMidYMid meet">
+            <g class="unicorn-leg-a" style="transform-origin: 95px 38px;">
+              <path d="M95,38 Q99,44 102,50" stroke="#e8e4f0" stroke-width="6" stroke-linecap="round" fill="none"/>
+            </g>
+            <g class="unicorn-leg-b" style="transform-origin: 84px 38px;">
+              <path d="M84,38 Q82,44 80,50" stroke="#e8e4f0" stroke-width="6" stroke-linecap="round" fill="none"/>
+            </g>
+            <g class="unicorn-leg-b" style="transform-origin: 38px 38px;">
+              <path d="M38,38 Q42,44 45,50" stroke="#e8e4f0" stroke-width="6" stroke-linecap="round" fill="none"/>
+            </g>
+            <g class="unicorn-leg-a" style="transform-origin: 27px 38px;">
+              <path d="M27,38 Q23,44 20,50" stroke="#e8e4f0" stroke-width="6" stroke-linecap="round" fill="none"/>
+            </g>
+            <path class="unicorn-mane-strand" d="M60,10 Q50,16 62,22 Q52,26 64,32" stroke="#ff6fa5" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.9"/>
+            <path class="unicorn-mane-strand" d="M65,8 Q55,14 67,20 Q57,24 69,30" stroke="#7ec8ff" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.9"/>
+            <path class="unicorn-mane-strand" d="M70,9 Q60,15 72,21 Q62,25 74,31" stroke="#ffe066" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.9"/>
+            <path d="M18,22 Q6,30 12,40 M22,20 Q12,26 16,34" stroke="#ff6fa5" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.85"/>
+            <path d="M18,22 Q4,26 8,38" stroke="#7ec8ff" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.85"/>
+            <ellipse cx="60" cy="27" rx="38" ry="15" fill="#f5f3fa"/>
+            <ellipse cx="102" cy="19" rx="14" ry="12" fill="#f5f3fa"/>
+            <path d="M100,3 L106,14 L96,13 Z" fill="#ffe066"/>
+            <ellipse cx="115" cy="25" rx="7.5" ry="6" fill="#f0dce8"/>
+            <circle cx="121" cy="25" r="2" fill="#2a1a10"/>
+            <circle cx="104" cy="16" r="1.7" fill="#2a1a10"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  `;
+  return { css, html };
+}
+
+function renderTrain(cfg, hass, hostEl) {
+  // Dampflok: tuckert periodisch am unteren Bildrand entlang (feste
+  // "Boden"-Höhe statt zufälliger Höhe wie beim Hund), mit sich drehenden
+  // Rädern und kleinen aufsteigenden Rauchwölkchen aus dem Schornstein.
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+  const finalOpacity = isHigh ? 1 : opacity;
+  const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
+  const walkPct = Math.min(30, (26 / interval) * 100).toFixed(2);
+  const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
+  const delaySec = (-(elapsedSec % interval)).toFixed(2);
+
+  const css = `
+    .train-container {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      pointer-events: none; z-index: 9999; overflow: hidden;
+    }
+    .train-box {
+      position: absolute; top: 84vh; left: -220px; width: 190px; height: 80px;
+      animation: train-drive ${interval}s linear infinite; animation-delay: ${delaySec}s; will-change: transform;
+    }
+    @keyframes train-drive {
+      0% { transform: translateX(0); }
+      ${walkPct}% { transform: translateX(calc(100vw + 320px)); }
+      100% { transform: translateX(calc(100vw + 320px)); }
+    }
+    .train-wheel { animation: train-wheel-spin 0.7s linear infinite; transform-origin: center; }
+    .train-smoke {
+      animation-name: train-smoke-rise; animation-timing-function: ease-out; animation-iteration-count: infinite;
+    }
+    @keyframes train-wheel-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes train-smoke-rise {
+      0%   { transform: translate(0,0) scale(0.4); opacity: 0.7; }
+      100% { transform: translate(-10px,-38px) scale(1.6); opacity: 0; }
+    }
+  `;
+
+  const smokeHtml = [0, 1, 2].map((i) => `
+    <circle class="train-smoke" cx="18" cy="6" r="6" fill="#cfcfcf"
+      style="animation-duration:${(1.8 + i * 0.15).toFixed(2)}s; animation-delay:${(i * 0.6).toFixed(2)}s;"/>
+  `).join("");
+
+  const html = `
+    <div class="train-container" style="opacity:${finalOpacity};" aria-hidden="true">
+      <div class="train-box">
+        <svg viewBox="0 0 190 80" preserveAspectRatio="xMidYMid meet">
+          <g transform="translate(10,0)">${smokeHtml}</g>
+          <rect x="4" y="6" width="18" height="24" rx="2" fill="#2f4a5a"/>
+          <rect x="0" y="28" width="26" height="8" fill="#1f3540"/>
+          <path d="M26,22 L100,22 L100,50 L26,50 Z" fill="#b7343a"/>
+          <path d="M100,30 Q100,18 116,18 L150,18 Q160,18 160,30 L160,50 L100,50 Z" fill="#d4454c"/>
+          <circle cx="112" cy="30" r="9" fill="#2f2f2f"/>
+          <rect x="26" y="50" width="140" height="8" fill="#3a3a3a"/>
+          <g class="train-wheel">
+            <circle cx="44" cy="64" r="13" fill="#232323"/>
+            <circle cx="44" cy="64" r="4" fill="#8a8a8a"/>
+            <rect x="42" y="54" width="4" height="20" fill="#8a8a8a"/>
+            <rect x="34" y="62" width="20" height="4" fill="#8a8a8a"/>
+          </g>
+          <g class="train-wheel">
+            <circle cx="90" cy="64" r="13" fill="#232323"/>
+            <circle cx="90" cy="64" r="4" fill="#8a8a8a"/>
+            <rect x="88" y="54" width="4" height="20" fill="#8a8a8a"/>
+            <rect x="80" y="62" width="20" height="4" fill="#8a8a8a"/>
+          </g>
+          <g class="train-wheel">
+            <circle cx="134" cy="64" r="13" fill="#232323"/>
+            <circle cx="134" cy="64" r="4" fill="#8a8a8a"/>
+            <rect x="132" y="54" width="4" height="20" fill="#8a8a8a"/>
+            <rect x="124" y="62" width="20" height="4" fill="#8a8a8a"/>
+          </g>
+          <path d="M44,62 L90,62 M90,62 L134,62" stroke="#8a8a8a" stroke-width="3"/>
         </svg>
       </div>
     </div>
@@ -1446,6 +1655,9 @@ const RENDERERS = {
   spider: renderSpider,
   stars: renderStars,
   dog: renderDog,
+  unicorn: renderUnicorn,
+  train: renderTrain,
+  peek_critter: renderPeekCritter,
 
   comet: renderComet,
   bats: renderBats,
@@ -1472,6 +1684,8 @@ class WeatherEventOverlayCard extends HTMLElement {
     this._periodicStartTimes = {};
     this._wishstarTimer = null;
     this._wishstarPos = null;
+    this._peekCritterTimer = null;
+    this._peekCritterPos = null;
     this._starsReshuffleTimer = null;
     // Verbesserung: statt einen Effekt beim Beenden sofort komplett aus
     // dem DOM zu entfernen, merkt sich diese Map, welche Effekte gerade
@@ -1527,6 +1741,10 @@ class WeatherEventOverlayCard extends HTMLElement {
     if (this._wishstarTimer) {
       clearInterval(this._wishstarTimer);
       this._wishstarTimer = null;
+    }
+    if (this._peekCritterTimer) {
+      clearInterval(this._peekCritterTimer);
+      this._peekCritterTimer = null;
     }
     if (this._starsReshuffleTimer) {
       clearInterval(this._starsReshuffleTimer);
@@ -1660,6 +1878,37 @@ class WeatherEventOverlayCard extends HTMLElement {
     }
   }
 
+  // Wimmelbild-Tier: taucht per Timer an einer neuen zufälligen Stelle
+  // auf (Position UND Größe/Drehung), genau wie beim Wunschstern - ein
+  // reiner CSS-Loop könnte nicht an einen neuen zufälligen Ort
+  // "teleportieren". Häufigkeit kommt aus "Anzahl/Frequenz"
+  // (count_preset), nicht aus der Deckkraft wie beim Wunschstern.
+  _updatePeekCritter(events) {
+    if (events.includes("peek_critter")) {
+      if (!this._peekCritterTimer) {
+        const cycle = { low: 180000, medium: 100000, high: 50000 }[this._config?.count_preset || "medium"] || 100000;
+        const regen = () => {
+          this._peekCritterPos = {
+            top: Math.random() * 78 + 5,
+            left: Math.random() * 88 + 4,
+            scale: Math.random() * 0.5 + 0.7,
+            rot: Math.random() * 20 - 10,
+            flip: Math.random() > 0.5 ? 1 : -1,
+          };
+          this._render();
+        };
+        this._peekCritterTimer = setInterval(regen, cycle);
+        regen();
+      }
+    } else {
+      if (this._peekCritterTimer) {
+        clearInterval(this._peekCritterTimer);
+        this._peekCritterTimer = null;
+      }
+      this._peekCritterPos = null;
+    }
+  }
+
   // Verbesserung (Ressourcen): statt jede Sekunde zu prüfen, welcher Stern
   // "fällig" ist, mischt dieser Timer alle 4 Minuten AUF EINMAL die
   // Positionen aller Sterne komplett neu (per Cache-Löschung + Neu-Rendern).
@@ -1734,6 +1983,7 @@ class WeatherEventOverlayCard extends HTMLElement {
     const events = this._resolveEvents();
     this._updateSnowAccumulation(events);
     this._updateWishstar(events);
+    this._updatePeekCritter(events);
     this._updateStarsReshuffle(events);
     this._updateEffectLayers(events, allowFade);
 
@@ -1758,13 +2008,16 @@ class WeatherEventOverlayCard extends HTMLElement {
         cfgForRender = { ...this._config, _snowLevel: this._snowLevel };
       } else if (event === "wishstar") {
         cfgForRender = { ...this._config, _wishstarPos: this._wishstarPos };
-      } else if (event === "santa" || event === "comet") {
+      } else if (event === "peek_critter") {
+        cfgForRender = { ...this._config, _peekCritterPos: this._peekCritterPos };
+      } else if (event === "santa" || event === "comet" || event === "train") {
         if (!this._periodicStartTimes[event]) this._periodicStartTimes[event] = Date.now();
         cfgForRender = { ...this._config, _startTime: this._periodicStartTimes[event] };
-      } else if (event === "dog") {
+      } else if (event === "dog" || event === "unicorn") {
         if (!this._periodicStartTimes[event]) {
           const ranges = {
             dog: [10, 80],
+            unicorn: [10, 80],
           };
           const [min, max] = ranges[event] || [10, 80];
           this._periodicStartTimes[event] = {
@@ -1889,6 +2142,9 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="santa" ${c.event === "santa" ? "selected" : ""}>🎅 Weihnachtsmann</option>
             <option value="spider" ${c.event === "spider" ? "selected" : ""}>🕷️ Spinne mit Netz</option>
             <option value="dog" ${c.event === "dog" ? "selected" : ""}>🐕 Goldener Labrador</option>
+            <option value="unicorn" ${c.event === "unicorn" ? "selected" : ""}>🦄 Regenbogen-Einhorn</option>
+            <option value="train" ${c.event === "train" ? "selected" : ""}>🚂 Dampflok</option>
+            <option value="peek_critter" ${c.event === "peek_critter" ? "selected" : ""}>🐭 Wimmelbild-Maus</option>
 
             <option value="bats" ${c.event === "bats" ? "selected" : ""}>🦇 Fledermäuse</option>
             <option value="owl" ${c.event === "owl" ? "selected" : ""}>🦉 Eule</option>
