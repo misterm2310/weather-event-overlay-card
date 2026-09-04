@@ -1455,7 +1455,7 @@ function renderGnomeDoor(cfg, hass, hostEl) {
       pointer-events: none; z-index: 9998;
     }
     .gnome-lantern-box {
-      position: fixed; bottom: 6vh; right: calc(1vw + 58px); width: 32px; height: 72px;
+      position: fixed; bottom: 6vh; right: calc(1vw + 56px); width: 26px; height: 58px;
       pointer-events: none; z-index: 9998;
     }
     .gnome-light {
@@ -1481,15 +1481,15 @@ function renderGnomeDoor(cfg, hass, hostEl) {
   `;
   const html = `
     <div class="gnome-lantern-box" style="opacity:${finalOpacity};" aria-hidden="true">
-      <svg viewBox="0 0 32 72" style="width:100%; height:100%;">
-        <path d="M10,68 Q16,64 22,68 L24,71 L8,71 Z" fill="#1a1a1a"/>
-        <rect x="14" y="50" width="4" height="18" fill="#1a1a1a"/>
-        <path d="M9,50 L23,50 L25,20 L21,16 L11,16 L7,20 Z" fill="#fff3d0" opacity="0.14"/>
-        <path d="M9,50 L23,50 L25,20 L21,16 L11,16 L7,20 Z" fill="none" stroke="#1a1a1a" stroke-width="1.8"/>
-        <path d="M12,50 L12,18.5 M20,50 L20,18.5" stroke="#1a1a1a" stroke-width="1.1"/>
-        <circle class="lantern-flame" cx="16" cy="34" r="5.5" fill="#ffd97a" style="filter: drop-shadow(0 0 4px #ffb347);"/>
-        <path d="M9,16 L23,16 L16,6 Z" fill="#1a1a1a"/>
-        <circle cx="16" cy="4.5" r="1.7" fill="#1a1a1a"/>
+      <svg viewBox="0 0 26 58" style="width:100%; height:100%;">
+        <path d="M8,55 Q13,52 18,55 L19.5,57.5 L6.5,57.5 Z" fill="#1a1a1a"/>
+        <rect x="11.5" y="19" width="3" height="31" fill="#1a1a1a"/>
+        <path d="M7,19 L19,19 L20.5,10 L17,7 L9,7 L5.5,10 Z" fill="#fff3d0" opacity="0.14"/>
+        <path d="M7,19 L19,19 L20.5,10 L17,7 L9,7 L5.5,10 Z" fill="none" stroke="#1a1a1a" stroke-width="1.4"/>
+        <path d="M9.5,19 L9.5,9 M16.5,19 L16.5,9" stroke="#1a1a1a" stroke-width="0.9"/>
+        <circle class="lantern-flame" cx="13" cy="14" r="3.6" fill="#ffd97a" style="filter: drop-shadow(0 0 3px #ffb347);"/>
+        <path d="M7.5,7 L18.5,7 L13,1.5 Z" fill="#1a1a1a"/>
+        <circle cx="13" cy="0.8" r="1.1" fill="#1a1a1a"/>
       </svg>
     </div>
     <div class="gnome-path-box" style="opacity:${finalOpacity};" aria-hidden="true">
