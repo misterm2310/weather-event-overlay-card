@@ -1,17 +1,15 @@
 # Weather & Event Overlay Card for Home Assistant
 
-Eine benutzerdefinierte Lovelace-Karte für Home Assistant, die dynamische Animationen über dein Dashboard legt – von echtem Wetter (Regen, Schnee, Hagel, Blitz, Nebel, Sturm, Wolken-Drift, Raureif) über Himmelsphänomene (Sternenhimmel, Sternschnuppen, Wunschstern, Komet) bis zu Tieren, Deko- und Anlass-Effekten (Herbstlaub, Luftballons, Lichterkette, Geburtstags-Modus, Weihnachtsmann, Wichteltür, Spinne mit Netz und Tau-Tropfen, goldener Labrador, Dampflok, Fledermäuse, Eule, Bienenschwarm, Vogelhäuschen). Inklusive visuellem GUI-Editor mit **Live-Vorschau**, automatischer Theme-Anpassung und optionaler Wetter-Automatik mit echten Kombi-Effekten.
+Eine benutzerdefinierte Lovelace-Karte für Home Assistant, die dynamische Animationen über dein Dashboard legt – von echtem Wetter (Regen, Schnee, Hagel, Blitz, Nebel, Sturm, Wolken-Drift) über Himmelsphänomene (Sternenhimmel, Sternschnuppen, Wunschstern, Komet) bis zu Tieren, Deko- und Anlass-Effekten (Herbstlaub, Luftballons, Lichterkette, Geburtstags-Modus, Weihnachtsmann, Wichteltür, Spinne mit Netz, goldener Labrador, Dampflok, Fledermäuse, Eule, Bienenschwarm, Vogelhäuschen). Inklusive visuellem GUI-Editor mit **Live-Vorschau**, automatischer Theme-Anpassung und optionaler Wetter-Automatik mit echten Kombi-Effekten.
 
 ---
 
 ## 🎨 Features
 
-* **25 Effekte** – siehe Tabelle weiter unten, sinnvoll gruppiert im Editor-Dropdown (Wetter → Himmel/Nacht → Deko/Anlass → Tiere).
-* **🚂 Dampflok mit zwei Waggons:** Fährt am unteren Bildschirmrand entlang - erkennbare Lok-Silhouette mit Kessel, Schornstein, Kabine mit Fähnchen, Kuhfänger und sich drehenden Rädern, dazu sichtbarer Dampf, der aus dem Schornstein aufsteigt.
-* **❄️🖼️ Raureif:** Ein fein verästeltes Eisblumen-Muster wächst langsam (über einige Minuten) von allen vier Bildschirmecken ins Bild hinein - mathematisch berechnet wie das Spinnennetz, nicht von Hand gezeichnet.
-* **🧝🚪 Wichteltür:** Kleine Rundbogen-Holztür in einem Erdhügel unten rechts, deren rundes Fenster immer wieder für eine Weile warm aufleuchtet und dann wieder erlischt.
-* **🐦🏠 Vogelhäuschen:** Sitzt fest oben links (kleiner als die Eule). Periodisch fliegt ein kleiner Vogel von links ins Bild, "landet" kurz am Einflugloch und fliegt dann weiter.
-* **🕸️💧 Tau-Tropfen am Spinnennetz:** Kleine glitzernde Tröpfchen sitzen an den Kreuzungspunkten von Speichen und Ringen und funkeln unregelmäßig.
+* **23 Effekte** – siehe Tabelle weiter unten, sinnvoll gruppiert im Editor-Dropdown (Wetter → Himmel/Nacht → Deko/Anlass → Tiere).
+* **🚂 Dampflok mit vier beladenen Waggons:** Fährt am unteren Bildschirmrand entlang - erkennbare Lok-Silhouette mit Kessel, Schornstein, Kabine mit Fähnchen, Kuhfänger und sich drehenden Rädern, dazu sichtbarer Dampf, der aus dem Schornstein aufsteigt. Die vier Waggons sind unterschiedlich beladen: Obst, Bauklötze, Geschenke und Holzscheite.
+* **🧝🚪 Wichteltür:** Kleine freistehende Rundbogen-Holztür mit Vordach unten rechts, deren rundes Fenster immer wieder für eine Weile warm aufleuchtet und dann wieder erlischt.
+* **🐦🏠 Vogelhäuschen:** Sitzt auf einem Ast oben links (kleiner als die Eule), immer sichtbar. Periodisch fliegt ein kleiner Vogel von links ins Bild, "landet" sichtbar vor dem Häuschen am Einflugloch und fliegt dann weiter.
 * **🌫️ Sanftes Ausblenden statt abruptem Verschwinden:** Ändert sich das Wetter bei aktiver Wetter-Automatik von selbst, verblasst der alte Effekt sanft, während ein manueller Wechsel im Editor weiterhin sofort umschaltet.
 * **👁️ Live-Vorschau im Editor:** Direkt beim Einstellen der Regler siehst du oben im Editor eine kleine, verkleinerte Vorschau des Effekts – ganz ohne zu speichern.
 * **🌦️ Optionale Wetter-Automatik:** Statt manuell einen Effekt auszuwählen, kann die Karte sich an einer echten `weather.*`-Entity orientieren und automatisch den passenden Effekt zeigen.
@@ -75,10 +73,9 @@ Karte zum Dashboard hinzufügen → **Weather & Event Overlay Card** auswählen 
 5. **Anzahl / Frequenz**, **Deckkraft / Helligkeit** und ggf. **Farbmodus** nach Geschmack einstellen.
 
 Der Editor blendet dabei automatisch nur die Regler ein, die für den gewählten Effekt auch etwas bewirken:
-* Bei **Blitz, Weihnachtsmann, Hund, Dampflok, Eule, Raureif, Wichteltür, Vogelhäuschen und Geburtstags-Modus** gibt's keinen Farbmodus (feste Farben).
+* Bei **Blitz, Weihnachtsmann, Hund, Dampflok, Eule, Wichteltür, Vogelhäuschen und Geburtstags-Modus** gibt's keinen Farbmodus (feste Farben).
 * Bei der **Spinne, Eule und Wunschstern** gibt's keine Anzahl (es gibt jeweils nur die eine).
 * Bei **Weihnachtsmann, Hund, Komet, Dampflok, Wichteltür und Vogelhäuschen** steuert "Anzahl/Frequenz" NICHT eine Partikelmenge, sondern wie oft etwas passiert (Vorbeiziehen, Aufleuchten, Vorbeifliegen).
-* Bei **Raureif** steuert "Anzahl" stattdessen, wie weit das Muster von den Ecken aus hineinwächst.
 * Bei **Fledermäuse, Bienen, Wolken-Drift, Sternenhimmel und Geburtstags-Modus** ist "Anzahl" eine ganz normale Partikelmenge.
 
 ### 🌦️ Wie die Wetter-Automatik genau funktioniert
@@ -99,7 +96,7 @@ Ist "Automatisch" aktiv, schaut die Karte sich den aktuellen Zustand deiner gew�
 | `clear-night` | ✨ Sternenhimmel |
 | alles andere (sonnig, klar, ...) | Aus |
 
-**Wichtig:** Anzahl, Deckkraft und Farbmodus gelten bei aktiver Automatik als **ein gemeinsamer Wert für alle möglichen Wetter-Effekte**. Alle Tier-, Deko- und Anlass-Effekte (Weihnachtsmann, Hund, Dampflok, Fledermäuse, Eule, Bienen, Wunschstern, Spinne, Raureif, Wichteltür, Vogelhäuschen, Geburtstags-Modus) laufen NICHT über die Wetter-Automatik. Wechselt die Wetter-Automatik den Effekt, blendet der alte Effekt sanft aus statt abrupt zu verschwinden - bei einem manuellen Wechsel im Editor passiert das dagegen sofort.
+**Wichtig:** Anzahl, Deckkraft und Farbmodus gelten bei aktiver Automatik als **ein gemeinsamer Wert für alle möglichen Wetter-Effekte**. Alle Tier-, Deko- und Anlass-Effekte (Weihnachtsmann, Hund, Dampflok, Fledermäuse, Eule, Bienen, Wunschstern, Spinne, Wichteltür, Vogelhäuschen, Geburtstags-Modus) laufen NICHT über die Wetter-Automatik. Wechselt die Wetter-Automatik den Effekt, blendet der alte Effekt sanft aus statt abrupt zu verschwinden - bei einem manuellen Wechsel im Editor passiert das dagegen sofort.
 
 ---
 
@@ -113,14 +110,6 @@ weather_entity: weather.home
 count_preset: medium
 opacity_preset: medium
 color_mode: auto
-```
-
-### Raureif an den Bildschirmrändern
-```yaml
-type: custom:weather-event-overlay-card
-event: frost
-count_preset: high
-opacity_preset: high
 ```
 
 ### Wichteltür
@@ -139,7 +128,7 @@ count_preset: medium
 opacity_preset: high
 ```
 
-### Dampflok mit zwei Waggons
+### Dampflok mit vier beladenen Waggons
 ```yaml
 type: custom:weather-event-overlay-card
 event: train
@@ -147,7 +136,7 @@ count_preset: medium
 opacity_preset: high
 ```
 
-### Spinne mit Tau-Tropfen (Auto-Farbmodus)
+### Spinne mit Netz (Auto-Farbmodus)
 ```yaml
 type: custom:weather-event-overlay-card
 event: spider
@@ -250,7 +239,6 @@ leaf_colors:
 | `fog` | 🌫️ Wabernde Nebelschwaden |
 | `storm` | 💨 Sturm/Windböen |
 | `clouds` | 🌤️ Theme-abhängig eingefärbte, gleichmäßig verteilte Wolken |
-| `frost` | ❄️🖼️ Eisblumen-Muster wächst langsam von allen vier Bildschirmecken hinein |
 | `shooting_stars` | 🌠 Sternschnuppen |
 | `stars` | ✨ Funkelnder Sternenhimmel mit ressourcenschonendem Teleport-Effekt |
 | `wishstar` | ⭐ Ein Stern mit weichem Strahlenkranz, blitzt an wechselnden Positionen auf |
@@ -260,14 +248,14 @@ leaf_colors:
 | `lights` | 💡 Blinkende Lichterkette am oberen Rand |
 | `birthday` | 🎂 Geburtstags-Modus: Ballons + Konfetti + Banner mit eigenem Text |
 | `santa` | 🎅 Weihnachtsmann mit Schlitten & 2 Rentieren (periodischer Vorbeiflug) |
-| `gnome_door` | 🧝🚪 Wichteltür unten rechts, Fenster leuchtet periodisch warm auf |
-| `spider` | 🕷️ Spinnennetz mit auf- und abseilender Spinne und glitzernden Tau-Tropfen |
+| `gnome_door` | 🧝🚪 Freistehende Wichteltür unten rechts, Fenster leuchtet periodisch warm auf |
+| `spider` | 🕷️ Spinnennetz mit auf- und abseilender Spinne (blinkende rote Augen) |
 | `dog` | 🐕 Goldener Labrador mit echter Lauf-Beinbewegung |
-| `train` | 🚂 Dampflok mit zwei Waggons, drehenden Rädern und Dampf aus dem Schornstein |
+| `train` | 🚂 Dampflok mit vier unterschiedlich beladenen Waggons (Obst, Bauklötze, Geschenke, Holzscheite), drehenden Rädern und Dampf aus dem Schornstein |
 | `bats` | 🦇 Fledermausschwarm, theme-abhängig eingefärbt |
 | `owl` | 🦉 Eule auf einem Ast, vor dem Mond, mit abwechselndem Blinzeln |
 | `bee` | 🐝 Bienenschwarm (5-8 Stück) im Zickzack-Flug |
-| `birdhouse` | 🐦🏠 Vogelhäuschen oben links, Vogel fliegt periodisch vorbei |
+| `birdhouse` | 🐦🏠 Vogelhäuschen auf einem Ast oben links, Vogel fliegt periodisch vorbei |
 
 ---
 
