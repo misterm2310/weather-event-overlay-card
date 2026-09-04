@@ -1457,8 +1457,24 @@ function renderGnomeDoor(cfg, hass, hostEl) {
       position: fixed; bottom: 0; right: 1vw; width: 54px; height: 6vh;
       pointer-events: none; z-index: 9998;
     }
+    .gnome-lantern-box {
+      position: fixed; bottom: 0; right: calc(1vw + 64px); width: 28px; height: 112px;
+      pointer-events: none; z-index: 9998;
+    }
     .gnome-light {
       animation: gnome-light-flicker ${cycle}s ease-in-out infinite;
+    }
+    .lantern-flame {
+      animation: lantern-flicker 2.4s ease-in-out infinite;
+      transform-box: fill-box; transform-origin: center;
+    }
+    @keyframes lantern-flicker {
+      0%, 100% { opacity: 0.88; transform: scale(1); }
+      20% { opacity: 1; transform: scale(1.08); }
+      35% { opacity: 0.72; transform: scale(0.92); }
+      50% { opacity: 0.96; transform: scale(1.04); }
+      65% { opacity: 0.8; transform: scale(0.96); }
+      82% { opacity: 1; transform: scale(1.06); }
     }
     @keyframes gnome-light-flicker {
       0%, 55% { opacity: 0.18; }
@@ -1467,6 +1483,18 @@ function renderGnomeDoor(cfg, hass, hostEl) {
     }
   `;
   const html = `
+    <div class="gnome-lantern-box" style="opacity:${finalOpacity};" aria-hidden="true">
+      <svg viewBox="0 0 28 112" style="width:100%; height:100%;">
+        <rect x="12" y="38" width="4" height="66" fill="#2a2a2a"/>
+        <rect x="6" y="102" width="16" height="5" rx="1" fill="#2a2a2a"/>
+        <path d="M6,38 L22,38 L19,10 L9,10 Z" fill="none" stroke="#2a2a2a" stroke-width="2"/>
+        <rect x="8" y="12" width="12" height="24" fill="#4a3520" opacity="0.15"/>
+        <path d="M14,12 L14,36 M8,24 L20,24" stroke="#2a2a2a" stroke-width="1.1"/>
+        <circle class="lantern-flame" cx="14" cy="23" r="5.5" fill="#ffd97a" style="filter: drop-shadow(0 0 4px #ffb347);"/>
+        <path d="M10,10 L18,10 L14,2 Z" fill="#2a2a2a"/>
+        <circle cx="14" cy="2" r="1.5" fill="#2a2a2a"/>
+      </svg>
+    </div>
     <div class="gnome-path-box" style="opacity:${finalOpacity};" aria-hidden="true">
       <svg viewBox="0 0 54 60" preserveAspectRatio="none" style="width:100%; height:100%;">
         <path d="M20,0 L34,0 L48,60 L6,60 Z" fill="#9a9186" stroke="#5a5548" stroke-width="1.5"/>
