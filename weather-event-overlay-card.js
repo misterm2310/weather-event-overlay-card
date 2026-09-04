@@ -1465,9 +1465,9 @@ function renderGnomeDoor(cfg, hass, hostEl) {
   const html = `
     <div class="gnome-door-box" style="opacity:${finalOpacity};" aria-hidden="true">
       <svg viewBox="0 0 60 76" style="width:100%; height:100%;">
-        <path d="M8,38 Q30,10 52,38" fill="none" stroke="#0f3d28" stroke-width="5" stroke-linecap="round"/>
         <path d="M15,74 L15,34 Q15,16 30,16 Q45,16 45,34 L45,74 Z" fill="#1f5c3f" stroke="#0f3d28" stroke-width="2.2"/>
-        <path d="M16,46 L44,46 M16,56 L44,56 M16,66 L44,66" stroke="#0f3d28" stroke-width="1.1"/>
+        <path d="M21,72 L21,21 M27,72 L27,17.5 M33,72 L33,17.5 M39,72 L39,21" stroke="#0f3d28" stroke-width="1" opacity="0.55"/>
+        <circle cx="40" cy="56" r="2.2" fill="#d4af37" stroke="#8a6f1f" stroke-width="0.8"/>
         <path d="M15,45 C15,43 12,43 12,45 C12,47 15,49 15,51 C15,49 18,47 18,45 C18,43 15,43 15,45 Z" fill="#c0392b" stroke="#6b1810" stroke-width="0.8"/>
         <path d="M15,60 C15,58 12,58 12,60 C12,62 15,64 15,66 C15,64 18,62 18,60 C18,58 15,58 15,60 Z" fill="#c0392b" stroke="#6b1810" stroke-width="0.8"/>
         <circle class="gnome-light" cx="30" cy="33" r="6.5" fill="#ffd97a"/>
