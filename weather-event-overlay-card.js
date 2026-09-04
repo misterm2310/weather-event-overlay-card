@@ -293,7 +293,7 @@ const COUNT_IS_INTERVAL_TEXT = {
   train: "Wie oft die Dampflok vorbeituckert: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (keine Partikelmenge, da es nur eine gibt).",
 
   comet: "Wie oft der Komet vorbeizieht: Wenig ≈ alle 5-6 Min., Mittel ≈ alle 3-4 Min., Viel ≈ alle 1-2 Min. (deutlich seltener als Sternschnuppen).",
-  frost: "Wie weit der Raureif von den Bildschirmecken aus hineinwächst: Wenig = wenig, Mittel = mittel, Viel = am weitesten.",
+
   gnome_door: "Wie oft das Fenster der Wichteltür aufleuchtet: Wenig ≈ alle 40 Sek., Mittel ≈ alle 25 Sek., Viel ≈ alle 14 Sek.",
   birdhouse: "Wie oft ein Vogel am Häuschen vorbeifliegt: Wenig ≈ alle 100 Sek., Mittel ≈ alle 60 Sek., Viel ≈ alle 30 Sek.",
 };
@@ -322,7 +322,7 @@ const EVENT_CAPABILITIES = {
   owl: { count: false, opacity: true, color: false },
   bee: { count: true, opacity: true, color: false },
   clouds: { count: true, opacity: true, color: true },
-  frost: { count: true, opacity: true, color: false },
+
   gnome_door: { count: true, opacity: true, color: false },
   birdhouse: { count: true, opacity: true, color: false },
   wishstar: { count: false, opacity: true, color: true },
@@ -773,46 +773,12 @@ function buildCornerWebSvg(spokeCount, ringCount) {
   return `<path d="${spokesD}" fill="none" stroke="currentColor" stroke-width="0.7" opacity="0.7"/>${ringsSvg}`;
 }
 
-// Verbesserung: Tau-Tropfen an den Kreuzungspunkten von Speichen und
-// Ringen - nutzt exakt dieselbe Mathematik wie das Netz selbst, damit die
-// Tröpfchen wirklich auf den Linien sitzen statt frei im Raum zu schweben.
-// Nur ein Teil der Kreuzungspunkte bekommt einen Tropfen (sonst wirkt's
-// überladen), jeder mit eigenem, leicht versetztem Glitzer-Rhythmus.
-function buildWebDewdrops(spokeCount, ringCount) {
-  const cx = 100, cy = 0, radius = 100;
-  const angles = [];
-  for (let i = 0; i < spokeCount; i++) {
-    angles.push(90 + (i * (90 / (spokeCount - 1))));
-  }
-  const toPoint = (angleDeg, r) => {
-    const rad = (angleDeg * Math.PI) / 180;
-    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
-  };
-
-  let dropsSvg = "";
-  let dropIndex = 0;
-  for (let ring = 1; ring <= ringCount; ring++) {
-    const frac = ring / (ringCount + 1);
-    angles.forEach((a, i) => {
-      // Nicht JEDEN Kreuzungspunkt bestücken - nur unregelmäßig verteilt,
-      // wirkt organischer als ein Tropfen auf jeder einzelnen Kreuzung.
-      if ((i + ring) % 2 !== 0) return;
-      const p = toPoint(a, radius * frac);
-      const delay = (dropIndex * 0.35) % 3;
-      dropsSvg += `<circle class="web-dewdrop" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="1.6" style="animation-delay:-${delay.toFixed(2)}s;"/>`;
-      dropIndex++;
-    });
-  }
-  return dropsSvg;
-}
-
 function renderSpider(cfg, hass, hostEl) {
   const webColor = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff", hostEl);
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
   const webSvg = buildCornerWebSvg(6, 4);
-  const dewdropsSvg = buildWebDewdrops(6, 4);
 
   const css = `
     .spider-web-container {
@@ -821,15 +787,6 @@ function renderSpider(cfg, hass, hostEl) {
     }
     .corner-web {
       position: absolute; top: 0; right: 0; width: 180px; height: 180px; filter: drop-shadow(0 0 2px rgba(0,0,0,0.2));
-    }
-    .web-dewdrop {
-      fill: #cfe8ff; opacity: 0.85;
-      animation: web-dewdrop-glint 3s ease-in-out infinite;
-      transform-box: fill-box; transform-origin: center;
-    }
-    @keyframes web-dewdrop-glint {
-      0%, 100% { opacity: 0.5; transform: scale(0.8); }
-      50% { opacity: 1; transform: scale(1.25); }
     }
     .hanging-spider-box {
       position: absolute; top: 40px; right: 50px; width: 26px; height: 26px;
@@ -856,7 +813,7 @@ function renderSpider(cfg, hass, hostEl) {
 
   const html = `
     <div class="spider-web-container" style="opacity:${finalOpacity};" aria-hidden="true">
-      <svg class="corner-web" viewBox="0 0 100 100">${webSvg}${dewdropsSvg}</svg>
+      <svg class="corner-web" viewBox="0 0 100 100">${webSvg}</svg>
       <div class="hanging-spider-box">
         <div class="spider-web-thread"></div>
         <svg viewBox="0 0 100 100" style="width:100%; height:100%;">
@@ -886,14 +843,11 @@ function renderSpider(cfg, hass, hostEl) {
 
 
 function renderTrain(cfg, hass, hostEl) {
-  // Dampflok, nah am Referenzbild. Neu: die Lok selbst sitzt jetzt in
-  // einer eigenen <g transform="translate(...)">-Gruppe mit LOKALEN
-  // Koordinaten (statt überall Koordinaten von Hand zu verschieben) - so
-  // lässt sich der Abstand zu den Waggons einfach über einen einzigen
-  // Versatz-Wert einstellen. Waggons sitzen jetzt enger an der Lok.
-  // Außerdem: "bottom" nicht mehr exakt auf 0, sondern leicht nach oben
-  // versetzt - falls echte Geräte-/App-UI-Elemente die exakte
-  // Bildschirmkante verdecken (gleiches Prinzip wie beim Eulen-Fix).
+  // Dampflok mit VIER Waggons statt zwei, jeder mit einer eigenen Ladung
+  // (Obst, Bauklötze, Geschenke, Holzscheite) statt überall der gleichen
+  // Kohle. Die Lok selbst sitzt in einer eigenen <g transform="translate">-
+  // Gruppe mit lokalen Koordinaten, lässt sich also einfach über LOCO_X
+  // weiter nach hinten schieben, wenn noch mehr Waggons dazukommen sollen.
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
@@ -902,7 +856,9 @@ function renderTrain(cfg, hass, hostEl) {
   const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
   const delaySec = (-(elapsedSec % interval)).toFixed(2);
 
-  const LOCO_X = 202; // Versatz der Lok-Gruppe - steuert den Abstand zu den Waggons
+  // Vier Waggon-Startpositionen (93 Einheiten Abstand) + Lok-Versatz danach.
+  const WAGON_X = [4, 97, 190, 283];
+  const LOCO_X = 384;
 
   const smokeHtml = [0, 1, 2].map((i) => `
     <circle class="train-smoke" cx="${76 - i * 7}" cy="${-2 - i * 8}" r="${5.5 + i * 1.4}" fill="#d9d9d9" stroke="#1a1a1a" stroke-width="1.5"
@@ -915,13 +871,13 @@ function renderTrain(cfg, hass, hostEl) {
       pointer-events: none; z-index: 9999; overflow: hidden;
     }
     .train-box {
-      position: absolute; bottom: 1vh; left: -160px; width: 137px; height: 37px;
+      position: absolute; bottom: 1vh; left: -240px; width: 216px; height: 37px;
       animation: train-drive ${interval}s linear infinite; animation-delay: ${delaySec}s; will-change: transform;
     }
     @keyframes train-drive {
       0% { transform: translateX(0); }
-      ${walkPct}% { transform: translateX(calc(100vw + 180px)); }
-      100% { transform: translateX(calc(100vw + 180px)); }
+      ${walkPct}% { transform: translateX(calc(100vw + 256px)); }
+      100% { transform: translateX(calc(100vw + 256px)); }
     }
     .train-wheel {
       animation: train-wheel-spin 0.6s linear infinite;
@@ -945,9 +901,53 @@ function renderTrain(cfg, hass, hostEl) {
     </g>
   `;
 
-  const wagon = (x) => `
+  // Vier verschiedene Ladungen, die statt der einheitlichen Kohle oben auf
+  // den Waggon kommen - jede innerhalb desselben Bereichs (x=2-81, y=8-32),
+  // damit sie zum Waggon-Umriss passt.
+  const CARGO = {
+    food: `
+      <circle cx="14" cy="25" r="7.5" fill="#d81f26"/>
+      <circle cx="29" cy="21" r="8" fill="#f5a623"/>
+      <circle cx="45" cy="24" r="7.5" fill="#7cb342"/>
+      <circle cx="60" cy="20" r="8" fill="#d81f26"/>
+      <circle cx="74" cy="24" r="7" fill="#f5a623"/>
+      <path d="M14,17.5 L15,14 M29,13 L30,10 M60,12 L61,9" stroke="#4a7a2a" stroke-width="1.5" stroke-linecap="round"/>
+    `,
+    toys: `
+      <rect x="4" y="14" width="14" height="18" fill="#4a90d9" stroke="#1a1a1a" stroke-width="1.5"/>
+      <rect x="20" y="8" width="14" height="24" fill="#ffd93d" stroke="#1a1a1a" stroke-width="1.5"/>
+      <rect x="36" y="17" width="14" height="15" fill="#e63946" stroke="#1a1a1a" stroke-width="1.5"/>
+      <rect x="52" y="10" width="14" height="22" fill="#7cb342" stroke="#1a1a1a" stroke-width="1.5"/>
+      <rect x="68" y="15" width="13" height="17" fill="#9b59b6" stroke="#1a1a1a" stroke-width="1.5"/>
+    `,
+    presents: `
+      <rect x="4" y="16" width="20" height="16" fill="#4a90d9" stroke="#1a1a1a" stroke-width="1.5"/>
+      <rect x="4" y="16" width="20" height="4" fill="#ffd93d"/>
+      <rect x="12" y="16" width="4" height="16" fill="#ffd93d"/>
+      <rect x="30" y="10" width="22" height="22" fill="#e63946" stroke="#1a1a1a" stroke-width="1.5"/>
+      <rect x="30" y="10" width="22" height="4" fill="#7cb342"/>
+      <rect x="39" y="10" width="4" height="22" fill="#7cb342"/>
+      <rect x="58" y="15" width="20" height="17" fill="#9b59b6" stroke="#1a1a1a" stroke-width="1.5"/>
+      <rect x="58" y="15" width="20" height="4" fill="#ffd93d"/>
+      <rect x="66" y="15" width="4" height="17" fill="#ffd93d"/>
+    `,
+    wood: `
+      <circle cx="12" cy="25" r="7" fill="#8a5a2f" stroke="#4a2f18" stroke-width="1.5"/>
+      <circle cx="12" cy="25" r="3" fill="#c9a05a"/>
+      <circle cx="27" cy="21" r="7.5" fill="#6b4423" stroke="#4a2f18" stroke-width="1.5"/>
+      <circle cx="27" cy="21" r="3.2" fill="#a67c3d"/>
+      <circle cx="43" cy="25" r="7" fill="#8a5a2f" stroke="#4a2f18" stroke-width="1.5"/>
+      <circle cx="43" cy="25" r="3" fill="#c9a05a"/>
+      <circle cx="58" cy="21" r="7.5" fill="#6b4423" stroke="#4a2f18" stroke-width="1.5"/>
+      <circle cx="58" cy="21" r="3.2" fill="#a67c3d"/>
+      <circle cx="73" cy="25" r="7" fill="#8a5a2f" stroke="#4a2f18" stroke-width="1.5"/>
+      <circle cx="73" cy="25" r="3" fill="#c9a05a"/>
+    `,
+  };
+
+  const wagon = (x, cargoKey) => `
     <g transform="translate(${x},0)">
-      <path d="M2,30 Q9,22 20,26 Q31,20 43,25 Q55,20 66,26 Q75,23 81,28 L81,32 L2,32 Z" fill="#1a1a1a"/>
+      ${CARGO[cargoKey]}
       <path d="M0,32 L83,32 Q87,32 87,38 L87,48 Q87,52 83,52 L4,52 Q0,52 0,48 Z" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2.5"/>
       <rect x="8" y="39" width="71" height="9" fill="#ffffff"/>
       ${wheel(15, 58, 6.5)}
@@ -955,6 +955,13 @@ function renderTrain(cfg, hass, hostEl) {
       ${wheel(71, 58, 6.5)}
     </g>
   `;
+
+  const couplingsHtml = [
+    `M${WAGON_X[0] + 87},50 L${WAGON_X[1]},50`,
+    `M${WAGON_X[1] + 87},50 L${WAGON_X[2]},50`,
+    `M${WAGON_X[2] + 87},50 L${WAGON_X[3]},50`,
+    `M${WAGON_X[3] + 87},50 L${LOCO_X},50`,
+  ].map((d) => `<path d="${d}" stroke="#1a1a1a" stroke-width="2"/>`).join("");
 
   // Die komplette Lok in lokalen Koordinaten (0 = eigener Anfang), wird
   // per translate(LOCO_X,0) an die richtige Stelle geschoben.
@@ -989,16 +996,18 @@ function renderTrain(cfg, hass, hostEl) {
   const html = `
     <div class="train-container" style="opacity:${finalOpacity};" aria-hidden="true">
       <div class="train-box">
-        <svg viewBox="0 -24 330 90" preserveAspectRatio="xMidYMid meet">
+        <svg viewBox="0 -24 520 90" preserveAspectRatio="xMidYMid meet">
           <!-- Boden-/Gleislinie -->
-          <path d="M2,58 L326,58" stroke="#1a1a1a" stroke-width="2"/>
+          <path d="M2,58 L516,58" stroke="#1a1a1a" stroke-width="2"/>
 
-          <!-- Zwei Waggons, enger beieinander -->
-          ${wagon(4)}
-          ${wagon(97)}
+          <!-- Vier Waggons, unterschiedlich beladen -->
+          ${wagon(WAGON_X[0], "food")}
+          ${wagon(WAGON_X[1], "toys")}
+          ${wagon(WAGON_X[2], "presents")}
+          ${wagon(WAGON_X[3], "wood")}
 
-          <!-- Kupplung zur Lok -->
-          <path d="M184,50 L${LOCO_X},50" stroke="#1a1a1a" stroke-width="2"/>
+          <!-- Kupplungen zwischen allen Waggons und zur Lok -->
+          ${couplingsHtml}
 
           ${locoHtml}
         </svg>
@@ -1218,12 +1227,12 @@ function renderBirdhouse(cfg, hass, hostEl) {
 
   const css = `
     .birdhouse-box {
-      position: fixed; top: 2vh; left: 1vw; width: 58px; height: 62px;
-      pointer-events: none; z-index: 999999;
+      position: fixed; top: 2vh; left: 1vw; width: 58px; height: 78px;
+      pointer-events: none; z-index: 999997;
     }
     .bird-fly-container {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      pointer-events: none; z-index: 999998; overflow: hidden;
+      pointer-events: none; z-index: 999999; overflow: hidden;
     }
     .bird-fly-box {
       position: absolute; top: 6vh; left: -6vw; width: 30px; height: 24px;
@@ -1249,12 +1258,13 @@ function renderBirdhouse(cfg, hass, hostEl) {
   `;
   const html = `
     <div class="birdhouse-box" style="opacity:${finalOpacity};" aria-hidden="true">
-      <svg viewBox="0 0 58 62" style="width:100%; height:100%;">
+      <svg viewBox="0 0 58 78" style="width:100%; height:100%;">
+        <path d="M-6,68 Q26,58 62,68 L62,74 Q26,66 -6,74 Z" fill="#5a3d24"/>
         <path d="M4,10 L29,-6 L54,10 Z" fill="#a83a2a" stroke="#6b2015" stroke-width="2"/>
         <path d="M6,12 L52,12 L48,54 Q48,58 44,58 L14,58 Q10,58 10,54 Z" fill="#c68a3d" stroke="#6b4a2f" stroke-width="2"/>
         <circle cx="29" cy="32" r="8" fill="#3a2712"/>
         <path d="M20,44 L38,44" stroke="#6b4a2f" stroke-width="3" stroke-linecap="round"/>
-        <path d="M29,58 L29,62" stroke="#6b4a2f" stroke-width="3"/>
+        <path d="M29,58 L29,64" stroke="#6b4a2f" stroke-width="3"/>
       </svg>
     </div>
     <div class="bird-fly-container" aria-hidden="true">
@@ -1418,35 +1428,11 @@ function renderBee(cfg, hass, hostEl) {
 // Verbesserung: erzeugt ein verzweigtes Eisblumen-/Raureif-Muster
 // mathematisch (wie schon beim Spinnennetz), das von einer Ecke (0,0)
 // diagonal ins Bild hineinwächst - Hauptäste mit kleinen Seitenzweigen.
-function buildFrostPattern() {
-  let d = "";
-  const branchCount = 5;
-  for (let i = 0; i < branchCount; i++) {
-    const len = 34 + i * 15;
-    const angle = 18 + i * 13;
-    const rad = (angle * Math.PI) / 180;
-    const ex = len * Math.cos(rad);
-    const ey = len * Math.sin(rad);
-    d += `M0,0 L${ex.toFixed(1)},${ey.toFixed(1)} `;
-    for (let t = 0.35; t <= 0.9; t += 0.28) {
-      const bx = ex * t, by = ey * t;
-      const branchLen = 7 + i * 2.2;
-      [angle - 32, angle + 32].forEach((bAngle) => {
-        const br = (bAngle * Math.PI) / 180;
-        d += `M${bx.toFixed(1)},${by.toFixed(1)} L${(bx + branchLen * Math.cos(br)).toFixed(1)},${(by + branchLen * Math.sin(br)).toFixed(1)} `;
-      });
-    }
-  }
-  return d;
-}
-
 function renderGnomeDoor(cfg, hass, hostEl) {
   // Wichteltür: sitzt fest unten rechts (in etwa der Größe der Dampflok),
   // das runde Fenster leuchtet immer wieder für eine Weile warm auf und
   // erlischt dann wieder - als würde der Wichtel manchmal zu Hause sein.
-  // Läuft komplett über einen reinen CSS-Loop, kein JS-Timer nötig, da die
-  // Tür an einer festen Stelle bleibt (keine Positions-Änderung wie beim
-  // Wunschstern).
+  // Ohne Erdhügel - nur die Tür mit kleinem Vordach.
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
@@ -1454,7 +1440,7 @@ function renderGnomeDoor(cfg, hass, hostEl) {
 
   const css = `
     .gnome-door-box {
-      position: fixed; bottom: 1vh; right: 1vw; width: 54px; height: 68px;
+      position: fixed; bottom: 1vh; right: 1vw; width: 54px; height: 62px;
       pointer-events: none; z-index: 9999;
     }
     .gnome-light {
@@ -1468,52 +1454,15 @@ function renderGnomeDoor(cfg, hass, hostEl) {
   `;
   const html = `
     <div class="gnome-door-box" style="opacity:${finalOpacity};" aria-hidden="true">
-      <svg viewBox="0 0 60 82" style="width:100%; height:100%;">
-        <path d="M4,82 Q4,48 30,48 Q56,48 56,82 Z" fill="#6b4a2f"/>
-        <path d="M8,44 Q30,16 52,44" fill="none" stroke="#4a3520" stroke-width="5" stroke-linecap="round"/>
-        <path d="M15,80 L15,40 Q15,22 30,22 Q45,22 45,40 L45,80 Z" fill="#8a5a2f" stroke="#3a2712" stroke-width="2.2"/>
-        <path d="M16,52 L44,52 M16,62 L44,62 M16,72 L44,72" stroke="#3a2712" stroke-width="1.1"/>
-        <circle cx="39" cy="57" r="1.8" fill="#2a1a10"/>
-        <circle class="gnome-light" cx="30" cy="35" r="6.5" fill="#ffd97a"/>
-        <circle cx="30" cy="35" r="6.5" fill="none" stroke="#3a2712" stroke-width="1.6"/>
-        <path d="M30,28.5 L30,41.5 M23.5,35 L36.5,35" stroke="#3a2712" stroke-width="1"/>
+      <svg viewBox="0 0 60 76" style="width:100%; height:100%;">
+        <path d="M8,38 Q30,10 52,38" fill="none" stroke="#4a3520" stroke-width="5" stroke-linecap="round"/>
+        <path d="M15,74 L15,34 Q15,16 30,16 Q45,16 45,34 L45,74 Z" fill="#8a5a2f" stroke="#3a2712" stroke-width="2.2"/>
+        <path d="M16,46 L44,46 M16,56 L44,56 M16,66 L44,66" stroke="#3a2712" stroke-width="1.1"/>
+        <circle cx="39" cy="51" r="1.8" fill="#2a1a10"/>
+        <circle class="gnome-light" cx="30" cy="29" r="6.5" fill="#ffd97a"/>
+        <circle cx="30" cy="29" r="6.5" fill="none" stroke="#3a2712" stroke-width="1.6"/>
+        <path d="M30,22.5 L30,35.5 M23.5,29 L36.5,29" stroke="#3a2712" stroke-width="1"/>
       </svg>
-    </div>
-  `;
-  return { css, html };
-}
-
-function renderFrost(cfg, hass, hostEl) {
-  // Raureif: wächst langsam von allen vier Bildschirmecken ins Bild hinein
-  // (Wachstumsstand kommt von der Haupt-Karte, per Timer alle paar Sekunden
-  // etwas erhöht - gleiches Prinzip wie die wachsende Schneedecke). "Anzahl"
-  // steuert, wie weit der Raureif maximal hineinwächst.
-  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
-  const isHigh = (cfg.opacity_preset || "medium") === "high";
-  const finalOpacity = isHigh ? 1 : opacity;
-  const reach = { low: 80, medium: 120, high: 165 }[cfg.count_preset || "medium"] || 120;
-  const level = typeof cfg._frostLevel === "number" ? cfg._frostLevel : 0;
-  const scale = (Math.min(100, level) / 100).toFixed(3);
-  const pattern = buildFrostPattern();
-
-  const css = `
-    .frost-corner {
-      position: fixed; width: ${reach}px; height: ${reach}px;
-      pointer-events: none; z-index: 9999;
-    }
-  `;
-  const svgFor = (extraTransform, origin) => `
-    <svg viewBox="0 0 100 100" style="width:100%; height:100%; transform: scale(${scale}) ${extraTransform}; transform-origin: ${origin};">
-      <path d="${pattern}" stroke="#dff0fb" stroke-width="1.7" fill="none" stroke-linecap="round" opacity="0.9"/>
-      <path d="${pattern}" stroke="#aed4ec" stroke-width="0.6" fill="none" stroke-linecap="round" opacity="0.7"/>
-    </svg>
-  `;
-  const html = `
-    <div style="opacity:${finalOpacity};" aria-hidden="true">
-      <div class="frost-corner" style="top:0; left:0;">${svgFor("", "0% 0%")}</div>
-      <div class="frost-corner" style="top:0; right:0;">${svgFor("scaleX(-1)", "100% 0%")}</div>
-      <div class="frost-corner" style="bottom:0; left:0;">${svgFor("scaleY(-1)", "0% 100%")}</div>
-      <div class="frost-corner" style="bottom:0; right:0;">${svgFor("scale(-1,-1)", "100% 100%")}</div>
     </div>
   `;
   return { css, html };
@@ -1810,7 +1759,7 @@ const RENDERERS = {
   owl: renderOwl,
   bee: renderBee,
   clouds: renderClouds,
-  frost: renderFrost,
+
   gnome_door: renderGnomeDoor,
   birdhouse: renderBirdhouse,
   wishstar: renderWishStar,
@@ -1827,8 +1776,6 @@ class WeatherEventOverlayCard extends HTMLElement {
     this._onVisibilityChange = this._onVisibilityChange.bind(this);
     this._snowLevel = 0;
     this._snowTimer = null;
-    this._frostLevel = 0;
-    this._frostTimer = null;
     this._portalHost = null;
     this._portalShadow = null;
     this._visibilityPollTimer = null;
@@ -1886,10 +1833,6 @@ class WeatherEventOverlayCard extends HTMLElement {
     if (this._snowTimer) {
       clearInterval(this._snowTimer);
       this._snowTimer = null;
-    }
-    if (this._frostTimer) {
-      clearInterval(this._frostTimer);
-      this._frostTimer = null;
     }
     if (this._wishstarTimer) {
       clearInterval(this._wishstarTimer);
@@ -2004,24 +1947,6 @@ class WeatherEventOverlayCard extends HTMLElement {
     }
   }
 
-  _updateFrostAccumulation(events) {
-    const frostActive = events.includes("frost");
-    if (frostActive) {
-      if (!this._frostTimer) {
-        this._frostTimer = setInterval(() => {
-          this._frostLevel = Math.min(100, this._frostLevel + 5);
-          this._render();
-        }, 10000);
-      }
-    } else {
-      if (this._frostTimer) {
-        clearInterval(this._frostTimer);
-        this._frostTimer = null;
-      }
-      this._frostLevel = 0;
-    }
-  }
-
   _updateWishstar(events) {
     if (events.includes("wishstar")) {
       if (!this._wishstarTimer) {
@@ -2118,7 +2043,7 @@ class WeatherEventOverlayCard extends HTMLElement {
 
     const events = this._resolveEvents();
     this._updateSnowAccumulation(events);
-    this._updateFrostAccumulation(events);
+
     this._updateWishstar(events);
 
     this._updateStarsReshuffle(events);
@@ -2143,8 +2068,6 @@ class WeatherEventOverlayCard extends HTMLElement {
       let cfgForRender = this._config;
       if (event === "snow") {
         cfgForRender = { ...this._config, _snowLevel: this._snowLevel };
-      } else if (event === "frost") {
-        cfgForRender = { ...this._config, _frostLevel: this._frostLevel };
       } else if (event === "wishstar") {
         cfgForRender = { ...this._config, _wishstarPos: this._wishstarPos };
       } else if (event === "santa" || event === "comet" || event === "train" || event === "birdhouse") {
@@ -2267,7 +2190,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="fog" ${c.event === "fog" ? "selected" : ""}>🌫️ Nebel</option>
             <option value="storm" ${c.event === "storm" ? "selected" : ""}>💨 Sturm</option>
             <option value="clouds" ${c.event === "clouds" ? "selected" : ""}>🌤️ Wolken-Drift</option>
-            <option value="frost" ${c.event === "frost" ? "selected" : ""}>❄️🖼️ Raureif (Bildschirmränder)</option>
+
             <option value="gnome_door" ${c.event === "gnome_door" ? "selected" : ""}>🧝🚪 Wichteltür</option>
             <option value="birdhouse" ${c.event === "birdhouse" ? "selected" : ""}>🐦🏠 Vogelhäuschen</option>
             <option value="shooting_stars" ${c.event === "shooting_stars" ? "selected" : ""}>🌠 Sternschnuppen</option>
