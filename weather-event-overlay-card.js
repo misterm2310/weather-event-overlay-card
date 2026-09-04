@@ -1447,15 +1447,15 @@ function renderGnomeDoor(cfg, hass, hostEl) {
 
   const css = `
     .gnome-door-box {
-      position: fixed; bottom: 6vh; right: 42px; width: 54px; height: 62px;
+      position: fixed; bottom: 6vh; right: 40px; width: 54px; height: 62px;
       pointer-events: none; z-index: 9999;
     }
     .gnome-path-box {
-      position: fixed; bottom: 0; right: 42px; width: 54px; height: 6vh;
+      position: fixed; bottom: 0; right: 40px; width: 54px; height: 6vh;
       pointer-events: none; z-index: 9998;
     }
     .gnome-tree-box {
-      position: fixed; bottom: 6vh; right: 4px; width: 32px; height: 66px;
+      position: fixed; bottom: 6vh; right: 0px; width: 40px; height: 66px;
       pointer-events: none; z-index: 9998;
     }
     .tree-light {
@@ -1466,7 +1466,7 @@ function renderGnomeDoor(cfg, hass, hostEl) {
       50% { opacity: 1; }
     }
     .gnome-lantern-box {
-      position: fixed; bottom: 6vh; right: 137px; width: 26px; height: 58px;
+      position: fixed; bottom: 6vh; right: 94px; width: 26px; height: 58px;
       pointer-events: none; z-index: 9998;
     }
     .gnome-mailbox-box {
