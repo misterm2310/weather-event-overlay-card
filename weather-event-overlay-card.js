@@ -278,7 +278,7 @@ const WEATHER_STATE_MAP = {
   "fog": ["fog"],
   "windy": ["storm"],
   "windy-variant": ["storm"],
-  "clear-night": ["stars"],
+  "clear-night": ["stars", "window_candles"],
   "cloudy": ["clouds"],
   "partlycloudy": ["clouds"],
 };
@@ -324,6 +324,7 @@ const EVENT_CAPABILITIES = {
   clouds: { count: true, opacity: true, color: true },
 
   gnome_door: { count: true, opacity: true, color: false },
+  window_candles: { count: false, opacity: true, color: false },
   birdhouse: { count: true, opacity: true, color: false },
   wishstar: { count: false, opacity: true, color: true },
   birthday: { count: true, opacity: true, color: false },
@@ -860,6 +861,12 @@ function renderTrain(cfg, hass, hostEl) {
   const WAGON_X = [4, 97, 190, 283];
   const LOCO_X = 384;
 
+  // 5. mögliche Ladung "Weihnachtsmann-Sack": ersetzt die Holzscheite im
+  // letzten Waggon, aber NUR wenn der konfigurierte Sensor (z. B. ein
+  // input_boolean für die Weihnachtszeit) eingeschaltet ist.
+  const santaActive = cfg.santa_sensor && hass?.states?.[cfg.santa_sensor]?.state === "on";
+  const lastWagonCargo = santaActive ? "santa_sack" : "wood";
+
   const smokeHtml = [0, 1, 2].map((i) => `
     <circle class="train-smoke" cx="${76 - i * 11}" cy="${-1 - i * 3}" r="${5.5 + i * 1.4}" fill="#d9d9d9" stroke="#1a1a1a" stroke-width="1.5"
       style="animation-duration:${(2.6 + i * 0.25).toFixed(2)}s; animation-delay:${(i * 0.55).toFixed(2)}s;"/>
@@ -891,6 +898,10 @@ function renderTrain(cfg, hass, hostEl) {
     @keyframes train-smoke-rise {
       0%   { transform: translate(0,0) scale(0.5); opacity: 0.9; }
       100% { transform: translate(-95px,-8px) scale(1.7); opacity: 0; }
+    }
+    .station-sign-box {
+      position: fixed; bottom: 0; right: 45vw; width: 48px; height: 58px;
+      pointer-events: none; z-index: 9998;
     }
   `;
 
@@ -939,6 +950,13 @@ function renderTrain(cfg, hass, hostEl) {
       <circle cx="58" cy="21" r="3.2" fill="#a67c3d"/>
       <circle cx="73" cy="25" r="7" fill="#8a5a2f" stroke="#4a2f18" stroke-width="1.5"/>
       <circle cx="73" cy="25" r="3" fill="#c9a05a"/>
+    `,
+    santa_sack: `
+      <path d="M8,32 Q4,16 30,12 Q56,16 52,32 Z" fill="#c0392b" stroke="#6b1810" stroke-width="1.5"/>
+      <path d="M16,14 Q30,6 44,14" stroke="#6b1810" stroke-width="1.5" fill="none"/>
+      <rect x="12" y="8" width="9" height="11" fill="#4a90d9" stroke="#1a1a1a" stroke-width="1"/>
+      <circle cx="30" cy="8" r="5" fill="#ffd93d" stroke="#1a1a1a" stroke-width="1"/>
+      <path d="M40,7 L46,7 L43,0 Z" fill="#7cb342" stroke="#1a1a1a" stroke-width="1"/>
     `,
   };
 
@@ -991,6 +1009,14 @@ function renderTrain(cfg, hass, hostEl) {
   `;
 
   const html = `
+    <div class="station-sign-box" style="opacity:${finalOpacity};" aria-hidden="true">
+      <svg viewBox="0 0 48 58" style="width:100%; height:100%;">
+        <rect x="21" y="18" width="4" height="40" fill="#3a2712"/>
+        <path d="M4,8 L44,8 L39,2 L9,2 Z" fill="#3a2712"/>
+        <rect x="4" y="8" width="40" height="14" rx="2" fill="#1f5c3f" stroke="#0f3d28" stroke-width="1.5"/>
+        <text x="24" y="17.5" font-size="5.6" font-family="Georgia, serif" fill="#f0ebe0" text-anchor="middle" font-weight="bold">Traumort</text>
+      </svg>
+    </div>
     <div class="train-container" style="opacity:${finalOpacity};" aria-hidden="true">
       <div class="train-box">
         <svg viewBox="0 -24 520 90" preserveAspectRatio="xMidYMid meet">
@@ -1001,7 +1027,7 @@ function renderTrain(cfg, hass, hostEl) {
           ${wagon(WAGON_X[0], "food")}
           ${wagon(WAGON_X[1], "toys")}
           ${wagon(WAGON_X[2], "presents")}
-          ${wagon(WAGON_X[3], "wood")}
+          ${wagon(WAGON_X[3], lastWagonCargo)}
 
           <!-- Kupplungen zwischen allen Waggons und zur Lok -->
           ${couplingsHtml}
@@ -1425,6 +1451,54 @@ function renderBee(cfg, hass, hostEl) {
 // Verbesserung: erzeugt ein verzweigtes Eisblumen-/Raureif-Muster
 // mathematisch (wie schon beim Spinnennetz), das von einer Ecke (0,0)
 // diagonal ins Bild hineinwächst - Hauptäste mit kleinen Seitenzweigen.
+function renderWindowCandles(cfg, hass, hostEl) {
+  // Fenster-Kerzen: kleines Sprossenfenster mit zwei flackernden Kerzen auf
+  // der Fensterbank. Eigenständig wählbarer Effekt, wird zusätzlich
+  // automatisch bei "Wetter automatisch" + klarer Nacht (clear-night)
+  // zusammen mit dem Sternenhimmel eingeblendet.
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+  const finalOpacity = isHigh ? 1 : opacity;
+
+  const css = `
+    .window-candles-box {
+      position: fixed; bottom: 2vh; left: 1vw; width: 56px; height: 64px;
+      pointer-events: none; z-index: 9998;
+    }
+    .candle-flame {
+      animation: candle-flicker 2.1s ease-in-out infinite;
+      transform-box: fill-box; transform-origin: center;
+    }
+    @keyframes candle-flicker {
+      0%, 100% { opacity: 0.88; transform: scale(1); }
+      20% { opacity: 1; transform: scale(1.08); }
+      35% { opacity: 0.72; transform: scale(0.92); }
+      50% { opacity: 0.96; transform: scale(1.04); }
+      65% { opacity: 0.8; transform: scale(0.96); }
+      82% { opacity: 1; transform: scale(1.06); }
+    }
+  `;
+  const html = `
+    <div class="window-candles-box" style="opacity:${finalOpacity};" aria-hidden="true">
+      <svg viewBox="0 0 56 64" style="width:100%; height:100%;">
+        <rect x="4" y="4" width="48" height="48" rx="2" fill="#2a3a4a" stroke="#12181f" stroke-width="2.5"/>
+        <rect x="8" y="8" width="18" height="18" fill="#1a2530"/>
+        <rect x="30" y="8" width="18" height="18" fill="#1a2530"/>
+        <rect x="8" y="30" width="18" height="18" fill="#1a2530"/>
+        <rect x="30" y="30" width="18" height="18" fill="#1a2530"/>
+        <rect x="0" y="50" width="56" height="6" fill="#5a3d24"/>
+        <rect x="15" y="42" width="4" height="10" fill="#f0ebe0" stroke="#c9c2b4" stroke-width="0.8"/>
+        <path d="M17,42 L17,38" stroke="#8a6f1f" stroke-width="1"/>
+        <circle class="candle-flame" cx="17" cy="37" r="2.3" fill="#ffd97a" style="filter: drop-shadow(0 0 3px #ffb347);"/>
+        <rect x="35" y="44" width="4" height="8" fill="#f0ebe0" stroke="#c9c2b4" stroke-width="0.8"/>
+        <path d="M37,44 L37,40" stroke="#8a6f1f" stroke-width="1"/>
+        <circle class="candle-flame" cx="37" cy="39" r="2.1" fill="#ffd97a" style="filter: drop-shadow(0 0 3px #ffb347); animation-delay: 0.7s;"/>
+      </svg>
+    </div>
+  `;
+  return { css, html };
+}
+
 function renderGnomeDoor(cfg, hass, hostEl) {
   // Wichteltür: sitzt fest unten rechts, das runde Fenster leuchtet immer
   // wieder für eine Weile warm auf. Weihnachtlich gestaltet nach Vorlage:
@@ -1854,6 +1928,7 @@ const RENDERERS = {
   clouds: renderClouds,
 
   gnome_door: renderGnomeDoor,
+  window_candles: renderWindowCandles,
   birdhouse: renderBirdhouse,
   wishstar: renderWishStar,
   birthday: renderBirthday,
@@ -1983,6 +2058,7 @@ class WeatherEventOverlayCard extends HTMLElement {
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
       weather_entity: "",
       birthday_text: "Happy Birthday!",
+      santa_sensor: "",
       ...config,
     };
     this._render();
@@ -2223,6 +2299,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
       leaf_colors: ["#c9a227", "#a83232", "#d9812c"],
       weather_entity: "",
       birthday_text: "Happy Birthday!",
+      santa_sensor: "",
       ...config,
     };
     if (this._suppressNextRender) {
@@ -2267,9 +2344,14 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     const caps = EVENT_CAPABILITIES[c.event] || { count: false, opacity: false, color: false };
     const isWeatherAuto = c.event === "weather_auto";
     const isBirthday = c.event === "birthday";
+    const isTrain = c.event === "train";
 
     const weatherEntities = this._hass && this._hass.states
       ? Object.keys(this._hass.states).filter((eid) => eid.startsWith("weather."))
+      : [];
+
+    const booleanEntities = this._hass && this._hass.states
+      ? Object.keys(this._hass.states).filter((eid) => eid.startsWith("input_boolean.") || eid.startsWith("binary_sensor."))
       : [];
 
     this.innerHTML = `
@@ -2291,6 +2373,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="clouds" ${c.event === "clouds" ? "selected" : ""}>🌤️ Wolken-Drift</option>
 
             <option value="gnome_door" ${c.event === "gnome_door" ? "selected" : ""}>🧝🚪 Wichteltür</option>
+            <option value="window_candles" ${c.event === "window_candles" ? "selected" : ""}>🕯️ Fenster-Kerzen</option>
             <option value="birdhouse" ${c.event === "birdhouse" ? "selected" : ""}>🐦🏠 Vogelhäuschen</option>
             <option value="shooting_stars" ${c.event === "shooting_stars" ? "selected" : ""}>🌠 Sternschnuppen</option>
             <option value="stars" ${c.event === "stars" ? "selected" : ""}>✨ Sternenhimmel</option>
@@ -2318,6 +2401,20 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
         ${isBirthday ? this._row("Banner-Text", `
           <input id="birthday_text" type="text" value="${c.birthday_text ? c.birthday_text.replace(/"/g, "&quot;") : ""}" placeholder="Happy Birthday!" style="width:100%; padding:6px; box-sizing:border-box;" />
         `, "Text im Banner oben - z. B. 'Happy Birthday, Max!' für eine persönliche Note.") : ""}
+
+        ${isTrain ? (
+          booleanEntities.length > 0
+            ? this._row("Weihnachtsmann-Sensor (optional)", `
+                <select id="santa_sensor" style="width:100%; padding:6px;">
+                  <option value="" ${!c.santa_sensor ? "selected" : ""}>-- keiner (immer Holzscheite) --</option>
+                  ${booleanEntities.map((eid) => {
+                    const friendly = this._hass.states[eid]?.attributes?.friendly_name || eid;
+                    return `<option value="${eid}" ${c.santa_sensor === eid ? "selected" : ""}>${friendly}</option>`;
+                  }).join("")}
+                </select>
+              `, "Optional: ist dieser Schalter/Sensor 'an', trägt der letzte Waggon einen roten Weihnachtsmann-Sack statt Holzscheiten.")
+            : this._row("Weihnachtsmann-Sensor (optional)", `<input id="santa_sensor" type="text" placeholder="input_boolean.weihnachtszeit" value="${c.santa_sensor || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`, "Optional: ist dieser Schalter/Sensor 'an', trägt der letzte Waggon einen roten Weihnachtsmann-Sack statt Holzscheiten.")
+        ) : ""}
 
         ${isWeatherAuto ? (
           weatherEntities.length > 0
@@ -2383,6 +2480,11 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     const weatherEntitySel = this.querySelector("#weather_entity");
     if (weatherEntitySel) {
       weatherEntitySel.addEventListener("change", (e) => this._update("weather_entity", e.target.value.trim(), false));
+    }
+
+    const santaSensorSel = this.querySelector("#santa_sensor");
+    if (santaSensorSel) {
+      santaSensorSel.addEventListener("change", (e) => this._update("santa_sensor", e.target.value.trim(), false));
     }
 
     const countSel = this.querySelector("#count_preset");
