@@ -1455,7 +1455,7 @@ function renderGnomeDoor(cfg, hass, hostEl) {
       pointer-events: none; z-index: 9998;
     }
     .gnome-tree-box {
-      position: fixed; bottom: 6vh; right: -4px; width: 40px; height: 66px;
+      position: fixed; bottom: 6vh; right: 6px; width: 40px; height: 66px;
       pointer-events: none; z-index: 9998;
     }
     .tree-light {
@@ -1466,7 +1466,11 @@ function renderGnomeDoor(cfg, hass, hostEl) {
       50% { opacity: 1; }
     }
     .gnome-lantern-box {
-      position: fixed; bottom: 6vh; right: calc(1vw + 36px); width: 26px; height: 58px;
+      position: fixed; bottom: 6vh; right: calc(1vw + 46px); width: 26px; height: 58px;
+      pointer-events: none; z-index: 9998;
+    }
+    .gnome-mailbox-box {
+      position: fixed; bottom: 0; right: calc(1vw + 84px); width: 32px; height: 52px;
       pointer-events: none; z-index: 9998;
     }
     .gnome-light {
@@ -1508,6 +1512,16 @@ function renderGnomeDoor(cfg, hass, hostEl) {
         <circle class="tree-light" cx="26" cy="36" r="1.6" fill="#e63946" style="animation-delay:1.2s;"/>
         <circle class="tree-light" cx="17" cy="21" r="1.4" fill="#ffd93d" style="animation-delay:1.5s;"/>
         <circle class="tree-light" cx="24" cy="21" r="1.4" fill="#4a90d9" style="animation-delay:0.45s;"/>
+      </svg>
+    </div>
+    <div class="gnome-mailbox-box" style="opacity:${finalOpacity};" aria-hidden="true">
+      <svg viewBox="0 0 26 46" style="width:100%; height:100%;">
+        <rect x="11" y="20" width="4" height="24" fill="#1a1a1a"/>
+        <path d="M11,42 Q13,44 15,42" stroke="#1a1a1a" stroke-width="1.4" fill="none"/>
+        <path d="M2,15 Q2,7 9,7 L15,7 Q22,7 22,15 L22,19 L2,19 Z" fill="#3a4a3a" stroke="#1a1a1a" stroke-width="1"/>
+        <rect x="2" y="16" width="20" height="3" fill="#1a1a1a"/>
+        <path d="M20,9 L25,7 L25,12 Z" fill="#c0392b" stroke="#6b1810" stroke-width="0.6"/>
+        <text x="12" y="14" font-size="6" font-family="Georgia, serif" fill="#f0ebe0" text-anchor="middle" font-weight="bold">Olaf</text>
       </svg>
     </div>
     <div class="gnome-lantern-box" style="opacity:${finalOpacity};" aria-hidden="true">
