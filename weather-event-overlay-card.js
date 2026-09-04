@@ -1454,8 +1454,19 @@ function renderGnomeDoor(cfg, hass, hostEl) {
       position: fixed; bottom: 0; right: 1vw; width: 54px; height: 6vh;
       pointer-events: none; z-index: 9998;
     }
+    .gnome-tree-box {
+      position: fixed; bottom: 6vh; right: -4px; width: 40px; height: 66px;
+      pointer-events: none; z-index: 9998;
+    }
+    .tree-light {
+      animation: tree-light-twinkle 1.8s ease-in-out infinite;
+    }
+    @keyframes tree-light-twinkle {
+      0%, 100% { opacity: 0.35; }
+      50% { opacity: 1; }
+    }
     .gnome-lantern-box {
-      position: fixed; bottom: 6vh; right: calc(1vw + 56px); width: 26px; height: 58px;
+      position: fixed; bottom: 6vh; right: calc(1vw + 36px); width: 26px; height: 58px;
       pointer-events: none; z-index: 9998;
     }
     .gnome-light {
@@ -1480,6 +1491,25 @@ function renderGnomeDoor(cfg, hass, hostEl) {
     }
   `;
   const html = `
+    <div class="gnome-tree-box" style="opacity:${finalOpacity};" aria-hidden="true">
+      <svg viewBox="0 0 40 66" style="width:100%; height:100%;">
+        <path d="M4,58 L36,58 L20,38 Z" fill="#1f5c3f" stroke="#0f3d28" stroke-width="1.5"/>
+        <path d="M8,42 L32,42 L20,24 Z" fill="#256b48" stroke="#0f3d28" stroke-width="1.5"/>
+        <path d="M12,26 L28,26 L20,10 Z" fill="#2a7a52" stroke="#0f3d28" stroke-width="1.5"/>
+        <rect x="17" y="58" width="6" height="8" fill="#5a3d24"/>
+        <path d="M20,10 L20,6" stroke="#ffd93d" stroke-width="1.5"/>
+        <circle cx="20" cy="5" r="2" fill="#ffd93d"/>
+        <path d="M11,50 Q16,55 20,53 Q25,56 29,50 Q23,43 14,36 Q20,41 26,36 Q20,29 17,21 Q21,25 24,21"
+          fill="none" stroke="#2a2a2a" stroke-width="0.7" opacity="0.6"/>
+        <circle class="tree-light" cx="11" cy="50" r="1.7" fill="#e63946" style="animation-delay:0s;"/>
+        <circle class="tree-light" cx="20" cy="53" r="1.7" fill="#ffd93d" style="animation-delay:0.3s;"/>
+        <circle class="tree-light" cx="29" cy="50" r="1.7" fill="#4a90d9" style="animation-delay:0.6s;"/>
+        <circle class="tree-light" cx="14" cy="36" r="1.6" fill="#7cb342" style="animation-delay:0.9s;"/>
+        <circle class="tree-light" cx="26" cy="36" r="1.6" fill="#e63946" style="animation-delay:1.2s;"/>
+        <circle class="tree-light" cx="17" cy="21" r="1.4" fill="#ffd93d" style="animation-delay:1.5s;"/>
+        <circle class="tree-light" cx="24" cy="21" r="1.4" fill="#4a90d9" style="animation-delay:0.45s;"/>
+      </svg>
+    </div>
     <div class="gnome-lantern-box" style="opacity:${finalOpacity};" aria-hidden="true">
       <svg viewBox="0 0 26 58" style="width:100%; height:100%;">
         <path d="M8,55 Q13,52 18,55 L19.5,57.5 L6.5,57.5 Z" fill="#1a1a1a"/>
