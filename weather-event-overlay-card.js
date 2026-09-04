@@ -922,14 +922,11 @@ function renderTrain(cfg, hass, hostEl) {
     `,
     presents: `
       <rect x="4" y="16" width="20" height="16" fill="#4a90d9" stroke="#1a1a1a" stroke-width="1.5"/>
-      <rect x="4" y="16" width="20" height="4" fill="#ffd93d"/>
-      <rect x="12" y="16" width="4" height="16" fill="#ffd93d"/>
+      <circle cx="14" cy="16" r="2.8" fill="#ffd93d" stroke="#1a1a1a" stroke-width="1"/>
       <rect x="30" y="10" width="22" height="22" fill="#e63946" stroke="#1a1a1a" stroke-width="1.5"/>
-      <rect x="30" y="10" width="22" height="4" fill="#7cb342"/>
-      <rect x="39" y="10" width="4" height="22" fill="#7cb342"/>
+      <circle cx="41" cy="10" r="2.8" fill="#7cb342" stroke="#1a1a1a" stroke-width="1"/>
       <rect x="58" y="15" width="20" height="17" fill="#9b59b6" stroke="#1a1a1a" stroke-width="1.5"/>
-      <rect x="58" y="15" width="20" height="4" fill="#ffd93d"/>
-      <rect x="66" y="15" width="4" height="17" fill="#ffd93d"/>
+      <circle cx="68" cy="15" r="2.8" fill="#ffd93d" stroke="#1a1a1a" stroke-width="1"/>
     `,
     wood: `
       <circle cx="12" cy="25" r="7" fill="#8a5a2f" stroke="#4a2f18" stroke-width="1.5"/>
@@ -1458,7 +1455,7 @@ function renderGnomeDoor(cfg, hass, hostEl) {
       pointer-events: none; z-index: 9998;
     }
     .gnome-lantern-box {
-      position: fixed; bottom: 0; right: calc(1vw + 64px); width: 28px; height: 112px;
+      position: fixed; bottom: 6vh; right: calc(1vw + 58px); width: 32px; height: 72px;
       pointer-events: none; z-index: 9998;
     }
     .gnome-light {
@@ -1484,15 +1481,15 @@ function renderGnomeDoor(cfg, hass, hostEl) {
   `;
   const html = `
     <div class="gnome-lantern-box" style="opacity:${finalOpacity};" aria-hidden="true">
-      <svg viewBox="0 0 28 112" style="width:100%; height:100%;">
-        <rect x="12" y="38" width="4" height="66" fill="#2a2a2a"/>
-        <rect x="6" y="102" width="16" height="5" rx="1" fill="#2a2a2a"/>
-        <path d="M6,38 L22,38 L19,10 L9,10 Z" fill="none" stroke="#2a2a2a" stroke-width="2"/>
-        <rect x="8" y="12" width="12" height="24" fill="#4a3520" opacity="0.15"/>
-        <path d="M14,12 L14,36 M8,24 L20,24" stroke="#2a2a2a" stroke-width="1.1"/>
-        <circle class="lantern-flame" cx="14" cy="23" r="5.5" fill="#ffd97a" style="filter: drop-shadow(0 0 4px #ffb347);"/>
-        <path d="M10,10 L18,10 L14,2 Z" fill="#2a2a2a"/>
-        <circle cx="14" cy="2" r="1.5" fill="#2a2a2a"/>
+      <svg viewBox="0 0 32 72" style="width:100%; height:100%;">
+        <path d="M10,68 Q16,64 22,68 L24,71 L8,71 Z" fill="#1a1a1a"/>
+        <rect x="14" y="50" width="4" height="18" fill="#1a1a1a"/>
+        <path d="M9,50 L23,50 L25,20 L21,16 L11,16 L7,20 Z" fill="#fff3d0" opacity="0.14"/>
+        <path d="M9,50 L23,50 L25,20 L21,16 L11,16 L7,20 Z" fill="none" stroke="#1a1a1a" stroke-width="1.8"/>
+        <path d="M12,50 L12,18.5 M20,50 L20,18.5" stroke="#1a1a1a" stroke-width="1.1"/>
+        <circle class="lantern-flame" cx="16" cy="34" r="5.5" fill="#ffd97a" style="filter: drop-shadow(0 0 4px #ffb347);"/>
+        <path d="M9,16 L23,16 L16,6 Z" fill="#1a1a1a"/>
+        <circle cx="16" cy="4.5" r="1.7" fill="#1a1a1a"/>
       </svg>
     </div>
     <div class="gnome-path-box" style="opacity:${finalOpacity};" aria-hidden="true">
