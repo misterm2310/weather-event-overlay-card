@@ -860,16 +860,6 @@ function renderTrain(cfg, hass, hostEl) {
   const WAGON_X = [4, 97, 190, 283];
   const LOCO_X = 384;
 
-  // Bahnschranke + Signal: zeitlich mit der Zugfahrt synchronisiert (nicht
-  // pixelgenau an die tatsächliche Zugposition gekoppelt, da Schranke und
-  // Zug im selben Effekt liegen und rein über Prozentsätze des gemeinsamen
-  // Zyklus gesteuert werden). Geschlossen während der Zug sichtbar ist
-  // (0% bis walkPct%), öffnet kurz danach, bleibt offen, schließt kurz vor
-  // Zyklus-Ende wieder (für einen nahtlosen Übergang zum nächsten Durchlauf).
-  const openStartPct = Math.min(90, parseFloat(walkPct) + 6).toFixed(2);
-  const openDonePct = Math.min(94, parseFloat(walkPct) + 10).toFixed(2);
-  const closeAgainPct = 97;
-
   const smokeHtml = [0, 1, 2].map((i) => `
     <circle class="train-smoke" cx="${76 - i * 11}" cy="${-1 - i * 3}" r="${5.5 + i * 1.4}" fill="#d9d9d9" stroke="#1a1a1a" stroke-width="1.5"
       style="animation-duration:${(2.6 + i * 0.25).toFixed(2)}s; animation-delay:${(i * 0.55).toFixed(2)}s;"/>
@@ -901,35 +891,6 @@ function renderTrain(cfg, hass, hostEl) {
     @keyframes train-smoke-rise {
       0%   { transform: translate(0,0) scale(0.5); opacity: 0.9; }
       100% { transform: translate(-95px,-8px) scale(1.7); opacity: 0; }
-    }
-    .crossing-box {
-      position: fixed; bottom: 0; right: 170px; width: 46px; height: 54px;
-      pointer-events: none; z-index: 9998;
-    }
-    .crossing-barrier {
-      animation: crossing-barrier-cycle ${interval}s linear infinite;
-      animation-delay: ${delaySec}s;
-      transform-box: fill-box; transform-origin: 50% 100%;
-    }
-    @keyframes crossing-barrier-cycle {
-      0% { transform: rotate(90deg); }
-      ${walkPct}% { transform: rotate(90deg); }
-      ${openStartPct}% { transform: rotate(0deg); }
-      ${openDonePct}% { transform: rotate(0deg); }
-      ${closeAgainPct}% { transform: rotate(0deg); }
-      100% { transform: rotate(90deg); }
-    }
-    .crossing-signal {
-      animation: crossing-signal-cycle ${interval}s linear infinite;
-      animation-delay: ${delaySec}s;
-    }
-    @keyframes crossing-signal-cycle {
-      0% { fill: #2ecc40; }
-      ${walkPct}% { fill: #2ecc40; }
-      ${openStartPct}% { fill: #e63946; }
-      ${openDonePct}% { fill: #e63946; }
-      ${closeAgainPct}% { fill: #e63946; }
-      100% { fill: #2ecc40; }
     }
   `;
 
@@ -1030,22 +991,6 @@ function renderTrain(cfg, hass, hostEl) {
   `;
 
   const html = `
-    <div class="crossing-box" style="opacity:${finalOpacity};" aria-hidden="true">
-      <svg viewBox="0 0 46 54" style="width:100%; height:100%;">
-        <rect x="30" y="4" width="3" height="46" fill="#2a2a2a"/>
-        <circle class="crossing-signal" cx="31.5" cy="8" r="3.2" fill="#2ecc40"/>
-        <circle cx="4" cy="48" r="3" fill="#2a2a2a"/>
-        <g class="crossing-barrier">
-          <rect x="2" y="20" width="3.5" height="28" fill="#2a2a2a"/>
-          <rect x="2" y="20" width="3.5" height="5" fill="#e63946"/>
-          <rect x="2" y="25" width="3.5" height="5" fill="#f0ebe0"/>
-          <rect x="2" y="30" width="3.5" height="5" fill="#e63946"/>
-          <rect x="2" y="35" width="3.5" height="5" fill="#f0ebe0"/>
-          <rect x="2" y="40" width="3.5" height="5" fill="#e63946"/>
-          <rect x="2" y="45" width="3.5" height="3" fill="#f0ebe0"/>
-        </g>
-      </svg>
-    </div>
     <div class="train-container" style="opacity:${finalOpacity};" aria-hidden="true">
       <div class="train-box">
         <svg viewBox="0 -24 520 90" preserveAspectRatio="xMidYMid meet">
