@@ -1429,14 +1429,24 @@ function renderBee(cfg, hass, hostEl) {
 // mathematisch (wie schon beim Spinnennetz), das von einer Ecke (0,0)
 // diagonal ins Bild hineinwächst - Hauptäste mit kleinen Seitenzweigen.
 function renderGnomeDoor(cfg, hass, hostEl) {
-  // Wichteltür: sitzt fest unten rechts (in etwa der Größe der Dampflok),
-  // das runde Fenster leuchtet immer wieder für eine Weile warm auf und
-  // erlischt dann wieder - als würde der Wichtel manchmal zu Hause sein.
-  // Ohne Erdhügel - nur die Tür mit kleinem Vordach.
+  // Wichteltür: sitzt fest unten rechts, das runde Fenster leuchtet immer
+  // wieder für eine Weile warm auf. Weihnachtlich gestaltet nach Vorlage:
+  // dunkelgrüne Tür, ein Kranz aus kleinen Blättern/Beeren mit roter
+  // Schleife rund ums Fenster, kleine Herz-Scharniere am linken Rand.
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
   const cycle = { low: 40, medium: 25, high: 14 }[cfg.count_preset || "medium"] || 25;
+
+  // Kranz: Ring aus kleinen Blatt-/Beeren-Punkten um Fenster-Mittelpunkt
+  // (30,33), mathematisch verteilt statt von Hand gesetzt.
+  const wreathDots = Array.from({ length: 16 }, (_, i) => {
+    const angle = (i / 16) * 2 * Math.PI - Math.PI / 2;
+    const rx = 30 + 9.5 * Math.cos(angle);
+    const ry = 33 + 9.5 * Math.sin(angle);
+    const isBerry = i % 4 === 1;
+    return `<circle cx="${rx.toFixed(1)}" cy="${ry.toFixed(1)}" r="${isBerry ? 1.5 : 2.1}" fill="${isBerry ? "#c0392b" : "#2e7d4f"}"/>`;
+  }).join("");
 
   const css = `
     .gnome-door-box {
@@ -1455,13 +1465,17 @@ function renderGnomeDoor(cfg, hass, hostEl) {
   const html = `
     <div class="gnome-door-box" style="opacity:${finalOpacity};" aria-hidden="true">
       <svg viewBox="0 0 60 76" style="width:100%; height:100%;">
-        <path d="M8,38 Q30,10 52,38" fill="none" stroke="#4a3520" stroke-width="5" stroke-linecap="round"/>
-        <path d="M15,74 L15,34 Q15,16 30,16 Q45,16 45,34 L45,74 Z" fill="#8a5a2f" stroke="#3a2712" stroke-width="2.2"/>
-        <path d="M16,46 L44,46 M16,56 L44,56 M16,66 L44,66" stroke="#3a2712" stroke-width="1.1"/>
-        <circle cx="39" cy="51" r="1.8" fill="#2a1a10"/>
-        <circle class="gnome-light" cx="30" cy="29" r="6.5" fill="#ffd97a"/>
-        <circle cx="30" cy="29" r="6.5" fill="none" stroke="#3a2712" stroke-width="1.6"/>
-        <path d="M30,22.5 L30,35.5 M23.5,29 L36.5,29" stroke="#3a2712" stroke-width="1"/>
+        <path d="M8,38 Q30,10 52,38" fill="none" stroke="#0f3d28" stroke-width="5" stroke-linecap="round"/>
+        <path d="M15,74 L15,34 Q15,16 30,16 Q45,16 45,34 L45,74 Z" fill="#1f5c3f" stroke="#0f3d28" stroke-width="2.2"/>
+        <path d="M16,46 L44,46 M16,56 L44,56 M16,66 L44,66" stroke="#0f3d28" stroke-width="1.1"/>
+        <path d="M15,45 C15,43 12,43 12,45 C12,47 15,49 15,51 C15,49 18,47 18,45 C18,43 15,43 15,45 Z" fill="#c0392b" stroke="#6b1810" stroke-width="0.8"/>
+        <path d="M15,60 C15,58 12,58 12,60 C12,62 15,64 15,66 C15,64 18,62 18,60 C18,58 15,58 15,60 Z" fill="#c0392b" stroke="#6b1810" stroke-width="0.8"/>
+        <circle class="gnome-light" cx="30" cy="33" r="6.5" fill="#ffd97a"/>
+        <circle cx="30" cy="33" r="6.5" fill="none" stroke="#0f3d28" stroke-width="1.6"/>
+        <path d="M30,26.5 L30,39.5 M23.5,33 L36.5,33" stroke="#0f3d28" stroke-width="1"/>
+        ${wreathDots}
+        <path d="M30,23.5 L25,18 Q23,16 25.5,15 Q28,14.5 29.5,17.5 L30,23.5 L30.5,17.5 Q32,14.5 34.5,15 Q37,16 35,18 Z" fill="#c0392b" stroke="#6b1810" stroke-width="0.8"/>
+        <circle cx="30" cy="18.5" r="1.6" fill="#8e2419"/>
       </svg>
     </div>
   `;
