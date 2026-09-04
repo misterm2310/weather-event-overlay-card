@@ -861,8 +861,8 @@ function renderTrain(cfg, hass, hostEl) {
   const LOCO_X = 384;
 
   const smokeHtml = [0, 1, 2].map((i) => `
-    <circle class="train-smoke" cx="${76 - i * 7}" cy="${-2 - i * 8}" r="${5.5 + i * 1.4}" fill="#d9d9d9" stroke="#1a1a1a" stroke-width="1.5"
-      style="animation-duration:${(2 + i * 0.2).toFixed(2)}s; animation-delay:${(i * 0.55).toFixed(2)}s;"/>
+    <circle class="train-smoke" cx="${76 - i * 11}" cy="${-1 - i * 3}" r="${5.5 + i * 1.4}" fill="#d9d9d9" stroke="#1a1a1a" stroke-width="1.5"
+      style="animation-duration:${(2.6 + i * 0.25).toFixed(2)}s; animation-delay:${(i * 0.55).toFixed(2)}s;"/>
   `).join("");
 
   const css = `
@@ -890,7 +890,7 @@ function renderTrain(cfg, hass, hostEl) {
     }
     @keyframes train-smoke-rise {
       0%   { transform: translate(0,0) scale(0.5); opacity: 0.9; }
-      100% { transform: translate(-16px,-30px) scale(1.5); opacity: 0; }
+      100% { transform: translate(-95px,-8px) scale(1.7); opacity: 0; }
     }
   `;
 
