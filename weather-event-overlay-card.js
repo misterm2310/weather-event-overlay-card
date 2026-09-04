@@ -1450,8 +1450,12 @@ function renderGnomeDoor(cfg, hass, hostEl) {
 
   const css = `
     .gnome-door-box {
-      position: fixed; bottom: 1vh; right: 1vw; width: 54px; height: 62px;
+      position: fixed; bottom: 6vh; right: 1vw; width: 54px; height: 62px;
       pointer-events: none; z-index: 9999;
+    }
+    .gnome-path-box {
+      position: fixed; bottom: 0; right: 1vw; width: 54px; height: 6vh;
+      pointer-events: none; z-index: 9998;
     }
     .gnome-light {
       animation: gnome-light-flicker ${cycle}s ease-in-out infinite;
@@ -1463,6 +1467,12 @@ function renderGnomeDoor(cfg, hass, hostEl) {
     }
   `;
   const html = `
+    <div class="gnome-path-box" style="opacity:${finalOpacity};" aria-hidden="true">
+      <svg viewBox="0 0 54 60" preserveAspectRatio="none" style="width:100%; height:100%;">
+        <path d="M20,0 L34,0 L48,60 L6,60 Z" fill="#9a9186" stroke="#5a5548" stroke-width="1.5"/>
+        <path d="M15,20 L39,20 M10,40 L44,40" stroke="#5a5548" stroke-width="1.2" opacity="0.5"/>
+      </svg>
+    </div>
     <div class="gnome-door-box" style="opacity:${finalOpacity};" aria-hidden="true">
       <svg viewBox="0 0 60 76" style="width:100%; height:100%;">
         <path d="M15,74 L15,34 Q15,16 30,16 Q45,16 45,34 L45,74 Z" fill="#1f5c3f" stroke="#0f3d28" stroke-width="2.2"/>
@@ -1816,7 +1826,13 @@ class WeatherEventOverlayCard extends HTMLElement {
     // extrem hoher, praktisch nie überbotener z-index-Wert stellt sicher,
     // dass unser Effekt-Container IMMER ganz oben liegt, egal was sonst
     // noch auf der Seite ist.
-    this._portalHost.style.cssText = "position:fixed; top:0; left:0; width:0; height:0; pointer-events:none; z-index:2147483647;";
+    // Verbesserung: läuft die Dampflok als EIGENE Karte gleichzeitig mit
+    // einem anderen Effekt (z. B. der Wichteltür, die ja auch unten am
+    // Rand sitzt), sollen sich beide nicht zufällig überdecken je nachdem
+    // welche Karte zuerst geladen wurde - die Lok bekommt deshalb einen
+    // minimal höheren Wert und fährt dadurch IMMER sichtbar davor her.
+    const z = this._config?.event === "train" ? 2147483647 : 2147483646;
+    this._portalHost.style.cssText = `position:fixed; top:0; left:0; width:0; height:0; pointer-events:none; z-index:${z};`;
     this._portalShadow = this._portalHost.attachShadow({ mode: "open" });
     document.body.appendChild(this._portalHost);
   }
