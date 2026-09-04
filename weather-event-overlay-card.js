@@ -278,7 +278,7 @@ const WEATHER_STATE_MAP = {
   "fog": ["fog"],
   "windy": ["storm"],
   "windy-variant": ["storm"],
-  "clear-night": ["stars", "window_candles"],
+  "clear-night": ["stars"],
   "cloudy": ["clouds"],
   "partlycloudy": ["clouds"],
 };
@@ -324,7 +324,7 @@ const EVENT_CAPABILITIES = {
   clouds: { count: true, opacity: true, color: true },
 
   gnome_door: { count: true, opacity: true, color: false },
-  window_candles: { count: false, opacity: true, color: false },
+
   birdhouse: { count: true, opacity: true, color: false },
   wishstar: { count: false, opacity: true, color: true },
   birthday: { count: true, opacity: true, color: false },
@@ -865,7 +865,9 @@ function renderTrain(cfg, hass, hostEl) {
   // letzten Waggon, aber NUR wenn der konfigurierte Sensor (z. B. ein
   // input_boolean für die Weihnachtszeit) eingeschaltet ist.
   const santaActive = cfg.santa_sensor && hass?.states?.[cfg.santa_sensor]?.state === "on";
-  const lastWagonCargo = santaActive ? "santa_sack" : "wood";
+  const cargo0 = santaActive ? "snowman" : "food";
+  const cargo1 = santaActive ? "santa" : "toys";
+  const cargo3 = santaActive ? "santa_sack" : "wood";
 
   const smokeHtml = [0, 1, 2].map((i) => `
     <circle class="train-smoke" cx="${76 - i * 11}" cy="${-1 - i * 3}" r="${5.5 + i * 1.4}" fill="#d9d9d9" stroke="#1a1a1a" stroke-width="1.5"
@@ -898,10 +900,6 @@ function renderTrain(cfg, hass, hostEl) {
     @keyframes train-smoke-rise {
       0%   { transform: translate(0,0) scale(0.5); opacity: 0.9; }
       100% { transform: translate(-95px,-8px) scale(1.7); opacity: 0; }
-    }
-    .station-sign-box {
-      position: fixed; bottom: 0; right: 45vw; width: 48px; height: 58px;
-      pointer-events: none; z-index: 9998;
     }
   `;
 
@@ -958,6 +956,28 @@ function renderTrain(cfg, hass, hostEl) {
       <circle cx="30" cy="8" r="5" fill="#ffd93d" stroke="#1a1a1a" stroke-width="1"/>
       <path d="M40,7 L46,7 L43,0 Z" fill="#7cb342" stroke="#1a1a1a" stroke-width="1"/>
     `,
+    snowman: `
+      <circle cx="40" cy="27" r="9" fill="#f5f5f5" stroke="#c9c2b4" stroke-width="1"/>
+      <circle cx="40" cy="15" r="6.5" fill="#f5f5f5" stroke="#c9c2b4" stroke-width="1"/>
+      <path d="M33.5,14 L46.5,14 L46.5,10.5 L33.5,10.5 Z" fill="#1a1a1a"/>
+      <path d="M31.5,9 L48.5,9 L48.5,7 L31.5,7 Z" fill="#1a1a1a"/>
+      <path d="M40,15 L45,16 L40,17 Z" fill="#e8952a"/>
+      <circle cx="37" cy="14" r="0.9" fill="#1a1a1a"/>
+      <circle cx="43" cy="14" r="0.9" fill="#1a1a1a"/>
+      <circle cx="40" cy="25" r="1" fill="#1a1a1a"/>
+      <circle cx="40" cy="29" r="1" fill="#1a1a1a"/>
+      <path d="M31,21 L23,17 M49,21 L57,17" stroke="#6b4423" stroke-width="1.5" stroke-linecap="round"/>
+    `,
+    santa: `
+      <circle cx="40" cy="27" r="9" fill="#c0392b" stroke="#6b1810" stroke-width="1.2"/>
+      <rect x="33" y="30" width="14" height="3" fill="#1a1a1a"/>
+      <circle cx="40" cy="15" r="6" fill="#f0d1a8" stroke="#c9a878" stroke-width="0.8"/>
+      <path d="M34,18 Q40,24 46,18 L46,22 Q40,27 34,22 Z" fill="#ffffff"/>
+      <path d="M33,11 Q40,4 47,11 Q47,5 40,4 Q33,5 33,11 Z" fill="#c0392b" stroke="#6b1810" stroke-width="1"/>
+      <circle cx="47" cy="5" r="2.2" fill="#ffffff"/>
+      <circle cx="37" cy="14" r="0.8" fill="#1a1a1a"/>
+      <circle cx="43" cy="14" r="0.8" fill="#1a1a1a"/>
+    `,
   };
 
   const wagon = (x, cargoKey) => `
@@ -1009,14 +1029,6 @@ function renderTrain(cfg, hass, hostEl) {
   `;
 
   const html = `
-    <div class="station-sign-box" style="opacity:${finalOpacity};" aria-hidden="true">
-      <svg viewBox="0 0 48 58" style="width:100%; height:100%;">
-        <rect x="21" y="18" width="4" height="40" fill="#3a2712"/>
-        <path d="M4,8 L44,8 L39,2 L9,2 Z" fill="#3a2712"/>
-        <rect x="4" y="8" width="40" height="14" rx="2" fill="#1f5c3f" stroke="#0f3d28" stroke-width="1.5"/>
-        <text x="24" y="17.5" font-size="5.6" font-family="Georgia, serif" fill="#f0ebe0" text-anchor="middle" font-weight="bold">Traumort</text>
-      </svg>
-    </div>
     <div class="train-container" style="opacity:${finalOpacity};" aria-hidden="true">
       <div class="train-box">
         <svg viewBox="0 -24 520 90" preserveAspectRatio="xMidYMid meet">
@@ -1024,10 +1036,10 @@ function renderTrain(cfg, hass, hostEl) {
           <path d="M2,58 L516,58" stroke="#1a1a1a" stroke-width="2"/>
 
           <!-- Vier Waggons, unterschiedlich beladen -->
-          ${wagon(WAGON_X[0], "food")}
-          ${wagon(WAGON_X[1], "toys")}
+          ${wagon(WAGON_X[0], cargo0)}
+          ${wagon(WAGON_X[1], cargo1)}
           ${wagon(WAGON_X[2], "presents")}
-          ${wagon(WAGON_X[3], lastWagonCargo)}
+          ${wagon(WAGON_X[3], cargo3)}
 
           <!-- Kupplungen zwischen allen Waggons und zur Lok -->
           ${couplingsHtml}
@@ -1451,54 +1463,6 @@ function renderBee(cfg, hass, hostEl) {
 // Verbesserung: erzeugt ein verzweigtes Eisblumen-/Raureif-Muster
 // mathematisch (wie schon beim Spinnennetz), das von einer Ecke (0,0)
 // diagonal ins Bild hineinwächst - Hauptäste mit kleinen Seitenzweigen.
-function renderWindowCandles(cfg, hass, hostEl) {
-  // Fenster-Kerzen: kleines Sprossenfenster mit zwei flackernden Kerzen auf
-  // der Fensterbank. Eigenständig wählbarer Effekt, wird zusätzlich
-  // automatisch bei "Wetter automatisch" + klarer Nacht (clear-night)
-  // zusammen mit dem Sternenhimmel eingeblendet.
-  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
-  const isHigh = (cfg.opacity_preset || "medium") === "high";
-  const finalOpacity = isHigh ? 1 : opacity;
-
-  const css = `
-    .window-candles-box {
-      position: fixed; bottom: 2vh; left: 1vw; width: 56px; height: 64px;
-      pointer-events: none; z-index: 9998;
-    }
-    .candle-flame {
-      animation: candle-flicker 2.1s ease-in-out infinite;
-      transform-box: fill-box; transform-origin: center;
-    }
-    @keyframes candle-flicker {
-      0%, 100% { opacity: 0.88; transform: scale(1); }
-      20% { opacity: 1; transform: scale(1.08); }
-      35% { opacity: 0.72; transform: scale(0.92); }
-      50% { opacity: 0.96; transform: scale(1.04); }
-      65% { opacity: 0.8; transform: scale(0.96); }
-      82% { opacity: 1; transform: scale(1.06); }
-    }
-  `;
-  const html = `
-    <div class="window-candles-box" style="opacity:${finalOpacity};" aria-hidden="true">
-      <svg viewBox="0 0 56 64" style="width:100%; height:100%;">
-        <rect x="4" y="4" width="48" height="48" rx="2" fill="#2a3a4a" stroke="#12181f" stroke-width="2.5"/>
-        <rect x="8" y="8" width="18" height="18" fill="#1a2530"/>
-        <rect x="30" y="8" width="18" height="18" fill="#1a2530"/>
-        <rect x="8" y="30" width="18" height="18" fill="#1a2530"/>
-        <rect x="30" y="30" width="18" height="18" fill="#1a2530"/>
-        <rect x="0" y="50" width="56" height="6" fill="#5a3d24"/>
-        <rect x="15" y="42" width="4" height="10" fill="#f0ebe0" stroke="#c9c2b4" stroke-width="0.8"/>
-        <path d="M17,42 L17,38" stroke="#8a6f1f" stroke-width="1"/>
-        <circle class="candle-flame" cx="17" cy="37" r="2.3" fill="#ffd97a" style="filter: drop-shadow(0 0 3px #ffb347);"/>
-        <rect x="35" y="44" width="4" height="8" fill="#f0ebe0" stroke="#c9c2b4" stroke-width="0.8"/>
-        <path d="M37,44 L37,40" stroke="#8a6f1f" stroke-width="1"/>
-        <circle class="candle-flame" cx="37" cy="39" r="2.1" fill="#ffd97a" style="filter: drop-shadow(0 0 3px #ffb347); animation-delay: 0.7s;"/>
-      </svg>
-    </div>
-  `;
-  return { css, html };
-}
-
 function renderGnomeDoor(cfg, hass, hostEl) {
   // Wichteltür: sitzt fest unten rechts, das runde Fenster leuchtet immer
   // wieder für eine Weile warm auf. Weihnachtlich gestaltet nach Vorlage:
@@ -1928,7 +1892,7 @@ const RENDERERS = {
   clouds: renderClouds,
 
   gnome_door: renderGnomeDoor,
-  window_candles: renderWindowCandles,
+
   birdhouse: renderBirdhouse,
   wishstar: renderWishStar,
   birthday: renderBirthday,
@@ -2373,7 +2337,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             <option value="clouds" ${c.event === "clouds" ? "selected" : ""}>🌤️ Wolken-Drift</option>
 
             <option value="gnome_door" ${c.event === "gnome_door" ? "selected" : ""}>🧝🚪 Wichteltür</option>
-            <option value="window_candles" ${c.event === "window_candles" ? "selected" : ""}>🕯️ Fenster-Kerzen</option>
+
             <option value="birdhouse" ${c.event === "birdhouse" ? "selected" : ""}>🐦🏠 Vogelhäuschen</option>
             <option value="shooting_stars" ${c.event === "shooting_stars" ? "selected" : ""}>🌠 Sternschnuppen</option>
             <option value="stars" ${c.event === "stars" ? "selected" : ""}>✨ Sternenhimmel</option>
@@ -2412,8 +2376,8 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
                     return `<option value="${eid}" ${c.santa_sensor === eid ? "selected" : ""}>${friendly}</option>`;
                   }).join("")}
                 </select>
-              `, "Optional: ist dieser Schalter/Sensor 'an', trägt der letzte Waggon einen roten Weihnachtsmann-Sack statt Holzscheiten.")
-            : this._row("Weihnachtsmann-Sensor (optional)", `<input id="santa_sensor" type="text" placeholder="input_boolean.weihnachtszeit" value="${c.santa_sensor || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`, "Optional: ist dieser Schalter/Sensor 'an', trägt der letzte Waggon einen roten Weihnachtsmann-Sack statt Holzscheiten.")
+              `, "Optional: ist dieser Schalter/Sensor 'an', werden drei Waggons festlich beladen - Schneemann, Weihnachtsmann und ein roter Geschenke-Sack statt Obst, Bauklötzen und Holzscheiten.")
+            : this._row("Weihnachtsmann-Sensor (optional)", `<input id="santa_sensor" type="text" placeholder="input_boolean.weihnachtszeit" value="${c.santa_sensor || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`, "Optional: ist dieser Schalter/Sensor 'an', werden drei Waggons festlich beladen - Schneemann, Weihnachtsmann und ein roter Geschenke-Sack statt Obst, Bauklötzen und Holzscheiten.")
         ) : ""}
 
         ${isWeatherAuto ? (
