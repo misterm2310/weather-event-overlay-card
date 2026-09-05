@@ -1440,7 +1440,7 @@ function renderOwl(cfg, hass, hostEl) {
 
   const css = `
     .owl-container {
-      position: fixed; top: 2vh; left: 1vw; width: 95px; height: 100px;
+      position: fixed; top: 2vh; left: 1vw; width: 58px; height: 78px;
       pointer-events: none; z-index: 999999;
     }
     .owl-head {
