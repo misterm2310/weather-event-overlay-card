@@ -950,13 +950,23 @@ function renderTrain(cfg, hass, hostEl) {
       <circle cx="73" cy="25" r="3" fill="#c9a05a"/>
     `,
     santa_sack: `
-      <path d="M8,32 Q4,16 30,12 Q56,16 52,32 Z" fill="#c0392b" stroke="#6b1810" stroke-width="1.5"/>
-      <path d="M16,14 Q30,6 44,14" stroke="#6b1810" stroke-width="1.5" fill="none"/>
-      <rect x="12" y="8" width="9" height="11" fill="#4a90d9" stroke="#1a1a1a" stroke-width="1"/>
-      <circle cx="30" cy="8" r="5" fill="#ffd93d" stroke="#1a1a1a" stroke-width="1"/>
-      <path d="M40,7 L46,7 L43,0 Z" fill="#7cb342" stroke="#1a1a1a" stroke-width="1"/>
+      <path d="M28,32 Q24,16 50,12 Q76,16 72,32 Z" fill="#c0392b" stroke="#6b1810" stroke-width="1.5"/>
+      <path d="M36,14 Q50,6 64,14" stroke="#6b1810" stroke-width="1.5" fill="none"/>
+      <rect x="32" y="8" width="9" height="11" fill="#4a90d9" stroke="#1a1a1a" stroke-width="1"/>
+      <circle cx="50" cy="8" r="5" fill="#ffd93d" stroke="#1a1a1a" stroke-width="1"/>
+      <path d="M60,7 L66,7 L63,0 Z" fill="#7cb342" stroke="#1a1a1a" stroke-width="1"/>
+      <path d="M10,32 Q7,22 16,20 Q25,22 22,32 Z" fill="#8a2020" stroke="#4a1010" stroke-width="1.2"/>
+      <path d="M13,20 Q16,15 19,20" stroke="#4a1010" stroke-width="1" fill="none"/>
+      <path d="M6,10 Q6,5 11,5 Q16,5 16,10 L16,26" stroke="#e63946" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M6,10 Q6,5 11,5 Q16,5 16,10 L16,26" stroke="#ffffff" stroke-width="3" fill="none" stroke-dasharray="2.5,2.5" stroke-linecap="round"/>
     `,
     snowman: `
+      <circle cx="14" cy="29" r="6" fill="#f5f5f5" stroke="#c9c2b4" stroke-width="0.9"/>
+      <circle cx="14" cy="21" r="4.3" fill="#f5f5f5" stroke="#c9c2b4" stroke-width="0.9"/>
+      <path d="M10.5,20.5 L17.5,20.5 L17.5,18.7 L10.5,18.7 Z" fill="#1a1a1a"/>
+      <circle cx="12.5" cy="20.5" r="0.6" fill="#1a1a1a"/>
+      <circle cx="15.5" cy="20.5" r="0.6" fill="#1a1a1a"/>
+      <circle cx="14" cy="27" r="0.7" fill="#1a1a1a"/>
       <circle cx="40" cy="27" r="9" fill="#f5f5f5" stroke="#c9c2b4" stroke-width="1"/>
       <circle cx="40" cy="15" r="6.5" fill="#f5f5f5" stroke="#c9c2b4" stroke-width="1"/>
       <path d="M33.5,14 L46.5,14 L46.5,10.5 L33.5,10.5 Z" fill="#1a1a1a"/>
@@ -967,8 +977,16 @@ function renderTrain(cfg, hass, hostEl) {
       <circle cx="40" cy="25" r="1" fill="#1a1a1a"/>
       <circle cx="40" cy="29" r="1" fill="#1a1a1a"/>
       <path d="M31,21 L23,17 M49,21 L57,17" stroke="#6b4423" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="66" cy="28" r="6.6" fill="#f5f5f5" stroke="#c9c2b4" stroke-width="0.9"/>
+      <circle cx="66" cy="19.4" r="4.7" fill="#f5f5f5" stroke="#c9c2b4" stroke-width="0.9"/>
+      <path d="M61.8,18.9 L70.2,18.9 L70.2,16.9 L61.8,16.9 Z" fill="#1a1a1a"/>
+      <circle cx="64.3" cy="18.9" r="0.65" fill="#1a1a1a"/>
+      <circle cx="67.7" cy="18.9" r="0.65" fill="#1a1a1a"/>
+      <circle cx="66" cy="26" r="0.75" fill="#1a1a1a"/>
     `,
     santa: `
+      <rect x="8" y="20" width="11" height="12" fill="#4a90d9" stroke="#1a1a1a" stroke-width="1"/>
+      <circle cx="13.5" cy="20" r="2.2" fill="#ffd93d" stroke="#1a1a1a" stroke-width="0.7"/>
       <circle cx="40" cy="27" r="9" fill="#c0392b" stroke="#6b1810" stroke-width="1.2"/>
       <rect x="33" y="30" width="14" height="3" fill="#1a1a1a"/>
       <circle cx="40" cy="15" r="6" fill="#f0d1a8" stroke="#c9a878" stroke-width="0.8"/>
@@ -977,6 +995,8 @@ function renderTrain(cfg, hass, hostEl) {
       <circle cx="47" cy="5" r="2.2" fill="#ffffff"/>
       <circle cx="37" cy="14" r="0.8" fill="#1a1a1a"/>
       <circle cx="43" cy="14" r="0.8" fill="#1a1a1a"/>
+      <rect x="60" y="18" width="12" height="14" fill="#7cb342" stroke="#1a1a1a" stroke-width="1"/>
+      <circle cx="66" cy="18" r="2.2" fill="#e63946" stroke="#1a1a1a" stroke-width="0.7"/>
     `,
   };
 
@@ -2274,282 +2294,4 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
   }
 
   set hass(hass) {
-    const oldKey = this._weatherEntityListKey || "";
-    const newEntities = hass && hass.states
-      ? Object.keys(hass.states).filter((eid) => eid.startsWith("weather."))
-      : [];
-    const newKey = newEntities.sort().join(",");
-    this._hass = hass;
-
-    if (newKey !== oldKey) {
-      this._weatherEntityListKey = newKey;
-      this._render();
-    }
-  }
-  connectedCallback() { this._render(); }
-
-  _row(labelText, inputHTML, hint) {
-    const hintHtml = hint
-      ? `<div style="font-size:11px; opacity:0.65; margin-top:3px; line-height:1.4;">${hint}</div>`
-      : "";
-    return `<div style="padding:8px 0;">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-        <label style="flex:1; color:var(--primary-text-color, #222);">${labelText}</label>
-        <div style="flex:1;">${inputHTML}</div>
-      </div>
-      ${hintHtml}
-    </div>`;
-  }
-
-  _render() {
-    if (!this._config) return;
-    const c = this._config;
-    const colorMode = c.color_mode || (c.color === "auto" ? "auto" : "custom");
-    const caps = EVENT_CAPABILITIES[c.event] || { count: false, opacity: false, color: false };
-    const isWeatherAuto = c.event === "weather_auto";
-    const isBirthday = c.event === "birthday";
-    const isTrain = c.event === "train";
-
-    const weatherEntities = this._hass && this._hass.states
-      ? Object.keys(this._hass.states).filter((eid) => eid.startsWith("weather."))
-      : [];
-
-    const booleanEntities = this._hass && this._hass.states
-      ? Object.keys(this._hass.states).filter((eid) => eid.startsWith("input_boolean.") || eid.startsWith("binary_sensor."))
-      : [];
-
-    this.innerHTML = `
-      <div style="padding:8px 16px;">
-        <div id="live-preview" style="position:relative; width:100%; height:150px; overflow:hidden; border-radius:10px; margin-bottom:10px; background:linear-gradient(180deg, #16202e, #2c3e50); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);">
-          <div id="live-preview-stage" style="position:absolute; top:0; left:0; width:100vw; height:100vh; transform: scale(0.16); transform-origin: top left;"></div>
-          <div id="live-preview-msg" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.55); font-size:12px; text-align:center; padding:0 16px;"></div>
-        </div>
-        ${this._row("Effekt", `
-          <select id="event" style="width:100%; padding:6px;">
-            <option value="off" ${c.event === "off" ? "selected" : ""}>Aus</option>
-            <option value="weather_auto" ${isWeatherAuto ? "selected" : ""}>🌦️ Automatisch (nach Wetter)</option>
-            <option value="rain" ${c.event === "rain" ? "selected" : ""}>🌧️ Regen</option>
-            <option value="snow" ${c.event === "snow" ? "selected" : ""}>❄️ Schnee</option>
-            <option value="hail" ${c.event === "hail" ? "selected" : ""}>🧊 Hagel</option>
-            <option value="lightning" ${c.event === "lightning" ? "selected" : ""}>⚡ Blitz</option>
-            <option value="fog" ${c.event === "fog" ? "selected" : ""}>🌫️ Nebel</option>
-            <option value="storm" ${c.event === "storm" ? "selected" : ""}>💨 Sturm</option>
-            <option value="clouds" ${c.event === "clouds" ? "selected" : ""}>🌤️ Wolken-Drift</option>
-
-            <option value="gnome_door" ${c.event === "gnome_door" ? "selected" : ""}>🧝🚪 Wichteltür</option>
-
-            <option value="birdhouse" ${c.event === "birdhouse" ? "selected" : ""}>🐦🏠 Vogelhäuschen</option>
-            <option value="shooting_stars" ${c.event === "shooting_stars" ? "selected" : ""}>🌠 Sternschnuppen</option>
-            <option value="stars" ${c.event === "stars" ? "selected" : ""}>✨ Sternenhimmel</option>
-            <option value="wishstar" ${c.event === "wishstar" ? "selected" : ""}>⭐ Wunschstern-Funkeln</option>
-            <option value="comet" ${c.event === "comet" ? "selected" : ""}>☄️ Komet</option>
-            <option value="leaves" ${c.event === "leaves" ? "selected" : ""}>🍂 Laub</option>
-            <option value="balloons" ${c.event === "balloons" ? "selected" : ""}>🎈 Luftballons</option>
-            <option value="lights" ${c.event === "lights" ? "selected" : ""}>💡 Lichterkette</option>
-            <option value="birthday" ${isBirthday ? "selected" : ""}>🎂 Geburtstags-Modus</option>
-            <option value="santa" ${c.event === "santa" ? "selected" : ""}>🎅 Weihnachtsmann</option>
-            <option value="spider" ${c.event === "spider" ? "selected" : ""}>🕷️ Spinne mit Netz</option>
-            <option value="dog" ${c.event === "dog" ? "selected" : ""}>🐕 Goldener Labrador</option>
-            <option value="train" ${c.event === "train" ? "selected" : ""}>🚂 Dampflok</option>
-
-
-            <option value="bats" ${c.event === "bats" ? "selected" : ""}>🦇 Fledermäuse</option>
-            <option value="owl" ${c.event === "owl" ? "selected" : ""}>🦉 Eule</option>
-            <option value="bee" ${c.event === "bee" ? "selected" : ""}>🐝 Bienen</option>
-          </select>
-        `, isWeatherAuto
-          ? "Bei 'Automatisch' entscheidet der Zustand deiner Wetter-Entity unten, welcher Effekt läuft."
-          : "Welcher Effekt manuell dauerhaft angezeigt wird."
-        )}
-
-        ${isBirthday ? this._row("Banner-Text", `
-          <input id="birthday_text" type="text" value="${c.birthday_text ? c.birthday_text.replace(/"/g, "&quot;") : ""}" placeholder="Happy Birthday!" style="width:100%; padding:6px; box-sizing:border-box;" />
-        `, "Text im Banner oben - z. B. 'Happy Birthday, Max!' für eine persönliche Note.") : ""}
-
-        ${isTrain ? (
-          booleanEntities.length > 0
-            ? this._row("Weihnachtsmann-Sensor (optional)", `
-                <select id="santa_sensor" style="width:100%; padding:6px;">
-                  <option value="" ${!c.santa_sensor ? "selected" : ""}>-- keiner (immer Holzscheite) --</option>
-                  ${booleanEntities.map((eid) => {
-                    const friendly = this._hass.states[eid]?.attributes?.friendly_name || eid;
-                    return `<option value="${eid}" ${c.santa_sensor === eid ? "selected" : ""}>${friendly}</option>`;
-                  }).join("")}
-                </select>
-              `, "Optional: ist dieser Schalter/Sensor 'an', werden drei Waggons festlich beladen - Schneemann, Weihnachtsmann und ein roter Geschenke-Sack statt Obst, Bauklötzen und Holzscheiten.")
-            : this._row("Weihnachtsmann-Sensor (optional)", `<input id="santa_sensor" type="text" placeholder="input_boolean.weihnachtszeit" value="${c.santa_sensor || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`, "Optional: ist dieser Schalter/Sensor 'an', werden drei Waggons festlich beladen - Schneemann, Weihnachtsmann und ein roter Geschenke-Sack statt Obst, Bauklötzen und Holzscheiten.")
-        ) : ""}
-
-        ${isWeatherAuto ? (
-          weatherEntities.length > 0
-            ? this._row("Wetter-Sensor", `
-                <select id="weather_entity" style="width:100%; padding:6px;">
-                  <option value="" ${!c.weather_entity ? "selected" : ""}>-- bitte wählen --</option>
-                  ${weatherEntities.map((eid) => {
-                    const friendly = this._hass.states[eid]?.attributes?.friendly_name || eid;
-                    return `<option value="${eid}" ${c.weather_entity === eid ? "selected" : ""}>${friendly}</option>`;
-                  }).join("")}
-                </select>
-              `, "Diese Wetter-Entity liefert den aktuellen Zustand (regnet, schneit, ...), nach dem sich der Effekt oben richtet.")
-            : this._row("Wetter-Sensor", `<input id="weather_entity" type="text" placeholder="weather.home" value="${c.weather_entity || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`, "Keine weather-Entity in HA gefunden - trag die Entity-ID hier manuell ein, z. B. weather.home.")
-        ) : ""}
-
-        ${caps.count ? this._row("Anzahl / Frequenz", `
-          <select id="count_preset" style="width:100%; padding:6px;">
-            <option value="low" ${c.count_preset === "low" ? "selected" : ""}>🔹 Wenig / Selten</option>
-            <option value="medium" ${c.count_preset === "medium" ? "selected" : ""}>🔷 Mittel</option>
-            <option value="high" ${c.count_preset === "high" ? "selected" : ""}>🔷 Viel / Häufig</option>
-          </select>
-        `, isWeatherAuto
-          ? "⚠️ Ein Wert für ALLE automatisch erkannten Effekte gemeinsam (Regen, Schnee, Hagel, Blitz, Nebel, Sturm) - nicht einzeln pro Effekt einstellbar."
-          : (COUNT_IS_INTERVAL_TEXT[c.event] || "Wie viele Partikel gleichzeitig zu sehen sind.")
-        ) : ""}
-
-        ${caps.opacity ? this._row("Deckkraft / Helligkeit", `
-          <select id="opacity_preset" style="width:100%; padding:6px;">
-            <option value="low" ${c.opacity_preset === "low" ? "selected" : ""}>👻 Zart (30%)</option>
-            <option value="medium" ${c.opacity_preset === "medium" ? "selected" : ""}>👁️ Dezent (60%)</option>
-            <option value="high" ${c.opacity_preset === "high" ? "selected" : ""}>✨ Kräftig (100%)</option>
-          </select>
-        `, isWeatherAuto
-          ? "Ebenfalls EIN Wert für ALLE automatisch erkannten Effekte gemeinsam."
-          : "Wie stark/deutlich der Effekt sichtbar ist."
-        ) : ""}
-
-        ${caps.color ? this._row("Farbmodus", `
-          <select id="color_mode" style="width:100%; padding:6px;">
-            <option value="auto" ${colorMode === "auto" ? "selected" : ""}>🌗 Auto (Theme-Abgleich)</option>
-            <option value="custom" ${colorMode === "custom" ? "selected" : ""}>🎨 Manuelle Farbe</option>
-          </select>
-        `, isWeatherAuto
-          ? "Gilt nur, wenn gerade Regen, Schnee, Hagel, Nebel oder Sturm aktiv ist (nicht bei Blitz - der hat immer weißes Licht)."
-          : "Farbe automatisch nach Hell/Dunkel-Modus wählen oder selbst festlegen."
-        ) : ""}
-
-        ${caps.color && colorMode === "custom" ? `
-        <div id="custom_color_picker">
-          ${this._row("Farbe", `<input id="color" type="color" value="${c.color === "auto" ? "#ffffff" : c.color}" style="width:100%; height:36px;" />`)}
-        </div>` : ""}
-      </div>
-    `;
-
-    this.querySelector("#event").addEventListener("change", (e) => this._update("event", e.target.value, true));
-
-    const birthdayTextInput = this.querySelector("#birthday_text");
-    if (birthdayTextInput) {
-      birthdayTextInput.addEventListener("input", (e) => this._update("birthday_text", e.target.value, false));
-      birthdayTextInput.addEventListener("change", (e) => this._update("birthday_text", e.target.value, false));
-    }
-
-    const weatherEntitySel = this.querySelector("#weather_entity");
-    if (weatherEntitySel) {
-      weatherEntitySel.addEventListener("change", (e) => this._update("weather_entity", e.target.value.trim(), false));
-    }
-
-    const santaSensorSel = this.querySelector("#santa_sensor");
-    if (santaSensorSel) {
-      santaSensorSel.addEventListener("change", (e) => this._update("santa_sensor", e.target.value.trim(), false));
-    }
-
-    const countSel = this.querySelector("#count_preset");
-    if (countSel) countSel.addEventListener("change", (e) => this._update("count_preset", e.target.value, true));
-
-    const opacitySel = this.querySelector("#opacity_preset");
-    if (opacitySel) opacitySel.addEventListener("change", (e) => this._update("opacity_preset", e.target.value, true));
-
-    const colorModeSel = this.querySelector("#color_mode");
-    if (colorModeSel) {
-      colorModeSel.addEventListener("change", (e) => {
-        const mode = e.target.value;
-        if (mode === "auto") {
-          this._updateConfig({ color_mode: "auto", color: "auto" }, true);
-        } else {
-          this._updateConfig({ color_mode: "custom", color: "#ffffff" }, true);
-        }
-      });
-    }
-
-    const colorPicker = this.querySelector("#color");
-    if (colorPicker) {
-      colorPicker.addEventListener("change", (e) => this._update("color", e.target.value, true));
-      colorPicker.addEventListener("input", (e) => this._update("color", e.target.value, false));
-    }
-
-    this._updatePreview();
-  }
-
-  _updatePreview() {
-    const stage = this.querySelector("#live-preview-stage");
-    const msg = this.querySelector("#live-preview-msg");
-    if (!stage || !msg) return;
-    const c = this._config;
-    if (!c || c.event === "off") {
-      stage.innerHTML = "";
-      msg.textContent = "Kein Effekt ausgewählt.";
-      return;
-    }
-    if (c.event === "weather_auto") {
-      stage.innerHTML = "";
-      msg.textContent = "Vorschau nicht verfügbar bei 'Automatisch' - hängt vom aktuellen Live-Wetter ab.";
-      return;
-    }
-    const renderer = RENDERERS[c.event];
-    if (!renderer) {
-      stage.innerHTML = "";
-      msg.textContent = "";
-      return;
-    }
-    msg.textContent = "";
-    // Verbesserung (Bugfix): bei "Auto"-Farbmodus würde der Effekt sonst
-    // die Farbe des ECHTEN Home-Assistant-Editor-Fensters übernehmen (das
-    // kann hell sein) - unsere Vorschau-Box hat aber immer einen dunklen
-    // Hintergrund. Ohne diese Korrektur wären z. B. schwarze Regentropfen
-    // auf dunklem Grund unsichtbar. Die Vorschau erzwingt deshalb eine
-    // helle Farbe, unabhängig vom echten Dashboard-Theme.
-    const caps = EVENT_CAPABILITIES[c.event] || {};
-    const previewCfg = (caps.color && (c.color_mode || "auto") === "auto")
-      ? { ...c, color: "#ffffff" }
-      : c;
-    const { css, html } = renderer(previewCfg, this._hass, this);
-    stage.innerHTML = `<style>${css}</style>${html}`;
-  }
-
-  _update(key, value, rerender) {
-    this._suppressNextRender = !rerender;
-    this._config = { ...this._config, [key]: value };
-    fireEvent(this, "config-changed", { config: this._config });
-    if (rerender) {
-      this._render();
-    } else {
-      this._updatePreview();
-    }
-  }
-
-  _updateConfig(newValues, rerender) {
-    this._suppressNextRender = !rerender;
-    this._config = { ...this._config, ...newValues };
-    fireEvent(this, "config-changed", { config: this._config });
-    if (rerender) {
-      this._render();
-    } else {
-      this._updatePreview();
-    }
-  }
-}
-
-/* ============================== REGISTRIERUNG ============================== */
-
-if (!customElements.get("weather-event-overlay-card")) {
-  customElements.define("weather-event-overlay-card", WeatherEventOverlayCard);
-}
-if (!customElements.get("weather-event-overlay-card-editor")) {
-  customElements.define("weather-event-overlay-card-editor", WeatherEventOverlayCardEditor);
-}
-
-window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "weather-event-overlay-card",
-  name: "Wetter & Event Overlay Card",
-  description: "Erweiterte Wetter- und Event-Overlay-Karte mit universellem Theme-Support.",
-  preview: false,
-});
+    const oldKey = this._weatherEntityListKey ||
