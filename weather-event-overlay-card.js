@@ -1077,12 +1077,25 @@ function renderDog(cfg, hass, hostEl) {
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
   const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
-  const walkPct = Math.min(30, (20 / interval) * 100).toFixed(2);
-  const startHeight = (typeof cfg._startHeight === "number" ? cfg._startHeight : Math.random() * 70 + 10).toFixed(2);
+  const walkPct = Math.min(30, (20 / interval) * 100);
+  const startHeight = typeof cfg._startHeight === "number" ? cfg._startHeight : Math.random() * 70 + 10;
   const drift = typeof cfg._drift === "number" ? cfg._drift : (Math.random() * 16 - 8);
-  const driftHeight = (parseFloat(startHeight) + drift).toFixed(2);
   const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
   const delaySec = (-(elapsedSec % interval)).toFixed(2);
+
+  // Schnüffel-Pause: kurzes Anhalten + Kopf senken, bei ca. 40% der Laufstrecke.
+  const sniffFrac = 0.4;
+  const sniffStart = (walkPct * sniffFrac).toFixed(2);
+  const sniffMid = (walkPct * sniffFrac + 0.8).toFixed(2);
+  const sniffEnd = (walkPct * sniffFrac + 1.6).toFixed(2);
+
+  // Schütteln bei Regen: nur wenn eine echte Wetter-Entity angegeben ist UND
+  // diese aktuell Regen meldet - sonst passiert nichts (kein erfundener
+  // Zustand). Wichtig: das prüft die Entity direkt, unabhängig davon, ob
+  // irgendwo eine andere Karte gerade den Regen-Effekt zeigt - zwei Karten
+  // können sich sonst nicht gegenseitig "sehen".
+  const rainStates = ["rainy", "pouring", "lightning-rainy", "snowy-rainy"];
+  const isRaining = cfg.weather_entity && rainStates.includes(hass?.states?.[cfg.weather_entity]?.state);
 
   const css = `
     .dog-container {
@@ -1090,16 +1103,18 @@ function renderDog(cfg, hass, hostEl) {
       pointer-events: none; z-index: 9999; overflow: hidden;
     }
     .dog-walk-box {
-      position: absolute; top: ${startHeight}vh; left: -185px; width: 165px; height: 55px;
+      position: absolute; top: ${startHeight.toFixed(2)}vh; left: -185px; width: 165px; height: 55px;
       animation: dog-walk ${interval}s linear infinite; animation-delay: ${delaySec}s; will-change: transform;
-    }
-    .dog-bob {
-      animation: dog-bob 0.55s ease-in-out infinite alternate;
     }
     @keyframes dog-walk {
       0% { transform: translate(0, 0); }
-      ${walkPct}% { transform: translate(calc(100vw + 300px), ${(parseFloat(driftHeight) - parseFloat(startHeight)).toFixed(2)}vh); }
-      100% { transform: translate(calc(100vw + 300px), ${(parseFloat(driftHeight) - parseFloat(startHeight)).toFixed(2)}vh); }
+      ${sniffStart}% { transform: translate(calc((100vw + 300px) * ${sniffFrac}), ${(drift * sniffFrac).toFixed(2)}vh); }
+      ${sniffEnd}% { transform: translate(calc((100vw + 300px) * ${sniffFrac}), ${(drift * sniffFrac).toFixed(2)}vh); }
+      ${walkPct.toFixed(2)}% { transform: translate(calc(100vw + 300px), ${drift.toFixed(2)}vh); }
+      100% { transform: translate(calc(100vw + 300px), ${drift.toFixed(2)}vh); }
+    }
+    .dog-bob {
+      animation: dog-bob 0.55s ease-in-out infinite alternate;
     }
     @keyframes dog-bob {
       0% { transform: translateY(0); }
@@ -1115,6 +1130,74 @@ function renderDog(cfg, hass, hostEl) {
       0% { transform: rotate(14deg); }
       100% { transform: rotate(-14deg); }
     }
+    .dog-tail {
+      animation: dog-tail-wag 0.35s ease-in-out infinite alternate;
+      transform-box: fill-box; transform-origin: 100% 50%;
+    }
+    @keyframes dog-tail-wag {
+      0% { transform: rotate(-8deg); }
+      100% { transform: rotate(12deg); }
+    }
+    .dog-sniff-pose {
+      animation: dog-sniff-cycle ${interval}s ease-in-out infinite;
+      animation-delay: ${delaySec}s;
+      transform-box: fill-box; transform-origin: 90% 60%;
+    }
+    @keyframes dog-sniff-cycle {
+      0% { transform: rotate(0deg) translateY(0); }
+      ${sniffStart}% { transform: rotate(0deg) translateY(0); }
+      ${sniffMid}% { transform: rotate(16deg) translateY(3px); }
+      ${sniffEnd}% { transform: rotate(0deg) translateY(0); }
+      100% { transform: rotate(0deg) translateY(0); }
+    }
+    .dog-head-bounce {
+      animation: dog-head-nod 0.55s ease-in-out infinite alternate;
+      transform-box: fill-box; transform-origin: center;
+    }
+    @keyframes dog-head-nod {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-2px); }
+    }
+    .dog-ear {
+      animation: dog-ear-flap 0.55s ease-in-out infinite alternate;
+      transform-box: fill-box; transform-origin: 100% 0%;
+    }
+    @keyframes dog-ear-flap {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(8deg); }
+    }
+    .dog-tongue {
+      animation: dog-tongue-wobble 0.28s ease-in-out infinite alternate;
+      transform-box: fill-box; transform-origin: 50% 0%;
+    }
+    @keyframes dog-tongue-wobble {
+      0% { transform: rotate(-8deg); }
+      100% { transform: rotate(8deg); }
+    }
+    .dog-print {
+      animation: dog-print-fade 1.1s ease-out infinite;
+    }
+    @keyframes dog-print-fade {
+      0% { opacity: 0; }
+      15% { opacity: 0.45; }
+      60% { opacity: 0.22; }
+      100% { opacity: 0; }
+    }
+    ${isRaining ? `
+    .dog-shake {
+      animation: dog-shake-cycle 9s ease-in-out infinite;
+      transform-box: fill-box; transform-origin: 50% 70%;
+    }
+    @keyframes dog-shake-cycle {
+      0%, 92% { transform: rotate(0deg); }
+      93% { transform: rotate(-6deg); }
+      94% { transform: rotate(6deg); }
+      95% { transform: rotate(-5deg); }
+      96% { transform: rotate(5deg); }
+      97% { transform: rotate(-3deg); }
+      98%, 100% { transform: rotate(0deg); }
+    }
+    ` : ""}
   `;
 
   const html = `
@@ -1122,25 +1205,38 @@ function renderDog(cfg, hass, hostEl) {
       <div class="dog-walk-box">
         <div class="dog-bob">
           <svg viewBox="-25 0 145 55" preserveAspectRatio="xMidYMid meet">
-            <g class="dog-leg-a" style="transform-origin: 88px 36px;">
-              <path d="M88,36 Q92,42 95,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
+            <g class="${isRaining ? "dog-shake" : ""}">
+              <g class="dog-leg-a" style="transform-origin: 88px 36px;">
+                <path d="M88,36 Q92,42 95,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
+              </g>
+              <g class="dog-leg-b" style="transform-origin: 78px 36px;">
+                <path d="M78,36 Q76,42 74,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
+              </g>
+              <g class="dog-leg-b" style="transform-origin: 35px 36px;">
+                <path d="M35,36 Q39,42 42,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
+              </g>
+              <g class="dog-leg-a" style="transform-origin: 25px 36px;">
+                <path d="M25,36 Q21,42 18,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
+              </g>
+              <ellipse class="dog-print" cx="20" cy="49.5" rx="2.8" ry="1.3" fill="#8a6f45"/>
+              <ellipse class="dog-print" cx="40" cy="49.5" rx="2.8" ry="1.3" fill="#8a6f45" style="animation-delay:0.55s;"/>
+              <g class="dog-tail">
+                <path d="M24,22 Q4,8 -14,14 Q-8,24 2,26 Q10,28 24,24 Z" fill="#d4a25c"/>
+              </g>
+              <ellipse cx="55" cy="25" rx="35" ry="14" fill="#d4a25c"/>
+              <g class="dog-sniff-pose">
+                <g class="dog-head-bounce">
+                  <ellipse cx="95" cy="18" rx="13" ry="11" fill="#d4a25c"/>
+                  <g class="dog-ear">
+                    <path d="M90,12 Q80,10 82,22 Q86,26 92,20 Z" fill="#a67c3d"/>
+                  </g>
+                  <ellipse cx="106" cy="23" rx="7" ry="5.5" fill="#e8c78a"/>
+                  <circle cx="112" cy="23" r="2" fill="#2a1a10"/>
+                  <circle cx="97" cy="15" r="1.6" fill="#2a1a10"/>
+                  <path class="dog-tongue" d="M105,27 Q107,33 109,27 Q107,29.5 105,27 Z" fill="#e8879a"/>
+                </g>
+              </g>
             </g>
-            <g class="dog-leg-b" style="transform-origin: 78px 36px;">
-              <path d="M78,36 Q76,42 74,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
-            </g>
-            <g class="dog-leg-b" style="transform-origin: 35px 36px;">
-              <path d="M35,36 Q39,42 42,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
-            </g>
-            <g class="dog-leg-a" style="transform-origin: 25px 36px;">
-              <path d="M25,36 Q21,42 18,48" stroke="#c68a3d" stroke-width="5" stroke-linecap="round" fill="none"/>
-            </g>
-            <path d="M24,22 Q4,8 -14,14 Q-8,24 2,26 Q10,28 24,24 Z" fill="#d4a25c"/>
-            <ellipse cx="55" cy="25" rx="35" ry="14" fill="#d4a25c"/>
-            <ellipse cx="95" cy="18" rx="13" ry="11" fill="#d4a25c"/>
-            <path d="M90,12 Q80,10 82,22 Q86,26 92,20 Z" fill="#a67c3d"/>
-            <ellipse cx="106" cy="23" rx="7" ry="5.5" fill="#e8c78a"/>
-            <circle cx="112" cy="23" r="2" fill="#2a1a10"/>
-            <circle cx="97" cy="15" r="1.6" fill="#2a1a10"/>
           </svg>
         </div>
       </div>
@@ -2329,6 +2425,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     const isWeatherAuto = c.event === "weather_auto";
     const isBirthday = c.event === "birthday";
     const isTrain = c.event === "train";
+    const isDog = c.event === "dog";
 
     const weatherEntities = this._hass && this._hass.states
       ? Object.keys(this._hass.states).filter((eid) => eid.startsWith("weather."))
@@ -2412,6 +2509,20 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
                 </select>
               `, "Diese Wetter-Entity liefert den aktuellen Zustand (regnet, schneit, ...), nach dem sich der Effekt oben richtet.")
             : this._row("Wetter-Sensor", `<input id="weather_entity" type="text" placeholder="weather.home" value="${c.weather_entity || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`, "Keine weather-Entity in HA gefunden - trag die Entity-ID hier manuell ein, z. B. weather.home.")
+        ) : ""}
+
+        ${isDog ? (
+          weatherEntities.length > 0
+            ? this._row("Wetter-Sensor (optional)", `
+                <select id="weather_entity" style="width:100%; padding:6px;">
+                  <option value="" ${!c.weather_entity ? "selected" : ""}>-- keiner (kein Schütteln) --</option>
+                  ${weatherEntities.map((eid) => {
+                    const friendly = this._hass.states[eid]?.attributes?.friendly_name || eid;
+                    return `<option value="${eid}" ${c.weather_entity === eid ? "selected" : ""}>${friendly}</option>`;
+                  }).join("")}
+                </select>
+              `, "Optional: wählst du hier deine echte Wetter-Entity aus, schüttelt sich der Hund kurz, sobald diese aktuell Regen meldet.")
+            : this._row("Wetter-Sensor (optional)", `<input id="weather_entity" type="text" placeholder="weather.home" value="${c.weather_entity || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`, "Optional: trägst du hier deine echte Wetter-Entity ein, schüttelt sich der Hund kurz, sobald diese aktuell Regen meldet.")
         ) : ""}
 
         ${caps.count ? this._row("Anzahl / Frequenz", `
