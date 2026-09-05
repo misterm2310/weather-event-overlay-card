@@ -18,7 +18,7 @@ Eine benutzerdefinierte Lovelace-Karte für Home Assistant, die dynamische Anima
 * **🎂 Geburtstags-Modus:** Luftballons, Konfetti-Regen und ein Wimpelketten-Banner mit frei einstellbarem Text (Standard "Happy Birthday!").
 * **🎅🐕☄️🚂🐦 Periodisch durchlaufende Figuren:** Weihnachtsmann, Labrador, Komet, Dampflok und der Vogelhäuschen-Besuch ziehen periodisch durchs Bild statt dauerhaft sichtbar zu sein – wie oft, stellst du über "Anzahl/Frequenz" ein.
 * **🕷️ Spinne mit Netz:** Mathematisch berechnetes, symmetrisches Netz oben rechts, eine Spinne mit blinkenden roten Augen seilt sich daran auf und ab.
-* **🐕 Goldener Labrador:** Läuft mit echter Beinbewegung (diagonale Beinpaare schwingen gegenläufig wie im echten Trab).
+* **🐕 Goldener Labrador:** Läuft mit echter Beinbewegung (diagonale Beinpaare schwingen gegenläufig wie im echten Trab), dazu Schwanzwedeln, Kopfnicken, schwingendes Schlappohr, hechelnde Zunge, eine kurze Schnüffel-Pause mitten im Lauf und verblassende Pfotenabdrücke. Optional schüttelt er sich kurz, wenn eine angegebene Wetter-Entity gerade Regen meldet.
 * **🦇 Fledermäuse:** Mehrere flatternde Silhouetten über den kompletten Bildschirm verteilt, theme-abhängig eingefärbt, damit sie auf **jedem** Theme sichtbar bleiben.
 * **🦉 Eule:** Sitzt auf einem Ast in der oberen linken Ecke, vor einem kleinen Halbmond - mit Federstruktur, Ohrbüscheln, Glanzpunkten in den Augen sowie **abwechselndem Blinzeln**.
 * **🐝 Bienenschwarm:** 5-8 Bienen gleichzeitig, jede mit eigenem Zickzack-Pfad über den kompletten Bildschirm.
@@ -71,7 +71,8 @@ Karte zum Dashboard hinzufügen → **Weather & Event Overlay Card** auswählen 
 3. Bei "Automatisch": darunter erscheint **Wetter-Sensor** – dort deine `weather.*`-Entity aus der Liste auswählen.
 4. Bei "🎂 Geburtstags-Modus": darunter erscheint ein Feld für den **Banner-Text**.
 5. Bei "🚂 Dampflok": darunter erscheint optional **Weihnachtsmann-Sensor** – wählst du hier einen `input_boolean`/`binary_sensor` aus, schaltet der Zug automatisch auf die festliche Beladung um, sobald dieser Sensor "an" ist.
-6. **Anzahl / Frequenz**, **Deckkraft / Helligkeit** und ggf. **Farbmodus** nach Geschmack einstellen.
+6. Bei "🐕 Goldener Labrador": darunter erscheint optional **Wetter-Sensor** – wählst du hier deine echte `weather.*`-Entity aus, schüttelt sich der Hund kurz, sobald diese aktuell Regen meldet.
+7. **Anzahl / Frequenz**, **Deckkraft / Helligkeit** und ggf. **Farbmodus** nach Geschmack einstellen.
 
 Der Editor blendet dabei automatisch nur die Regler ein, die für den gewählten Effekt auch etwas bewirken:
 * Bei **Blitz, Weihnachtsmann, Hund, Dampflok, Eule, Wichteltür, Vogelhäuschen und Geburtstags-Modus** gibt's keinen Farbmodus (feste Farben).
@@ -121,6 +122,15 @@ event: train
 count_preset: medium
 opacity_preset: high
 santa_sensor: input_boolean.weihnachtszeit
+```
+
+### Goldener Labrador mit Regen-Schütteln (optional)
+```yaml
+type: custom:weather-event-overlay-card
+event: dog
+count_preset: medium
+opacity_preset: high
+weather_entity: weather.home
 ```
 
 ### Wichteltür
@@ -253,7 +263,7 @@ leaf_colors:
 | `santa` | 🎅 Weihnachtsmann mit Schlitten & 2 Rentieren (periodischer Vorbeiflug) |
 | `gnome_door` | 🧝🚪 Wichteltür-Szene: Tür mit Kranz, Weihnachtsbaum mit Lichterkette, Laterne, Briefkasten, Weg |
 | `spider` | 🕷️ Spinnennetz mit auf- und abseilender Spinne (blinkende rote Augen) |
-| `dog` | 🐕 Goldener Labrador mit echter Lauf-Beinbewegung |
+| `dog` | 🐕 Goldener Labrador mit echter Lauf-Beinbewegung, Schnüffel-Pause und Pfotenabdrücken (optional Schütteln bei Regen) |
 | `train` | 🚂 Dampflok mit vier Waggons (Obst/Bauklötze/Geschenke/Holz, optional festliche Sensor-Beladung), drehenden Rädern und Dampf aus dem Schornstein |
 | `bats` | 🦇 Fledermausschwarm, theme-abhängig eingefärbt |
 | `owl` | 🦉 Eule auf einem Ast, vor dem Mond, mit abwechselndem Blinzeln |
@@ -267,7 +277,7 @@ leaf_colors:
 | Option | Typ | Standard | Beschreibung |
 |---|---|---|---|
 | `event` | string | `off` | Welcher Effekt aktiv ist, oder `weather_auto` für die Wetter-Automatik (siehe Tabelle oben) |
-| `weather_entity` | string | `""` | HA-Entity-ID einer `weather.*`-Entity, z. B. `weather.home` (nur relevant bei `event: weather_auto`) |
+| `weather_entity` | string | `""` | HA-Entity-ID einer `weather.*`-Entity, z. B. `weather.home` (bei `event: weather_auto` bestimmt sie den Effekt; bei `event: dog` optional fürs Schütteln bei Regen) |
 | `birthday_text` | string | `"Happy Birthday!"` | Text im Banner (nur relevant bei `event: birthday`) - wird automatisch gegen Schadcode abgesichert |
 | `santa_sensor` | string | `""` | HA-Entity-ID eines `input_boolean`/`binary_sensor` (nur relevant bei `event: train`) - ist er "an", tragen drei Waggons festliche Fracht statt der normalen Alltags-Ladung |
 | `count_preset` | `low` \| `medium` \| `high` | `medium` | Anzahl bzw. Frequenz – Bedeutung hängt vom Effekt ab (siehe Editor-Hinweistexte oben) |
