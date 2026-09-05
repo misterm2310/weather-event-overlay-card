@@ -1,15 +1,15 @@
 # Weather & Event Overlay Card for Home Assistant
 
-Eine benutzerdefinierte Lovelace-Karte für Home Assistant, die dynamische Animationen über dein Dashboard legt – von echtem Wetter (Regen, Schnee, Hagel, Blitz, Nebel, Sturm, Wolken-Drift) über Himmelsphänomene (Sternenhimmel, Sternschnuppen, Wunschstern, Komet) bis zu Tieren, Deko- und Anlass-Effekten (Herbstlaub, Luftballons, Lichterkette, Geburtstags-Modus, Weihnachtsmann, Wichteltür, Spinne mit Netz, goldener Labrador, Dampflok, Fledermäuse, Eule, Bienenschwarm, Vogelhäuschen). Inklusive visuellem GUI-Editor mit **Live-Vorschau**, automatischer Theme-Anpassung und optionaler Wetter-Automatik mit echten Kombi-Effekten.
+Eine benutzerdefinierte Lovelace-Karte für Home Assistant, die dynamische Animationen über dein Dashboard legt – von echtem Wetter (Regen, Schnee, Hagel, Blitz, Nebel, Sturm, Wolken-Drift) über Himmelsphänomene (Sternenhimmel, Sternschnuppen, Wunschstern, Komet) bis zu Tieren, Deko- und Anlass-Effekten (Herbstlaub, Luftballons, Lichterkette, Geburtstags-Modus, Weihnachtsmann, Wichteltür, Spinne mit Netz, goldener Labrador, Dampflok mit optionaler Festtags-Beladung, Fledermäuse, Eule, Bienenschwarm, Vogelhäuschen). Inklusive visuellem GUI-Editor mit **Live-Vorschau**, automatischer Theme-Anpassung und optionaler Wetter-Automatik mit echten Kombi-Effekten.
 
 ---
 
 ## 🎨 Features
 
 * **23 Effekte** – siehe Tabelle weiter unten, sinnvoll gruppiert im Editor-Dropdown (Wetter → Himmel/Nacht → Deko/Anlass → Tiere).
-* **🚂 Dampflok mit vier beladenen Waggons:** Fährt am unteren Bildschirmrand entlang - erkennbare Lok-Silhouette mit Kessel, Schornstein, Kabine mit Fähnchen, Kuhfänger und sich drehenden Rädern, dazu sichtbarer Dampf, der aus dem Schornstein aufsteigt. Die vier Waggons sind unterschiedlich beladen: Obst, Bauklötze, Geschenke und Holzscheite.
-* **🧝🚪 Wichteltür:** Kleine freistehende Rundbogen-Holztür mit Vordach unten rechts, deren rundes Fenster immer wieder für eine Weile warm aufleuchtet und dann wieder erlischt.
-* **🐦🏠 Vogelhäuschen:** Sitzt auf einem Ast oben links (kleiner als die Eule), immer sichtbar. Periodisch fliegt ein kleiner Vogel von links ins Bild, "landet" sichtbar vor dem Häuschen am Einflugloch und fliegt dann weiter.
+* **🚂 Dampflok mit vier Waggons:** Fährt am unteren Bildschirmrand entlang - erkennbare Lok-Silhouette mit Kessel, Schornstein, Kabine mit Fähnchen, Kuhfänger und sich drehenden Rädern, dazu sichtbarer Dampf, der aus dem Schornstein aufsteigt. Die vier Waggons sind im Alltag mit Obst, Bauklötzen, Geschenken und Holzscheiten beladen.
+* **🎅 Sensor-gesteuerte Festtags-Beladung:** Optional einen `input_boolean`/`binary_sensor` auswählen (z. B. für die Weihnachtszeit) - ist der Sensor "an", werden drei Waggons stattdessen festlich und reichlich beladen: mehrere Schneemänner, ein Weihnachtsmann umgeben von Geschenken, und ein großer Weihnachtsmann-Sack mit Zuckerstange und zweitem kleinen Sack.
+* **🧝🚪 Wichteltür-Szene:** Freistehende Rundbogen-Holztür (mit Kranz, Herz-Scharnieren und leuchtendem Fenster) unten rechts, dazu ein Weihnachtsbaum mit blinkender Lichterkette, ein sechseckiges Laternenhaus, ein Briefkasten mit Namen und ein Weg, der zur Tür hinaufführt.
 * **🌫️ Sanftes Ausblenden statt abruptem Verschwinden:** Ändert sich das Wetter bei aktiver Wetter-Automatik von selbst, verblasst der alte Effekt sanft, während ein manueller Wechsel im Editor weiterhin sofort umschaltet.
 * **👁️ Live-Vorschau im Editor:** Direkt beim Einstellen der Regler siehst du oben im Editor eine kleine, verkleinerte Vorschau des Effekts – ganz ohne zu speichern.
 * **🌦️ Optionale Wetter-Automatik:** Statt manuell einen Effekt auszuwählen, kann die Karte sich an einer echten `weather.*`-Entity orientieren und automatisch den passenden Effekt zeigen.
@@ -70,12 +70,14 @@ Karte zum Dashboard hinzufügen → **Weather & Event Overlay Card** auswählen 
 2. **Effekt** wählen – entweder einen festen Effekt (Regen, Schnee, Eule, Dampflok, Wichteltür, ...) oder **"🌦️ Automatisch (nach Wetter)"**.
 3. Bei "Automatisch": darunter erscheint **Wetter-Sensor** – dort deine `weather.*`-Entity aus der Liste auswählen.
 4. Bei "🎂 Geburtstags-Modus": darunter erscheint ein Feld für den **Banner-Text**.
-5. **Anzahl / Frequenz**, **Deckkraft / Helligkeit** und ggf. **Farbmodus** nach Geschmack einstellen.
+5. Bei "🚂 Dampflok": darunter erscheint optional **Weihnachtsmann-Sensor** – wählst du hier einen `input_boolean`/`binary_sensor` aus, schaltet der Zug automatisch auf die festliche Beladung um, sobald dieser Sensor "an" ist.
+6. **Anzahl / Frequenz**, **Deckkraft / Helligkeit** und ggf. **Farbmodus** nach Geschmack einstellen.
 
 Der Editor blendet dabei automatisch nur die Regler ein, die für den gewählten Effekt auch etwas bewirken:
 * Bei **Blitz, Weihnachtsmann, Hund, Dampflok, Eule, Wichteltür, Vogelhäuschen und Geburtstags-Modus** gibt's keinen Farbmodus (feste Farben).
 * Bei der **Spinne, Eule und Wunschstern** gibt's keine Anzahl (es gibt jeweils nur die eine).
-* Bei **Weihnachtsmann, Hund, Komet, Dampflok, Wichteltür und Vogelhäuschen** steuert "Anzahl/Frequenz" NICHT eine Partikelmenge, sondern wie oft etwas passiert (Vorbeiziehen, Aufleuchten, Vorbeifliegen).
+* Bei **Weihnachtsmann, Hund, Komet, Dampflok und Vogelhäuschen** steuert "Anzahl/Frequenz" NICHT eine Partikelmenge, sondern wie oft etwas passiert (Vorbeiziehen, Vorbeifliegen).
+* Bei **Wichteltür** steuert "Anzahl/Frequenz" stattdessen, wie oft das Fenster aufleuchtet.
 * Bei **Fledermäuse, Bienen, Wolken-Drift, Sternenhimmel und Geburtstags-Modus** ist "Anzahl" eine ganz normale Partikelmenge.
 
 ### 🌦️ Wie die Wetter-Automatik genau funktioniert
@@ -112,6 +114,15 @@ opacity_preset: medium
 color_mode: auto
 ```
 
+### Dampflok mit sensor-gesteuerter Festtags-Beladung
+```yaml
+type: custom:weather-event-overlay-card
+event: train
+count_preset: medium
+opacity_preset: high
+santa_sensor: input_boolean.weihnachtszeit
+```
+
 ### Wichteltür
 ```yaml
 type: custom:weather-event-overlay-card
@@ -124,14 +135,6 @@ opacity_preset: high
 ```yaml
 type: custom:weather-event-overlay-card
 event: birdhouse
-count_preset: medium
-opacity_preset: high
-```
-
-### Dampflok mit vier beladenen Waggons
-```yaml
-type: custom:weather-event-overlay-card
-event: train
 count_preset: medium
 opacity_preset: high
 ```
@@ -248,10 +251,10 @@ leaf_colors:
 | `lights` | 💡 Blinkende Lichterkette am oberen Rand |
 | `birthday` | 🎂 Geburtstags-Modus: Ballons + Konfetti + Banner mit eigenem Text |
 | `santa` | 🎅 Weihnachtsmann mit Schlitten & 2 Rentieren (periodischer Vorbeiflug) |
-| `gnome_door` | 🧝🚪 Freistehende Wichteltür unten rechts, Fenster leuchtet periodisch warm auf |
+| `gnome_door` | 🧝🚪 Wichteltür-Szene: Tür mit Kranz, Weihnachtsbaum mit Lichterkette, Laterne, Briefkasten, Weg |
 | `spider` | 🕷️ Spinnennetz mit auf- und abseilender Spinne (blinkende rote Augen) |
 | `dog` | 🐕 Goldener Labrador mit echter Lauf-Beinbewegung |
-| `train` | 🚂 Dampflok mit vier unterschiedlich beladenen Waggons (Obst, Bauklötze, Geschenke, Holzscheite), drehenden Rädern und Dampf aus dem Schornstein |
+| `train` | 🚂 Dampflok mit vier Waggons (Obst/Bauklötze/Geschenke/Holz, optional festliche Sensor-Beladung), drehenden Rädern und Dampf aus dem Schornstein |
 | `bats` | 🦇 Fledermausschwarm, theme-abhängig eingefärbt |
 | `owl` | 🦉 Eule auf einem Ast, vor dem Mond, mit abwechselndem Blinzeln |
 | `bee` | 🐝 Bienenschwarm (5-8 Stück) im Zickzack-Flug |
@@ -266,6 +269,7 @@ leaf_colors:
 | `event` | string | `off` | Welcher Effekt aktiv ist, oder `weather_auto` für die Wetter-Automatik (siehe Tabelle oben) |
 | `weather_entity` | string | `""` | HA-Entity-ID einer `weather.*`-Entity, z. B. `weather.home` (nur relevant bei `event: weather_auto`) |
 | `birthday_text` | string | `"Happy Birthday!"` | Text im Banner (nur relevant bei `event: birthday`) - wird automatisch gegen Schadcode abgesichert |
+| `santa_sensor` | string | `""` | HA-Entity-ID eines `input_boolean`/`binary_sensor` (nur relevant bei `event: train`) - ist er "an", tragen drei Waggons festliche Fracht statt der normalen Alltags-Ladung |
 | `count_preset` | `low` \| `medium` \| `high` | `medium` | Anzahl bzw. Frequenz – Bedeutung hängt vom Effekt ab (siehe Editor-Hinweistexte oben) |
 | `opacity_preset` | `low` \| `medium` \| `high` | `medium` | Deckkraft/Helligkeit des Effekts |
 | `color_mode` | `auto` \| `custom` | `auto` | Automatische Theme-Erkennung oder feste Farbe (nur bei Effekten mit Farbmodus) |
