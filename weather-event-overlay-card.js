@@ -889,10 +889,8 @@ function renderTrain(cfg, hass, hostEl) {
       100% { transform: translateX(calc(100vw + 256px)); }
     }
     .train-wheel {
-      animation: train-wheel-spin 0.6s linear infinite;
-      transform-box: fill-box; transform-origin: center;
+      /* Rotation entfernt (Ressourcen-Ersparnis) - Räder stehen jetzt fest */
     }
-    @keyframes train-wheel-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     .train-smoke {
       animation-name: train-smoke-rise; animation-timing-function: ease-out; animation-iteration-count: infinite;
       transform-box: fill-box; transform-origin: center;
@@ -1159,20 +1157,10 @@ function renderDog(cfg, hass, hostEl) {
       100% { transform: translateY(-2px); }
     }
     .dog-ear {
-      animation: dog-ear-flap 0.55s ease-in-out infinite alternate;
-      transform-box: fill-box; transform-origin: 100% 0%;
-    }
-    @keyframes dog-ear-flap {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(8deg); }
+      /* Schwingen entfernt (Ressourcen-Ersparnis) - Ohr bleibt fest */
     }
     .dog-tongue {
-      animation: dog-tongue-wobble 0.28s ease-in-out infinite alternate;
-      transform-box: fill-box; transform-origin: 50% 0%;
-    }
-    @keyframes dog-tongue-wobble {
-      0% { transform: rotate(-8deg); }
-      100% { transform: rotate(8deg); }
+      /* Wackeln entfernt (Ressourcen-Ersparnis) - Zunge bleibt fest */
     }
     .dog-print {
       animation: dog-print-fade 1.1s ease-out infinite;
