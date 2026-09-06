@@ -899,6 +899,10 @@ function renderTrain(cfg, hass, hostEl) {
       0%   { transform: translate(0,0) scale(0.5); opacity: 0.9; }
       100% { transform: translate(-95px,-8px) scale(1.7); opacity: 0; }
     }
+    .station-scene-box {
+      position: fixed; bottom: 0; left: 0; width: 190px; height: 121px;
+      pointer-events: none; z-index: 9997;
+    }
   `;
 
   const wheel = (cx, cy, r) => `
@@ -1047,6 +1051,27 @@ function renderTrain(cfg, hass, hostEl) {
   `;
 
   const html = `
+    <div class="station-scene-box" style="opacity:${finalOpacity};" aria-hidden="true">
+      <svg viewBox="0 0 220 140" style="width:100%; height:100%;">
+        <rect x="0" y="108" width="220" height="32" fill="#2a2a2a"/>
+        <rect x="0" y="96" width="220" height="12" fill="#8a8378"/>
+        <rect x="0" y="96" width="220" height="3" fill="#e8c93a"/>
+        <path d="M8,42 L70,42 L39,20 Z" fill="#7a2020"/>
+        <rect x="14" y="42" width="50" height="54" fill="#c9a659" stroke="#7a5a2a" stroke-width="1.5"/>
+        <rect x="30" y="70" width="18" height="26" fill="#4a3520"/>
+        <circle cx="39" cy="55" r="10" fill="#f0ebe0" stroke="#1a1a1a" stroke-width="1.5"/>
+        <path d="M39,55 L39,49 M39,55 L44,57" stroke="#1a1a1a" stroke-width="1.3" stroke-linecap="round"/>
+        <rect x="90" y="88" width="36" height="4" fill="#5a3d24"/>
+        <rect x="90" y="73" width="4" height="15" fill="#5a3d24"/>
+        <rect x="122" y="73" width="4" height="15" fill="#5a3d24"/>
+        <rect x="90" y="73" width="36" height="3" fill="#5a3d24"/>
+        <circle cx="106" cy="64" r="6" fill="#2a2a2a"/>
+        <path d="M99,71 Q106,77 113,71 L113,92 L99,92 Z" fill="#2a2a2a"/>
+        <rect x="178" y="40" width="3" height="56" fill="#1a1a1a"/>
+        <circle cx="179.5" cy="34" r="7" fill="#ffd97a"/>
+        <path d="M172,40 L187,40 L179.5,26 Z" fill="#1a1a1a"/>
+      </svg>
+    </div>
     <div class="train-container" style="opacity:${finalOpacity};" aria-hidden="true">
       <div class="train-box">
         <svg viewBox="0 -24 520 90" preserveAspectRatio="xMidYMid meet">
