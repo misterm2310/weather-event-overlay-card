@@ -606,7 +606,7 @@ function renderFog(cfg, hass, hostEl) {
   const css = `
     ${overlayBaseCss("fog-container")}
     .fog-bank {
-      position: absolute; left: -20vw; border-radius: 50%; filter: blur(18px); will-change: transform;
+      position: absolute; left: -20vw; border-radius: 50%; filter: blur(10px); will-change: transform;
     }
     @keyframes fog-drift {
       0%   { transform: translateX(0); }
@@ -1746,7 +1746,7 @@ function renderClouds(cfg, hass, hostEl) {
     .cloud {
       position: absolute; left: -30vw; width: 22vw; height: 8vh;
       border-radius: 50%;
-      filter: blur(6px);
+      filter: blur(4px);
       animation-name: cloud-drift; animation-timing-function: linear; animation-iteration-count: infinite;
       will-change: transform;
     }
@@ -1806,15 +1806,20 @@ function renderWishStar(cfg, hass, hostEl) {
 }
 
 function renderStars(cfg, hass, hostEl) {
-  // Sterne "teleportieren" zwischen 4 zufälligen Positionen, aber jetzt
-  // WIRKLICH unsichtbar während des Sprungs: die Deckkraft wird kurz VOR
-  // und kurz NACH dem Positionswechsel explizit auf 0 gehalten (statt nur
-  // an einem einzelnen Prozent-Punkt). Vorher stand "opacity:0" nur an
-  // EINER Stelle - der Browser hat die Position deshalb schon während der
-  // anschließenden Aufhellungs-Phase interpoliert, wodurch man die
-  // Bewegung noch schwach erahnen konnte (wie wandernde Glühwürmchen).
-  // Mit einem Zwei-Punkte-"Nullpunkt-Käfig" rund um den Sprung bleibt die
-  // Deckkraft im gesamten Übergang exakt und ausschließlich bei 0.
+  // Sterne "teleportieren" zwischen 4 zufälligen Positionen, unsichtbar
+  // während des Sprungs (Deckkraft VOR und NACH dem Sprung explizit auf 0
+  // gehalten, damit der Browser die Bewegung nicht mit-interpoliert).
+  //
+  // Verbesserung (Ressourcen): Die Position läuft jetzt über
+  // "transform: translate()" statt über "top"/"left". Das ist ein
+  // wichtiger Unterschied: top/left-Animationen zwingen den Browser bei
+  // JEDEM Bild zu einer Layout-Neuberechnung alle anderen Elemente
+  // betreffend, während transform rein von der GPU zusammengesetzt wird
+  // (kein Layout-Reflow). Zusätzlich teilen sich jetzt ALLE Sterne EIN
+  // einziges Keyframe (vorher hatte jeder Stern sein eigenes, 25 Schritte
+  // langes Keyframe) - die individuellen Positionen/Helligkeiten kommen
+  // stattdessen aus CSS-Variablen pro Stern. Bei z. B. 55 Sternen spart
+  // das enorm an CSS-Größe und Browser-Rechenaufwand.
   const color = resolveDynamicColor(cfg.color, hass, "#000000", "#ffffff", hostEl);
   const count = getParticleCount(cfg.count_preset || "medium", "stars");
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
@@ -1829,63 +1834,66 @@ function renderStars(cfg, hass, hostEl) {
     dur: (Math.random() * 8 + 20).toFixed(2),
     delay: (Math.random() * -28).toFixed(2),
     baseOp: (Math.random() * 0.4 + 0.55).toFixed(2),
-    animId: Math.random().toString(36).slice(2, 9),
   }));
 
-  let keyframesCss = "";
   const starHTML = stars.map((s) => {
     const peak = isHigh
       ? Math.max(parseFloat(s.baseOp), 0.95)
       : Math.max(parseFloat(s.baseOp) * opacity, 0.35);
     const glow = (parseFloat(s.size) * 2.5).toFixed(2);
     const [p1, p2, p3, p4] = s.waypoints;
-    const name = `star-tp-${s.animId}`;
-    // Vier gleich große Viertel (0-25-50-75%). Innerhalb jedes Viertels:
-    // sanft aufblitzen (4%), lange ruhig halten (14%), sanft verblassen
-    // (3%) - und erst DANACH, in einem winzigen 0,4%-Fenster mit
-    // Deckkraft explizit auf 0 VOR und NACH dem Sprung, wechselt lautlos
-    // die Position. Dieser enge "Nullpunkt-Käfig" verhindert, dass der
-    // Browser die Bewegung noch während einer Aufhellung mit-interpoliert.
-    keyframesCss += `
-      @keyframes ${name} {
-        0%     { opacity: 0; top:${p1.top}vh; left:${p1.left}vw; transform: scale(0.3); }
-        4%     { opacity: ${peak}; transform: scale(1.1); }
-        18%    { opacity: ${peak}; transform: scale(1); }
-        21%    { opacity: 0; transform: scale(0.3); }
-        23.8%  { opacity: 0; top:${p1.top}vh; left:${p1.left}vw; }
-        24.2%  { opacity: 0; top:${p2.top}vh; left:${p2.left}vw; }
-        25%    { opacity: 0; top:${p2.top}vh; left:${p2.left}vw; }
-        29%    { opacity: ${peak}; transform: scale(1.1); }
-        43%    { opacity: ${peak}; transform: scale(1); }
-        46%    { opacity: 0; transform: scale(0.3); }
-        48.8%  { opacity: 0; top:${p2.top}vh; left:${p2.left}vw; }
-        49.2%  { opacity: 0; top:${p3.top}vh; left:${p3.left}vw; }
-        50%    { opacity: 0; top:${p3.top}vh; left:${p3.left}vw; }
-        54%    { opacity: ${peak}; transform: scale(1.1); }
-        68%    { opacity: ${peak}; transform: scale(1); }
-        71%    { opacity: 0; transform: scale(0.3); }
-        73.8%  { opacity: 0; top:${p3.top}vh; left:${p3.left}vw; }
-        74.2%  { opacity: 0; top:${p4.top}vh; left:${p4.left}vw; }
-        75%    { opacity: 0; top:${p4.top}vh; left:${p4.left}vw; }
-        79%    { opacity: ${peak}; transform: scale(1.1); }
-        93%    { opacity: ${peak}; transform: scale(1); }
-        96%    { opacity: 0; transform: scale(0.3); }
-        98.8%  { opacity: 0; top:${p4.top}vh; left:${p4.left}vw; }
-        99.2%  { opacity: 0; top:${p1.top}vh; left:${p1.left}vw; }
-        100%   { opacity: 0; top:${p1.top}vh; left:${p1.left}vw; }
-      }
-    `;
-    return `<div class="star" style="width:${s.size}px; height:${s.size}px; background:${color}; box-shadow: 0 0 ${glow}px ${color}, 0 0 1.5px rgba(160,160,160,0.9); animation-name:${name}; animation-duration:${s.dur}s; animation-delay:${s.delay}s;"></div>`;
+    // Jede Position wird relativ zur eigenen Startposition (top/left als
+    // normale, EINMALIGE Platzierung - keine Animation) über eine
+    // Verschiebung (translate) in vw/vh ausgedrückt. Da top1/left1 der
+    // Basispunkt ist, ist die erste Verschiebung (0,0).
+    const dx2 = (parseFloat(p2.left) - parseFloat(p1.left)).toFixed(2);
+    const dy2 = (parseFloat(p2.top) - parseFloat(p1.top)).toFixed(2);
+    const dx3 = (parseFloat(p3.left) - parseFloat(p1.left)).toFixed(2);
+    const dy3 = (parseFloat(p3.top) - parseFloat(p1.top)).toFixed(2);
+    const dx4 = (parseFloat(p4.left) - parseFloat(p1.left)).toFixed(2);
+    const dy4 = (parseFloat(p4.top) - parseFloat(p1.top)).toFixed(2);
+    const vars = `--peak:${peak}; --dx2:${dx2}vw; --dy2:${dy2}vh; --dx3:${dx3}vw; --dy3:${dy3}vh; --dx4:${dx4}vw; --dy4:${dy4}vh;`;
+    return `<div class="star" style="top:${p1.top}vh; left:${p1.left}vw; width:${s.size}px; height:${s.size}px; background:${color}; box-shadow: 0 0 ${glow}px ${color}, 0 0 1.5px rgba(160,160,160,0.9); animation-duration:${s.dur}s; animation-delay:${s.delay}s; ${vars}"></div>`;
   }).join("\n");
 
   const css = `
     ${overlayBaseCss("stars-container")}
     .star {
       position: absolute; border-radius: 50%;
-      animation-timing-function: linear; animation-iteration-count: infinite;
-      will-change: opacity, transform, top, left;
+      animation-name: star-teleport-cycle; animation-timing-function: linear; animation-iteration-count: infinite;
+      will-change: opacity, transform;
     }
-    ${keyframesCss}
+    /* Ein einziges gemeinsames Keyframe für ALLE Sterne. Sanft aufblitzen
+       (4%), lange ruhig halten (14%), sanft verblassen (3%), dann in
+       einem winzigen 0,4%-Fenster mit Deckkraft explizit auf 0 vor UND
+       nach dem Sprung lautlos zur nächsten Position (translate) springen. */
+    @keyframes star-teleport-cycle {
+      0%     { opacity: 0; transform: translate(0,0) scale(0.3); }
+      4%     { opacity: var(--peak); transform: translate(0,0) scale(1.1); }
+      18%    { opacity: var(--peak); transform: translate(0,0) scale(1); }
+      21%    { opacity: 0; transform: translate(0,0) scale(0.3); }
+      23.8%  { opacity: 0; transform: translate(0,0) scale(0.3); }
+      24.2%  { opacity: 0; transform: translate(var(--dx2),var(--dy2)) scale(0.3); }
+      25%    { opacity: 0; transform: translate(var(--dx2),var(--dy2)) scale(0.3); }
+      29%    { opacity: var(--peak); transform: translate(var(--dx2),var(--dy2)) scale(1.1); }
+      43%    { opacity: var(--peak); transform: translate(var(--dx2),var(--dy2)) scale(1); }
+      46%    { opacity: 0; transform: translate(var(--dx2),var(--dy2)) scale(0.3); }
+      48.8%  { opacity: 0; transform: translate(var(--dx2),var(--dy2)) scale(0.3); }
+      49.2%  { opacity: 0; transform: translate(var(--dx3),var(--dy3)) scale(0.3); }
+      50%    { opacity: 0; transform: translate(var(--dx3),var(--dy3)) scale(0.3); }
+      54%    { opacity: var(--peak); transform: translate(var(--dx3),var(--dy3)) scale(1.1); }
+      68%    { opacity: var(--peak); transform: translate(var(--dx3),var(--dy3)) scale(1); }
+      71%    { opacity: 0; transform: translate(var(--dx3),var(--dy3)) scale(0.3); }
+      73.8%  { opacity: 0; transform: translate(var(--dx3),var(--dy3)) scale(0.3); }
+      74.2%  { opacity: 0; transform: translate(var(--dx4),var(--dy4)) scale(0.3); }
+      75%    { opacity: 0; transform: translate(var(--dx4),var(--dy4)) scale(0.3); }
+      79%    { opacity: var(--peak); transform: translate(var(--dx4),var(--dy4)) scale(1.1); }
+      93%    { opacity: var(--peak); transform: translate(var(--dx4),var(--dy4)) scale(1); }
+      96%    { opacity: 0; transform: translate(var(--dx4),var(--dy4)) scale(0.3); }
+      98.8%  { opacity: 0; transform: translate(var(--dx4),var(--dy4)) scale(0.3); }
+      99.2%  { opacity: 0; transform: translate(0,0) scale(0.3); }
+      100%   { opacity: 0; transform: translate(0,0) scale(0.3); }
+    }
   `;
   return { css, html: `<div class="stars-container" aria-hidden="true">${starHTML}</div>` };
 }
