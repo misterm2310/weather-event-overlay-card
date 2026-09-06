@@ -1580,10 +1580,17 @@ function renderBee(cfg, hass, hostEl) {
 // mathematisch (wie schon beim Spinnennetz), das von einer Ecke (0,0)
 // diagonal ins Bild hineinwächst - Hauptäste mit kleinen Seitenzweigen.
 function renderGnomeDoor(cfg, hass, hostEl) {
-  // Wichteltür: sitzt fest unten rechts, das runde Fenster leuchtet immer
-  // wieder für eine Weile warm auf. Weihnachtlich gestaltet nach Vorlage:
-  // dunkelgrüne Tür, ein Kranz aus kleinen Blättern/Beeren mit roter
-  // Schleife rund ums Fenster, kleine Herz-Scharniere am linken Rand.
+  // Wichteltür-Szene: sitzt fest unten rechts, das runde Fenster leuchtet
+  // immer wieder für eine Weile warm auf. Weihnachtlich gestaltet: dunkelgrüne
+  // Tür, ein Kranz aus kleinen Blättern/Beeren mit roter Schleife rund ums
+  // Fenster, kleine Herz-Scharniere am linken Rand.
+  // Alle feinen Linien/Metallteile (Rahmen, Holzmaserung, Laterne,
+  // Briefkasten) wechseln automatisch zwischen hell und dunkel, je nachdem
+  // ob der erkannte Hintergrund hell oder dunkel ist - sonst gehen die
+  // Details auf dunklem Theme in der ebenfalls dunklen Farbgebung unter.
+  const isDark = isDarkModeActive(hass, hostEl);
+  const lineColor = isDark ? "#f0e6c8" : "#3a2a10";
+  const metalColor = isDark ? "#d8d8d8" : "#1a1a1a";
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
@@ -1603,6 +1610,7 @@ function renderGnomeDoor(cfg, hass, hostEl) {
     .gnome-door-box {
       position: fixed; bottom: 6vh; right: 40px; width: 54px; height: 62px;
       pointer-events: none; z-index: 9999;
+      filter: drop-shadow(0 0 7px rgba(255,255,255,0.75)) drop-shadow(0 0 3px rgba(255,255,255,0.9));
     }
     .gnome-path-box {
       position: fixed; bottom: 0; right: 40px; width: 54px; height: 6vh;
@@ -1611,6 +1619,7 @@ function renderGnomeDoor(cfg, hass, hostEl) {
     .gnome-tree-box {
       position: fixed; bottom: 6vh; right: 0px; width: 40px; height: 66px;
       pointer-events: none; z-index: 9998;
+      filter: drop-shadow(0 0 6px rgba(255,255,255,0.7)) drop-shadow(0 0 2px rgba(255,255,255,0.85));
     }
     .tree-light {
       animation: tree-light-twinkle 1.8s ease-in-out infinite;
@@ -1622,10 +1631,12 @@ function renderGnomeDoor(cfg, hass, hostEl) {
     .gnome-lantern-box {
       position: fixed; bottom: 6vh; right: 94px; width: 26px; height: 58px;
       pointer-events: none; z-index: 9998;
+      filter: drop-shadow(0 0 5px rgba(255,255,255,0.7)) drop-shadow(0 0 2px rgba(255,255,255,0.85));
     }
     .gnome-mailbox-box {
       position: fixed; bottom: 0; right: 99px; width: 32px; height: 52px;
       pointer-events: none; z-index: 9998;
+      filter: drop-shadow(0 0 5px rgba(255,255,255,0.7)) drop-shadow(0 0 2px rgba(255,255,255,0.85));
     }
     .gnome-light {
       animation: gnome-light-flicker ${cycle}s ease-in-out infinite;
@@ -1651,9 +1662,9 @@ function renderGnomeDoor(cfg, hass, hostEl) {
   const html = `
     <div class="gnome-tree-box" style="opacity:${finalOpacity};" aria-hidden="true">
       <svg viewBox="0 0 40 66" style="width:100%; height:100%;">
-        <path d="M4,58 L36,58 L20,38 Z" fill="#1f5c3f" stroke="#0f3d28" stroke-width="1.5"/>
-        <path d="M8,42 L32,42 L20,24 Z" fill="#256b48" stroke="#0f3d28" stroke-width="1.5"/>
-        <path d="M12,26 L28,26 L20,10 Z" fill="#2a7a52" stroke="#0f3d28" stroke-width="1.5"/>
+        <path d="M4,58 L36,58 L20,38 Z" fill="#1f5c3f" stroke="${lineColor}" stroke-width="1.5"/>
+        <path d="M8,42 L32,42 L20,24 Z" fill="#256b48" stroke="${lineColor}" stroke-width="1.5"/>
+        <path d="M12,26 L28,26 L20,10 Z" fill="#2a7a52" stroke="${lineColor}" stroke-width="1.5"/>
         <rect x="17" y="58" width="6" height="8" fill="#5a3d24"/>
         <path d="M20,10 L20,6" stroke="#ffd93d" stroke-width="1.5"/>
         <circle cx="20" cy="5" r="2" fill="#ffd93d"/>
@@ -1670,24 +1681,24 @@ function renderGnomeDoor(cfg, hass, hostEl) {
     </div>
     <div class="gnome-mailbox-box" style="opacity:${finalOpacity};" aria-hidden="true">
       <svg viewBox="0 0 26 46" style="width:100%; height:100%;">
-        <rect x="11" y="20" width="4" height="24" fill="#1a1a1a"/>
-        <path d="M11,42 Q13,44 15,42" stroke="#1a1a1a" stroke-width="1.4" fill="none"/>
-        <path d="M2,15 Q2,7 9,7 L15,7 Q22,7 22,15 L22,19 L2,19 Z" fill="#3a4a3a" stroke="#1a1a1a" stroke-width="1"/>
-        <rect x="2" y="16" width="20" height="3" fill="#1a1a1a"/>
+        <rect x="11" y="20" width="4" height="24" fill="${metalColor}"/>
+        <path d="M11,42 Q13,44 15,42" stroke="${metalColor}" stroke-width="1.4" fill="none"/>
+        <path d="M2,15 Q2,7 9,7 L15,7 Q22,7 22,15 L22,19 L2,19 Z" fill="#3a4a3a" stroke="${metalColor}" stroke-width="1"/>
+        <rect x="2" y="16" width="20" height="3" fill="${metalColor}"/>
         <path d="M20,9 L25,7 L25,12 Z" fill="#c0392b" stroke="#6b1810" stroke-width="0.6"/>
         <text x="12" y="14" font-size="6" font-family="Georgia, serif" fill="#f0ebe0" text-anchor="middle" font-weight="bold">Olaf</text>
       </svg>
     </div>
     <div class="gnome-lantern-box" style="opacity:${finalOpacity};" aria-hidden="true">
       <svg viewBox="0 0 26 58" style="width:100%; height:100%;">
-        <path d="M8,55 Q13,52 18,55 L19.5,57.5 L6.5,57.5 Z" fill="#1a1a1a"/>
-        <rect x="11.5" y="19" width="3" height="31" fill="#1a1a1a"/>
+        <path d="M8,55 Q13,52 18,55 L19.5,57.5 L6.5,57.5 Z" fill="${metalColor}"/>
+        <rect x="11.5" y="19" width="3" height="31" fill="${metalColor}"/>
         <path d="M7,19 L19,19 L20.5,10 L17,7 L9,7 L5.5,10 Z" fill="#fff3d0" opacity="0.14"/>
-        <path d="M7,19 L19,19 L20.5,10 L17,7 L9,7 L5.5,10 Z" fill="none" stroke="#1a1a1a" stroke-width="1.4"/>
-        <path d="M9.5,19 L9.5,9 M16.5,19 L16.5,9" stroke="#1a1a1a" stroke-width="0.9"/>
+        <path d="M7,19 L19,19 L20.5,10 L17,7 L9,7 L5.5,10 Z" fill="none" stroke="${metalColor}" stroke-width="1.4"/>
+        <path d="M9.5,19 L9.5,9 M16.5,19 L16.5,9" stroke="${metalColor}" stroke-width="0.9"/>
         <circle class="lantern-flame" cx="13" cy="14" r="3.6" fill="#ffd97a" style="filter: drop-shadow(0 0 3px #ffb347);"/>
-        <path d="M7.5,7 L18.5,7 L13,1.5 Z" fill="#1a1a1a"/>
-        <circle cx="13" cy="0.8" r="1.1" fill="#1a1a1a"/>
+        <path d="M7.5,7 L18.5,7 L13,1.5 Z" fill="${metalColor}"/>
+        <circle cx="13" cy="0.8" r="1.1" fill="${metalColor}"/>
       </svg>
     </div>
     <div class="gnome-path-box" style="opacity:${finalOpacity};" aria-hidden="true">
@@ -1698,14 +1709,14 @@ function renderGnomeDoor(cfg, hass, hostEl) {
     </div>
     <div class="gnome-door-box" style="opacity:${finalOpacity};" aria-hidden="true">
       <svg viewBox="0 0 60 76" style="width:100%; height:100%;">
-        <path d="M15,74 L15,34 Q15,16 30,16 Q45,16 45,34 L45,74 Z" fill="#1f5c3f" stroke="#0f3d28" stroke-width="2.2"/>
-        <path d="M21,72 L21,21 M27,72 L27,17.5 M33,72 L33,17.5 M39,72 L39,21" stroke="#0f3d28" stroke-width="1" opacity="0.55"/>
+        <path d="M15,74 L15,34 Q15,16 30,16 Q45,16 45,34 L45,74 Z" fill="#1f5c3f" stroke="#c9a659" stroke-width="2.2"/>
+        <path d="M21,72 L21,21 M27,72 L27,17.5 M33,72 L33,17.5 M39,72 L39,21" stroke="#c9a659" stroke-width="1" opacity="0.75"/>
         <circle cx="40" cy="56" r="2.2" fill="#d4af37" stroke="#8a6f1f" stroke-width="0.8"/>
         <path d="M15,45 C15,43 12,43 12,45 C12,47 15,49 15,51 C15,49 18,47 18,45 C18,43 15,43 15,45 Z" fill="#c0392b" stroke="#6b1810" stroke-width="0.8"/>
         <path d="M15,60 C15,58 12,58 12,60 C12,62 15,64 15,66 C15,64 18,62 18,60 C18,58 15,58 15,60 Z" fill="#c0392b" stroke="#6b1810" stroke-width="0.8"/>
         <circle class="gnome-light" cx="30" cy="33" r="6.5" fill="#ffd97a"/>
-        <circle cx="30" cy="33" r="6.5" fill="none" stroke="#0f3d28" stroke-width="1.6"/>
-        <path d="M30,26.5 L30,39.5 M23.5,33 L36.5,33" stroke="#0f3d28" stroke-width="1"/>
+        <circle cx="30" cy="33" r="6.5" fill="none" stroke="#c9a659" stroke-width="1.6"/>
+        <path d="M30,26.5 L30,39.5 M23.5,33 L36.5,33" stroke="#c9a659" stroke-width="1"/>
         ${wreathDots}
         <path d="M30,23.5 L25,18 Q23,16 25.5,15 Q28,14.5 29.5,17.5 L30,23.5 L30.5,17.5 Q32,14.5 34.5,15 Q37,16 35,18 Z" fill="#c0392b" stroke="#6b1810" stroke-width="0.8"/>
         <circle cx="30" cy="18.5" r="1.6" fill="#8e2419"/>
