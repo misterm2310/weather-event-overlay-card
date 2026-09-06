@@ -1445,11 +1445,11 @@ function renderOwl(cfg, hass, hostEl) {
     }
     .owl-head {
       animation: owl-turn 9s ease-in-out infinite;
-      transform-origin: 50% 62%;
+      transform-box: fill-box; transform-origin: 50% 62%;
     }
     .owl-body {
       animation: owl-breathe 4s ease-in-out infinite;
-      transform-origin: 50% 72%;
+      transform-box: fill-box; transform-origin: 50% 72%;
     }
     .owl-eye-lid.left {
       animation: owl-blink-left 9s ease-in-out infinite;
