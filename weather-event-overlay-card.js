@@ -1610,7 +1610,6 @@ function renderGnomeDoor(cfg, hass, hostEl) {
     .gnome-door-box {
       position: fixed; bottom: 6vh; right: 40px; width: 54px; height: 62px;
       pointer-events: none; z-index: 9999;
-      filter: drop-shadow(0 0 7px rgba(255,255,255,0.75)) drop-shadow(0 0 3px rgba(255,255,255,0.9));
     }
     .gnome-path-box {
       position: fixed; bottom: 0; right: 40px; width: 54px; height: 6vh;
@@ -1619,7 +1618,6 @@ function renderGnomeDoor(cfg, hass, hostEl) {
     .gnome-tree-box {
       position: fixed; bottom: 6vh; right: 0px; width: 40px; height: 66px;
       pointer-events: none; z-index: 9998;
-      filter: drop-shadow(0 0 6px rgba(255,255,255,0.7)) drop-shadow(0 0 2px rgba(255,255,255,0.85));
     }
     .tree-light {
       animation: tree-light-twinkle 1.8s ease-in-out infinite;
@@ -1631,12 +1629,10 @@ function renderGnomeDoor(cfg, hass, hostEl) {
     .gnome-lantern-box {
       position: fixed; bottom: 6vh; right: 94px; width: 26px; height: 58px;
       pointer-events: none; z-index: 9998;
-      filter: drop-shadow(0 0 5px rgba(255,255,255,0.7)) drop-shadow(0 0 2px rgba(255,255,255,0.85));
     }
     .gnome-mailbox-box {
       position: fixed; bottom: 0; right: 99px; width: 32px; height: 52px;
       pointer-events: none; z-index: 9998;
-      filter: drop-shadow(0 0 5px rgba(255,255,255,0.7)) drop-shadow(0 0 2px rgba(255,255,255,0.85));
     }
     .gnome-light {
       animation: gnome-light-flicker ${cycle}s ease-in-out infinite;
