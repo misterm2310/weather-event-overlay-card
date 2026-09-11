@@ -313,7 +313,6 @@ const EVENT_CAPABILITIES = {
   lights: { count: true, opacity: true, color: false },
   santa: { count: true, opacity: true, color: false },
   spider: { count: false, opacity: true, color: true },
-  stars: { count: true, opacity: true, color: true },
   dog: { count: true, opacity: true, color: false },
   train: { count: true, opacity: true, color: false },
 
@@ -688,9 +687,18 @@ function renderSanta(cfg, hass, hostEl) {
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
   const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
-  const flightPct = Math.min(30, (18 / interval) * 100).toFixed(2);
+  const flightPct = Math.min(30, (18 / interval) * 100);
   const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
   const delaySec = (-(elapsedSec % interval)).toFixed(2);
+
+  // Gelegentlich (etwa jeder 3. Durchflug) verliert der Schlitten ein
+  // Geschenk, das runterfällt - deterministisch nach Durchflug-Nummer
+  // bestimmt, damit ein Neu-Rendern mitten im Flug nicht plötzlich das
+  // Geschenk verschwinden/auftauchen lässt.
+  const flightNumber = Math.floor(elapsedSec / interval);
+  const dropsGift = flightNumber % 3 === 0;
+  const giftStartPct = (flightPct * 0.35).toFixed(2);
+  const giftEndPct = (flightPct * 0.85).toFixed(2);
 
   const css = `
     .santa-container {
@@ -703,9 +711,21 @@ function renderSanta(cfg, hass, hostEl) {
     }
     @keyframes santa-fly {
       0% { transform: translateX(0) translateY(0); }
-      ${flightPct}% { transform: translateX(calc(-100vw - 300px)) translateY(-15px); }
+      ${flightPct.toFixed(2)}% { transform: translateX(calc(-100vw - 300px)) translateY(-15px); }
       100% { transform: translateX(calc(-100vw - 300px)) translateY(-15px); }
     }
+    ${dropsGift ? `
+    .santa-gift {
+      animation: santa-gift-fall ${interval}s linear infinite; animation-delay: ${delaySec}s;
+      transform-box: fill-box; transform-origin: center;
+    }
+    @keyframes santa-gift-fall {
+      0%, ${giftStartPct}% { opacity: 0; transform: translateY(0) rotate(0deg); }
+      ${(parseFloat(giftStartPct) + 2).toFixed(2)}% { opacity: 1; transform: translateY(0) rotate(0deg); }
+      ${giftEndPct}% { opacity: 0; transform: translateY(160px) rotate(140deg); }
+      100% { opacity: 0; transform: translateY(160px) rotate(140deg); }
+    }
+    ` : ""}
   `;
 
   const html = `
@@ -739,6 +759,13 @@ function renderSanta(cfg, hass, hostEl) {
           <path d="M175,5 Q165,-8 179,-13 Q184,-12 180,-6 Q177,-1 175,5 Z" fill="#c41e3a"/>
           <ellipse cx="180" cy="4" rx="7" ry="2.5" fill="#ffffff"/>
           <circle cx="179" cy="-13" r="2.5" fill="#ffffff"/>
+          ${dropsGift ? `
+          <g class="santa-gift">
+            <rect x="206" y="34" width="13" height="11" fill="#2e7d4f" stroke="#1a1a1a" stroke-width="1"/>
+            <path d="M206,38 L219,38 M212.5,34 L212.5,45" stroke="#d4af37" stroke-width="1.5"/>
+            <path d="M209,34 Q212.5,29 216,34" fill="none" stroke="#d4af37" stroke-width="1.5"/>
+          </g>
+          ` : ""}
         </svg>
       </div>
     </div>
@@ -798,9 +825,12 @@ function renderSpider(cfg, hass, hostEl) {
       background: ${webColor}; transform: translateX(-50%);
     }
     @keyframes spider-drop {
-      0%, 100% { transform: translateY(0); }
-      35%, 65% { transform: translateY(180px); }
-      45%, 55% { transform: translateY(170px); }
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      26% { transform: translateY(150px) rotate(0deg); }
+      28% { transform: translateY(200px) rotate(9deg); }
+      31% { transform: translateY(158px) rotate(-6deg); }
+      34%, 65% { transform: translateY(180px) rotate(0deg); }
+      45%, 55% { transform: translateY(170px) rotate(0deg); }
     }
     .spider-eye {
       animation: spider-eye-blink 1.4s ease-in-out infinite;
@@ -869,10 +899,30 @@ function renderTrain(cfg, hass, hostEl) {
   const cargo1 = santaActive ? "santa" : "toys";
   const cargo3 = santaActive ? "santa_sack" : "wood";
 
-  const smokeHtml = [0, 1, 2].map((i) => `
+  // Gelegentliche Gags, deterministisch nach Durchfahrt-Nummer bestimmt
+  // (kein Zufall bei jedem Rendern, damit ein Neu-Rendern mitten in der
+  // Fahrt nicht plötzlich was verschwinden/auftauchen lässt).
+  const flightNumber = Math.floor(elapsedSec / interval);
+  const hasSheep = flightNumber % 3 === 1;
+  const hasHeartSmoke = flightNumber % 6 === 0;
+  const hootPct = (parseFloat(walkPct) * 0.62).toFixed(2);
+  const hootEndPct = (parseFloat(walkPct) * 0.72).toFixed(2);
+
+  const smokeHtml = [0, 1, 2].map((i) => {
+    if (i === 1 && hasHeartSmoke) {
+      // Mittlerer Rauchpuff wird ganz selten zu einer Herzform statt eines
+      // Kreises, bevor er sich beim Aufsteigen wie gewohnt wieder aufloest.
+      return `
+        <path class="train-smoke train-smoke-heart" d="M69,3 C67,0 62,0 62,4 C62,7 69,11 69,11 C69,11 76,7 76,4 C76,0 71,0 69,3 Z"
+          fill="#d9d9d9" stroke="#1a1a1a" stroke-width="1.2"
+          style="animation-duration:2.85s; animation-delay:0.55s;"/>
+      `;
+    }
+    return `
     <circle class="train-smoke" cx="${76 - i * 11}" cy="${-1 - i * 3}" r="${5.5 + i * 1.4}" fill="#d9d9d9" stroke="#1a1a1a" stroke-width="1.5"
       style="animation-duration:${(2.6 + i * 0.25).toFixed(2)}s; animation-delay:${(i * 0.55).toFixed(2)}s;"/>
-  `).join("");
+  `;
+  }).join("");
 
   const css = `
     .train-container {
@@ -899,9 +949,16 @@ function renderTrain(cfg, hass, hostEl) {
       0%   { transform: translate(0,0) scale(0.5); opacity: 0.9; }
       100% { transform: translate(-95px,-8px) scale(1.7); opacity: 0; }
     }
-    .station-scene-box {
-      position: fixed; bottom: 0; left: 0; width: 190px; height: 121px;
-      pointer-events: none; z-index: 9997;
+    .train-hoot {
+      animation: train-hoot-pop ${interval}s linear infinite;
+      animation-delay: ${delaySec}s;
+      transform-box: fill-box; transform-origin: center;
+    }
+    @keyframes train-hoot-pop {
+      0%, ${hootPct}% { opacity: 0; transform: scale(0.4) translateY(4px); }
+      ${(parseFloat(hootPct) + 1.5).toFixed(2)}% { opacity: 1; transform: scale(1.08) translateY(0); }
+      ${hootEndPct}% { opacity: 1; transform: scale(1) translateY(0); }
+      ${(parseFloat(hootEndPct) + 2).toFixed(2)}%, 100% { opacity: 0; transform: scale(0.4) translateY(4px); }
     }
   `;
 
@@ -1040,6 +1097,11 @@ function renderTrain(cfg, hass, hostEl) {
       <path d="M73,17 L69,5 Q69,1 75,1 L86,1 Q92,1 92,5 L88,17 Z" fill="#f5f0e6" stroke="#1a1a1a" stroke-width="2.5"/>
       <!-- Dampf -->
       <g>${smokeHtml}</g>
+      <!-- Hupen-Sprechblase, taucht kurz während der Fahrt auf -->
+      <g class="train-hoot">
+        <path d="M30,-6 Q30,-16 40,-16 L58,-16 Q68,-16 68,-6 Q68,4 58,4 L44,4 L38,9 L39,4 Q30,4 30,-6 Z" fill="#ffffff" stroke="#1a1a1a" stroke-width="1.8"/>
+        <text x="49" y="-3" font-size="11" font-family="Georgia, serif" font-weight="bold" fill="#1a1a1a" text-anchor="middle">TUUT</text>
+      </g>
       <!-- Kuhfänger -->
       <path d="M99,42 Q110,46 116,54 L94,54 Z" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2"/>
       <!-- Räder Lok -->
@@ -1051,27 +1113,6 @@ function renderTrain(cfg, hass, hostEl) {
   `;
 
   const html = `
-    <div class="station-scene-box" style="opacity:${finalOpacity};" aria-hidden="true">
-      <svg viewBox="0 0 220 140" style="width:100%; height:100%;">
-        <rect x="0" y="108" width="220" height="32" fill="#2a2a2a"/>
-        <rect x="0" y="96" width="220" height="12" fill="#8a8378"/>
-        <rect x="0" y="96" width="220" height="3" fill="#e8c93a"/>
-        <path d="M8,42 L70,42 L39,20 Z" fill="#7a2020"/>
-        <rect x="14" y="42" width="50" height="54" fill="#c9a659" stroke="#7a5a2a" stroke-width="1.5"/>
-        <rect x="30" y="70" width="18" height="26" fill="#4a3520"/>
-        <circle cx="39" cy="55" r="10" fill="#f0ebe0" stroke="#1a1a1a" stroke-width="1.5"/>
-        <path d="M39,55 L39,49 M39,55 L44,57" stroke="#1a1a1a" stroke-width="1.3" stroke-linecap="round"/>
-        <rect x="90" y="88" width="36" height="4" fill="#5a3d24"/>
-        <rect x="90" y="73" width="4" height="15" fill="#5a3d24"/>
-        <rect x="122" y="73" width="4" height="15" fill="#5a3d24"/>
-        <rect x="90" y="73" width="36" height="3" fill="#5a3d24"/>
-        <circle cx="106" cy="64" r="6" fill="#2a2a2a"/>
-        <path d="M99,71 Q106,77 113,71 L113,92 L99,92 Z" fill="#2a2a2a"/>
-        <rect x="178" y="40" width="3" height="56" fill="#1a1a1a"/>
-        <circle cx="179.5" cy="34" r="7" fill="#ffd97a"/>
-        <path d="M172,40 L187,40 L179.5,26 Z" fill="#1a1a1a"/>
-      </svg>
-    </div>
     <div class="train-container" style="opacity:${finalOpacity};" aria-hidden="true">
       <div class="train-box">
         <svg viewBox="0 -24 520 90" preserveAspectRatio="xMidYMid meet">
@@ -1083,6 +1124,19 @@ function renderTrain(cfg, hass, hostEl) {
           ${wagon(WAGON_X[1], cargo1)}
           ${wagon(WAGON_X[2], "presents")}
           ${wagon(WAGON_X[3], cargo3)}
+
+          <!-- Schaf, das gelegentlich oben auf dem Geschenke-Waggon sitzt -->
+          ${hasSheep ? `
+          <g transform="translate(${WAGON_X[2]},0)">
+            <circle cx="29" cy="1" r="4.5" fill="#f5f0e6" stroke="#c9c2b4" stroke-width="0.7"/>
+            <circle cx="35" cy="0" r="5" fill="#f5f0e6" stroke="#c9c2b4" stroke-width="0.7"/>
+            <circle cx="41" cy="-1" r="5.5" fill="#f5f0e6" stroke="#c9c2b4" stroke-width="0.7"/>
+            <circle cx="47" cy="0" r="5" fill="#f5f0e6" stroke="#c9c2b4" stroke-width="0.7"/>
+            <ellipse cx="24" cy="-1" rx="5" ry="4.2" fill="#2a2a2a"/>
+            <path d="M20,-4.5 L17.5,-6.5 M28,-4.5 L30.5,-6.5" stroke="#2a2a2a" stroke-width="1.3" stroke-linecap="round"/>
+            <path d="M20.5,-1.5 L23,-1.8 M25,-1.8 L27.5,-1.5" stroke="#000000" stroke-width="1" stroke-linecap="round"/>
+          </g>
+          ` : ""}
 
           <!-- Kupplungen zwischen allen Waggons und zur Lok -->
           ${couplingsHtml}
@@ -2499,7 +2553,6 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
 
             <option value="birdhouse" ${c.event === "birdhouse" ? "selected" : ""}>🐦🏠 Vogelhäuschen</option>
             <option value="shooting_stars" ${c.event === "shooting_stars" ? "selected" : ""}>🌠 Sternschnuppen</option>
-            <option value="stars" ${c.event === "stars" ? "selected" : ""}>✨ Sternenhimmel</option>
             <option value="wishstar" ${c.event === "wishstar" ? "selected" : ""}>⭐ Wunschstern-Funkeln</option>
             <option value="comet" ${c.event === "comet" ? "selected" : ""}>☄️ Komet</option>
             <option value="leaves" ${c.event === "leaves" ? "selected" : ""}>🍂 Laub</option>
