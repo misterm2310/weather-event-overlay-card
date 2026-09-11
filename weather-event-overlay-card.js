@@ -722,8 +722,8 @@ function renderSanta(cfg, hass, hostEl) {
     @keyframes santa-gift-fall {
       0%, ${giftStartPct}% { opacity: 0; transform: translateY(0) rotate(0deg); }
       ${(parseFloat(giftStartPct) + 2).toFixed(2)}% { opacity: 1; transform: translateY(0) rotate(0deg); }
-      ${giftEndPct}% { opacity: 0; transform: translateY(160px) rotate(140deg); }
-      100% { opacity: 0; transform: translateY(160px) rotate(140deg); }
+      ${giftEndPct}% { opacity: 0; transform: translateY(42px) rotate(140deg); }
+      100% { opacity: 0; transform: translateY(42px) rotate(140deg); }
     }
     ` : ""}
   `;
@@ -761,9 +761,9 @@ function renderSanta(cfg, hass, hostEl) {
           <circle cx="179" cy="-13" r="2.5" fill="#ffffff"/>
           ${dropsGift ? `
           <g class="santa-gift">
-            <rect x="206" y="34" width="13" height="11" fill="#2e7d4f" stroke="#1a1a1a" stroke-width="1"/>
-            <path d="M206,38 L219,38 M212.5,34 L212.5,45" stroke="#d4af37" stroke-width="1.5"/>
-            <path d="M209,34 Q212.5,29 216,34" fill="none" stroke="#d4af37" stroke-width="1.5"/>
+            <rect x="206" y="34" width="13" height="11" fill="#e63946" stroke="#1a1a1a" stroke-width="1"/>
+            <path d="M206,38 L219,38 M212.5,34 L212.5,45" stroke="#ffffff" stroke-width="1.5"/>
+            <path d="M209,34 Q212.5,29 216,34" fill="none" stroke="#ffffff" stroke-width="1.5"/>
           </g>
           ` : ""}
         </svg>
@@ -825,12 +825,21 @@ function renderSpider(cfg, hass, hostEl) {
       background: ${webColor}; transform: translateX(-50%);
     }
     @keyframes spider-drop {
-      0%, 100% { transform: translateY(0) rotate(0deg); }
-      26% { transform: translateY(150px) rotate(0deg); }
-      28% { transform: translateY(200px) rotate(9deg); }
-      31% { transform: translateY(158px) rotate(-6deg); }
-      34%, 65% { transform: translateY(180px) rotate(0deg); }
-      45%, 55% { transform: translateY(170px) rotate(0deg); }
+      0%, 100% { transform: translateY(0); }
+      26% { transform: translateY(150px); }
+      28% { transform: translateY(200px); }
+      31% { transform: translateY(158px); }
+      34%, 65% { transform: translateY(180px); }
+      45%, 55% { transform: translateY(170px); }
+    }
+    .spider-body-wrapper {
+      width: 100%; height: 100%;
+      animation: spider-wobble 14s ease-in-out infinite;
+    }
+    @keyframes spider-wobble {
+      0%, 26%, 34%, 100% { transform: rotate(0deg); }
+      28% { transform: rotate(9deg); }
+      31% { transform: rotate(-6deg); }
     }
     .spider-eye {
       animation: spider-eye-blink 1.4s ease-in-out infinite;
@@ -847,22 +856,24 @@ function renderSpider(cfg, hass, hostEl) {
       <svg class="corner-web" viewBox="0 0 100 100">${webSvg}</svg>
       <div class="hanging-spider-box">
         <div class="spider-web-thread"></div>
-        <svg viewBox="0 0 100 100" style="width:100%; height:100%;">
-          <defs>
-            <g id="spider-legs-right">
-              <path d="M58,42 Q75,32 88,18" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
-              <path d="M58,50 Q80,47 94,42" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
-              <path d="M58,58 Q80,62 92,74" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
-              <path d="M56,65 Q70,78 76,92" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
-            </g>
-          </defs>
-          <use href="#spider-legs-right"/>
-          <use href="#spider-legs-right" transform="translate(100,0) scale(-1,1)"/>
-          <circle cx="50" cy="40" r="10" fill="#111"/>
-          <ellipse cx="50" cy="62" rx="15" ry="19" fill="#111"/>
-          <circle class="spider-eye" cx="45" cy="35" r="2.5" fill="#ff0000"/>
-          <circle class="spider-eye" cx="55" cy="35" r="2.5" fill="#ff0000"/>
-        </svg>
+        <div class="spider-body-wrapper">
+          <svg viewBox="0 0 100 100" style="width:100%; height:100%;">
+            <defs>
+              <g id="spider-legs-right">
+                <path d="M58,42 Q75,32 88,18" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
+                <path d="M58,50 Q80,47 94,42" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
+                <path d="M58,58 Q80,62 92,74" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
+                <path d="M56,65 Q70,78 76,92" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
+              </g>
+            </defs>
+            <use href="#spider-legs-right"/>
+            <use href="#spider-legs-right" transform="translate(100,0) scale(-1,1)"/>
+            <circle cx="50" cy="40" r="10" fill="#111"/>
+            <ellipse cx="50" cy="62" rx="15" ry="19" fill="#111"/>
+            <circle class="spider-eye" cx="45" cy="35" r="2.5" fill="#ff0000"/>
+            <circle class="spider-eye" cx="55" cy="35" r="2.5" fill="#ff0000"/>
+          </svg>
+        </div>
       </div>
     </div>
   `;
