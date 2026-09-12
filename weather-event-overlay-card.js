@@ -1630,7 +1630,7 @@ function renderMoon(cfg, hass, hostEl) {
   const html = `
     <div class="moon-container" style="opacity:${finalOpacity};" aria-hidden="true">
       <svg viewBox="0 0 58 78" style="width:100%; height:100%;">
-        <g class="moon-glow" style="filter: drop-shadow(0 0 6px rgba(240,230,200,0.55));">
+        <g class="moon-glow">
           ${moonSvg}
         </g>
       </svg>
