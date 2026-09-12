@@ -7,7 +7,7 @@ Eine benutzerdefinierte Lovelace-Karte für Home Assistant, die dynamische Anima
 ## 🎨 Features
 
 * **23 einzeln wählbare Effekte** (plus Sternenhimmel, Mond und Sonne automatisch über die Wetter-Automatik, siehe unten) – siehe Tabelle weiter unten, sinnvoll gruppiert im Editor-Dropdown (Wetter → Himmel/Nacht → Deko/Anlass → Tiere).
-* **🚂 Dampflok mit vier Waggons:** Fährt am unteren Bildschirmrand entlang - erkennbare Lok-Silhouette mit Kessel, Schornstein, Kabine mit Fähnchen, Kuhfänger und Rädern, dazu sichtbarer Dampf, der aus dem Schornstein aufsteigt. Die vier Waggons sind im Alltag mit Obst, Bauklötzen, Geschenken und Holzscheiten beladen. Drei kleine Überraschungen: gelegentlich sitzt ein genervt guckendes Schaf oben auf einem Waggon, bei jeder Durchfahrt hupt die Lok kurz ("TUUT"-Sprechblase), und ganz selten formt sich einer der Dampf-Puffs kurz zu einem Herz.
+* **🚂 Dampflok mit vier Waggons:** Fährt am unteren Bildschirmrand entlang - erkennbare Lok-Silhouette mit Kessel, Schornstein, Kabine mit Fähnchen, Kuhfänger und Rädern, dazu sichtbarer Dampf, der aus dem Schornstein aufsteigt. Die vier Waggons sind im Alltag mit Obst, Bauklötzen, Geschenken und Holzscheiten beladen - optional mit zwei Sensoren umschaltbar auf festliche Weihnachts-Ladung (Schneemann, Weihnachtsmann, Geschenke-Sack) oder Abendessen-Ladung (Geschirr, Braten, Getränke). Zwei kleine Überraschungen: bei jeder Durchfahrt hupt die Lok kurz ("TUUT"-Sprechblase), und ganz selten formt sich einer der Dampf-Puffs kurz zu einem Herz.
 * **🎅 Sensor-gesteuerte Festtags-Beladung:** Optional einen `input_boolean`/`binary_sensor` auswählen (z. B. für die Weihnachtszeit) - ist der Sensor "an", werden drei Waggons stattdessen festlich und reichlich beladen: mehrere Schneemänner, ein Weihnachtsmann umgeben von Geschenken, und ein großer Weihnachtsmann-Sack mit Zuckerstange und zweitem kleinen Sack.
 * **🧝🚪 Wichteltür-Szene:** Freistehende Rundbogen-Holztür (mit Kranz, Herz-Scharnieren und leuchtendem Fenster) unten rechts, dazu ein Weihnachtsbaum mit blinkender Lichterkette, ein sechseckiges Laternenhaus, ein Briefkasten mit Namen und ein Weg, der zur Tür hinaufführt.
 * **🌫️ Sanftes Ausblenden statt abruptem Verschwinden:** Ändert sich das Wetter bei aktiver Wetter-Automatik von selbst, verblasst der alte Effekt sanft, während ein manueller Wechsel im Editor weiterhin sofort umschaltet.
@@ -127,6 +127,7 @@ event: train
 count_preset: medium
 opacity_preset: high
 santa_sensor: input_boolean.weihnachtszeit
+dinner_sensor: input_boolean.schalter_abendessen
 ```
 
 ### Goldener Labrador mit Regen-Schütteln (optional)
@@ -259,7 +260,7 @@ leaf_colors:
 | `gnome_door` | 🧝🚪 Wichteltür-Szene: Tür mit Kranz, Weihnachtsbaum mit Lichterkette, Laterne, Briefkasten, Weg |
 | `spider` | 🕷️ Spinnennetz mit auf- und abseilender Spinne (blinkende rote Augen, verliert dabei mal kurz den Halt) |
 | `dog` | 🐕 Goldener Labrador mit echter Lauf-Beinbewegung, Schnüffel-Pause und Pfotenabdrücken (optional Schütteln bei Regen) |
-| `train` | 🚂 Dampflok mit vier Waggons (Obst/Bauklötze/Geschenke/Holz, optional festliche Sensor-Beladung), Dampf aus dem Schornstein, gelegentlich Schaf auf dem Waggon, Hupen und ganz selten herzförmiger Dampf |
+| `train` | 🚂 Dampflok mit vier Waggons (Obst/Bauklötze/Geschenke/Holz, optional festliche Sensor-Beladung oder Abendessen-Beladung), Dampf aus dem Schornstein, Hupen und ganz selten herzförmiger Dampf |
 | `bats` | 🦇 Fledermausschwarm, theme-abhängig eingefärbt |
 | `owl` | 🦉 Eule auf einem Ast, mit abwechselndem Blinzeln |
 | `bee` | 🐝 Bienenschwarm (5-8 Stück) im Zickzack-Flug |
@@ -275,6 +276,7 @@ leaf_colors:
 | `weather_entity` | string | `""` | HA-Entity-ID einer `weather.*`-Entity, z. B. `weather.home` (bei `event: weather_auto` bestimmt sie den Effekt; bei `event: dog` optional fürs Schütteln bei Regen) |
 | `birthday_text` | string | `"Happy Birthday!"` | Text im Banner (nur relevant bei `event: birthday`) - wird automatisch gegen Schadcode abgesichert |
 | `santa_sensor` | string | `""` | HA-Entity-ID eines `input_boolean`/`binary_sensor` (nur relevant bei `event: train`) - ist er "an", tragen drei Waggons festliche Fracht statt der normalen Alltags-Ladung |
+| `dinner_sensor` | string | `""` | HA-Entity-ID eines `input_boolean`/`binary_sensor` (nur relevant bei `event: train`) - ist er "an", tragen drei Waggons Geschirr, Braten und Getränke statt der normalen Alltags-Ladung. `santa_sensor` hat Vorrang, falls beide gleichzeitig an wären. |
 | `count_preset` | `low` \| `medium` \| `high` | `medium` | Anzahl bzw. Frequenz – Bedeutung hängt vom Effekt ab (siehe Editor-Hinweistexte oben) |
 | `opacity_preset` | `low` \| `medium` \| `high` | `medium` | Deckkraft/Helligkeit des Effekts |
 | `color_mode` | `auto` \| `custom` | `auto` | Automatische Theme-Erkennung oder feste Farbe (nur bei Effekten mit Farbmodus) |

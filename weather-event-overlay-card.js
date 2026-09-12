@@ -933,15 +933,18 @@ function renderTrain(cfg, hass, hostEl) {
   // letzten Waggon, aber NUR wenn der konfigurierte Sensor (z. B. ein
   // input_boolean für die Weihnachtszeit) eingeschaltet ist.
   const santaActive = cfg.santa_sensor && hass?.states?.[cfg.santa_sensor]?.state === "on";
-  const cargo0 = santaActive ? "snowman" : "food";
-  const cargo1 = santaActive ? "santa" : "toys";
-  const cargo3 = santaActive ? "santa_sack" : "wood";
+  // Alternative Ladung "Abendessen": Geschirr und Essen statt der
+  // normalen Ladung, wenn der konfigurierte Abendessen-Sensor an ist.
+  // Weihnachten hat Vorrang, falls beide Sensoren zufällig gleichzeitig an wären.
+  const dinnerActive = !santaActive && cfg.dinner_sensor && hass?.states?.[cfg.dinner_sensor]?.state === "on";
+  const cargo0 = santaActive ? "snowman" : dinnerActive ? "plates" : "food";
+  const cargo1 = santaActive ? "santa" : dinnerActive ? "roast" : "toys";
+  const cargo3 = santaActive ? "santa_sack" : dinnerActive ? "drinks" : "wood";
 
   // Gelegentliche Gags, deterministisch nach Durchfahrt-Nummer bestimmt
   // (kein Zufall bei jedem Rendern, damit ein Neu-Rendern mitten in der
   // Fahrt nicht plötzlich was verschwinden/auftauchen lässt).
   const flightNumber = Math.floor(nowSec / interval);
-  const hasSheep = flightNumber % 3 === 1;
   const hasHeartSmoke = flightNumber % 6 === 0;
   const hootPct = (parseFloat(walkPct) * 0.62).toFixed(2);
   const hootEndPct = (parseFloat(walkPct) * 0.72).toFixed(2);
@@ -1095,6 +1098,34 @@ function renderTrain(cfg, hass, hostEl) {
       <rect x="60" y="18" width="12" height="14" fill="#7cb342" stroke="#1a1a1a" stroke-width="1"/>
       <circle cx="66" cy="18" r="2.2" fill="#e63946" stroke="#1a1a1a" stroke-width="0.7"/>
     `,
+    plates: `
+      <ellipse cx="14" cy="27" rx="10" ry="4" fill="#ffffff" stroke="#1a1a1a" stroke-width="1.3"/>
+      <ellipse cx="14" cy="26" rx="6" ry="2.4" fill="#e8d9c0"/>
+      <circle cx="14" cy="25.5" r="2.2" fill="#e63946"/>
+      <ellipse cx="40" cy="24" rx="11" ry="4.5" fill="#ffffff" stroke="#1a1a1a" stroke-width="1.3"/>
+      <ellipse cx="40" cy="23" rx="7" ry="2.7" fill="#e8d9c0"/>
+      <circle cx="37" cy="22.5" r="2" fill="#7cb342"/>
+      <circle cx="43" cy="23" r="1.8" fill="#e8952a"/>
+      <ellipse cx="66" cy="27" rx="10" ry="4" fill="#ffffff" stroke="#1a1a1a" stroke-width="1.3"/>
+      <ellipse cx="66" cy="26" rx="6" ry="2.4" fill="#e8d9c0"/>
+      <circle cx="66" cy="25.5" r="2.2" fill="#ffd93d"/>
+    `,
+    roast: `
+      <ellipse cx="40" cy="27" rx="24" ry="6.5" fill="#e8d9c0" stroke="#1a1a1a" stroke-width="1.3"/>
+      <ellipse cx="38" cy="19" rx="15" ry="10" fill="#c9791a" stroke="#8a4f0f" stroke-width="1.3"/>
+      <path d="M27,25 L21,31 M49,25 L55,31" stroke="#c9791a" stroke-width="4.5" stroke-linecap="round"/>
+      <path d="M27,25 L21,31 M49,25 L55,31" stroke="#8a4f0f" stroke-width="1" fill="none"/>
+      <circle cx="12" cy="27" r="3.2" fill="#7cb342" stroke="#4a7a1f" stroke-width="1"/>
+      <circle cx="66" cy="27" r="3.2" fill="#e63946" stroke="#8a2020" stroke-width="1"/>
+    `,
+    drinks: `
+      <rect x="8" y="14" width="8" height="18" rx="1.5" fill="#4a90d9" stroke="#1a1a1a" stroke-width="1.2"/>
+      <rect x="10" y="9" width="4" height="6" fill="#4a90d9" stroke="#1a1a1a" stroke-width="1"/>
+      <rect x="34" y="12" width="9" height="20" rx="1.5" fill="#7cb342" stroke="#1a1a1a" stroke-width="1.2"/>
+      <rect x="36.5" y="6" width="4" height="7" fill="#7cb342" stroke="#1a1a1a" stroke-width="1"/>
+      <path d="M60,16 L68,16 L66,32 L62,32 Z" fill="#e8952a" stroke="#1a1a1a" stroke-width="1.2"/>
+      <rect x="62" y="10" width="4" height="7" fill="#e8952a" stroke="#1a1a1a" stroke-width="1"/>
+    `,
   };
 
   const wagon = (x, cargoKey) => `
@@ -1162,19 +1193,6 @@ function renderTrain(cfg, hass, hostEl) {
           ${wagon(WAGON_X[1], cargo1)}
           ${wagon(WAGON_X[2], "presents")}
           ${wagon(WAGON_X[3], cargo3)}
-
-          <!-- Schaf, das gelegentlich oben auf dem Geschenke-Waggon sitzt -->
-          ${hasSheep ? `
-          <g transform="translate(${WAGON_X[2]},0)">
-            <circle cx="29" cy="1" r="4.5" fill="#f5f0e6" stroke="#c9c2b4" stroke-width="0.7"/>
-            <circle cx="35" cy="0" r="5" fill="#f5f0e6" stroke="#c9c2b4" stroke-width="0.7"/>
-            <circle cx="41" cy="-1" r="5.5" fill="#f5f0e6" stroke="#c9c2b4" stroke-width="0.7"/>
-            <circle cx="47" cy="0" r="5" fill="#f5f0e6" stroke="#c9c2b4" stroke-width="0.7"/>
-            <ellipse cx="24" cy="-1" rx="5" ry="4.2" fill="#2a2a2a"/>
-            <path d="M20,-4.5 L17.5,-6.5 M28,-4.5 L30.5,-6.5" stroke="#2a2a2a" stroke-width="1.3" stroke-linecap="round"/>
-            <path d="M20.5,-1.5 L23,-1.8 M25,-1.8 L27.5,-1.5" stroke="#000000" stroke-width="1" stroke-linecap="round"/>
-          </g>
-          ` : ""}
 
           <!-- Kupplungen zwischen allen Waggons und zur Lok -->
           ${couplingsHtml}
@@ -2404,6 +2422,7 @@ class WeatherEventOverlayCard extends HTMLElement {
       weather_entity: "",
       birthday_text: "Happy Birthday!",
       santa_sensor: "",
+      dinner_sensor: "",
       ...config,
     };
     this._render();
@@ -2657,6 +2676,7 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
       weather_entity: "",
       birthday_text: "Happy Birthday!",
       santa_sensor: "",
+      dinner_sensor: "",
       ...config,
     };
     if (this._suppressNextRender) {
@@ -2773,6 +2793,20 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             : this._row("Weihnachtsmann-Sensor (optional)", `<input id="santa_sensor" type="text" placeholder="input_boolean.weihnachtszeit" value="${c.santa_sensor || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`, "Optional: ist dieser Schalter/Sensor 'an', werden drei Waggons festlich beladen - Schneemann, Weihnachtsmann und ein roter Geschenke-Sack statt Obst, Bauklötzen und Holzscheiten.")
         ) : ""}
 
+        ${isTrain ? (
+          booleanEntities.length > 0
+            ? this._row("Abendessen-Sensor (optional)", `
+                <select id="dinner_sensor" style="width:100%; padding:6px;">
+                  <option value="" ${!c.dinner_sensor ? "selected" : ""}>-- keiner (normale Ladung) --</option>
+                  ${booleanEntities.map((eid) => {
+                    const friendly = this._hass.states[eid]?.attributes?.friendly_name || eid;
+                    return `<option value="${eid}" ${c.dinner_sensor === eid ? "selected" : ""}>${friendly}</option>`;
+                  }).join("")}
+                </select>
+              `, "Optional: ist dieser Schalter/Sensor 'an', tragen drei Waggons Geschirr, ein Braten und Getränke statt Obst, Bauklötzen und Holzscheiten. Weihnachten hat Vorrang, falls beide Sensoren gleichzeitig an wären.")
+            : this._row("Abendessen-Sensor (optional)", `<input id="dinner_sensor" type="text" placeholder="input_boolean.schalter_abendessen" value="${c.dinner_sensor || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`, "Optional: ist dieser Schalter/Sensor 'an', tragen drei Waggons Geschirr, ein Braten und Getränke statt Obst, Bauklötzen und Holzscheiten.")
+        ) : ""}
+
         ${isWeatherAuto ? (
           weatherEntities.length > 0
             ? this._row("Wetter-Sensor", `
@@ -2856,6 +2890,11 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     const santaSensorSel = this.querySelector("#santa_sensor");
     if (santaSensorSel) {
       santaSensorSel.addEventListener("change", (e) => this._update("santa_sensor", e.target.value.trim(), false));
+    }
+
+    const dinnerSensorSel = this.querySelector("#dinner_sensor");
+    if (dinnerSensorSel) {
+      dinnerSensorSel.addEventListener("change", (e) => this._update("dinner_sensor", e.target.value.trim(), false));
     }
 
     const countSel = this.querySelector("#count_preset");
