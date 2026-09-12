@@ -1197,8 +1197,8 @@ function renderTrain(cfg, hass, hostEl) {
       <g>${smokeHtml}</g>
       <!-- Hupen-Sprechblase, taucht kurz während der Fahrt auf -->
       <g class="train-hoot">
-        <path d="M30,-6 Q30,-16 40,-16 L58,-16 Q68,-16 68,-6 Q68,4 58,4 L44,4 L38,9 L39,4 Q30,4 30,-6 Z" fill="#ffffff" stroke="#1a1a1a" stroke-width="1.8"/>
-        <text x="49" y="-3" font-size="11" font-family="Georgia, serif" font-weight="bold" fill="#1a1a1a" text-anchor="middle">TUUT</text>
+        <path d="M26,-6 Q26,-17 37,-17 L61,-17 Q72,-17 72,-6 Q72,4 61,4 L44,4 L38,9 L39,4 Q26,4 26,-6 Z" fill="#ffffff" stroke="#1a1a1a" stroke-width="1.8"/>
+        <text x="49" y="-2.5" font-size="9" font-family="Georgia, serif" font-weight="bold" fill="#1a1a1a" text-anchor="middle">TUUT</text>
       </g>
       <!-- Kuhfänger -->
       <path d="M99,42 Q110,46 116,54 L94,54 Z" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2"/>
@@ -2227,10 +2227,10 @@ function renderBirthday(cfg, hass, hostEl) {
       position: fixed; top: 0; left: 50%; transform: translateX(-50%);
       width: 100vw; height: 100vh; pointer-events: none; z-index: 9999; overflow: hidden;
     }
-    .bday-balloon-wrapper { position:absolute; bottom:-20%; animation:balloon-rise linear infinite; will-change: transform; }
+    .bday-balloon-wrapper { position:absolute; bottom:-20%; animation:bday-balloon-rise linear infinite; will-change: transform; }
     .bday-balloon { display:flex; align-items:center; justify-content:center; }
     .bday-balloon svg { width:100%; height:100%; filter:drop-shadow(2px 4px 6px rgba(0,0,0,0.25)); }
-    @keyframes balloon-rise { 0% { transform: translateY(10vh); } 100% { transform: translateY(-120vh); } }
+    @keyframes bday-balloon-rise { 0% { transform: translateY(10vh); } 100% { transform: translateY(-120vh); } }
 
     .confetti-piece {
       position: absolute; top: -5%;
@@ -2700,9 +2700,6 @@ class WeatherEventOverlayCard extends HTMLElement {
         cfgForRender = { ...this._config, _snowLevel: this._snowLevel };
       } else if (event === "wishstar") {
         cfgForRender = { ...this._config, _wishstarPos: this._wishstarPos };
-      } else if (event === "santa" || event === "comet" || event === "train" || event === "birdhouse") {
-        if (!this._periodicStartTimes[event]) this._periodicStartTimes[event] = Date.now();
-        cfgForRender = { ...this._config, _startTime: this._periodicStartTimes[event] };
       } else if (event === "dog") {
         if (!this._periodicStartTimes[event]) {
           const ranges = {
@@ -2710,7 +2707,6 @@ class WeatherEventOverlayCard extends HTMLElement {
           };
           const [min, max] = ranges[event] || [10, 80];
           this._periodicStartTimes[event] = {
-            start: Date.now(),
             startHeight: Math.random() * (max - min) + min,
             drift: Math.random() * 16 - 8,
           };
@@ -2718,7 +2714,6 @@ class WeatherEventOverlayCard extends HTMLElement {
         const pState = this._periodicStartTimes[event];
         cfgForRender = {
           ...this._config,
-          _startTime: pState.start,
           _startHeight: pState.startHeight,
           _drift: pState.drift,
         };
