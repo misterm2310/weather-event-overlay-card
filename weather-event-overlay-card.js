@@ -939,6 +939,7 @@ function renderTrain(cfg, hass, hostEl) {
   const dinnerActive = !santaActive && cfg.dinner_sensor && hass?.states?.[cfg.dinner_sensor]?.state === "on";
   const cargo0 = santaActive ? "snowman" : dinnerActive ? "plates" : "food";
   const cargo1 = santaActive ? "santa" : dinnerActive ? "roast" : "toys";
+  const cargo2 = santaActive ? "presents" : dinnerActive ? "dessert" : "mailbags";
   const cargo3 = santaActive ? "santa_sack" : dinnerActive ? "drinks" : "wood";
 
   // Gelegentliche Gags, deterministisch nach Durchfahrt-Nummer bestimmt
@@ -1126,6 +1127,23 @@ function renderTrain(cfg, hass, hostEl) {
       <path d="M60,16 L68,16 L66,32 L62,32 Z" fill="#e8952a" stroke="#1a1a1a" stroke-width="1.2"/>
       <rect x="62" y="10" width="4" height="7" fill="#e8952a" stroke="#1a1a1a" stroke-width="1"/>
     `,
+    mailbags: `
+      <path d="M6,32 Q2,16 22,13 Q42,16 38,32 Z" fill="#9a8a68" stroke="#4a3f28" stroke-width="1.5"/>
+      <path d="M11,14 Q22,7 33,14" stroke="#4a3f28" stroke-width="1.4" fill="none"/>
+      <rect x="16" y="18" width="12" height="7" fill="#e8d9c0" stroke="#4a3f28" stroke-width="0.9"/>
+      <path d="M45,32 Q41,17 60,14 Q79,17 75,32 Z" fill="#8a7a5a" stroke="#4a3f28" stroke-width="1.5"/>
+      <path d="M50,15 Q60,9 70,15" stroke="#4a3f28" stroke-width="1.4" fill="none"/>
+      <rect x="54" y="19" width="12" height="7" fill="#e8d9c0" stroke="#4a3f28" stroke-width="0.9"/>
+    `,
+    dessert: `
+      <path d="M6,32 L10,20 L22,20 L26,32 Z" fill="#e8c9a0" stroke="#1a1a1a" stroke-width="1.3"/>
+      <ellipse cx="16" cy="19" rx="7" ry="3.2" fill="#ffffff" stroke="#1a1a1a" stroke-width="1.1"/>
+      <circle cx="16" cy="16" r="1.8" fill="#e63946"/>
+      <path d="M35,32 L41,14 L47,32 Z" fill="#c9791a" stroke="#1a1a1a" stroke-width="1.3"/>
+      <path d="M35,25 L47,25" stroke="#f0e0c0" stroke-width="2.5"/>
+      <ellipse cx="66" cy="24" rx="10" ry="8" fill="#e8952a" stroke="#1a1a1a" stroke-width="1.3"/>
+      <path d="M58,22 Q66,17 74,22" stroke="#c9791a" stroke-width="1.5" fill="none"/>
+    `,
   };
 
   const wagon = (x, cargoKey) => `
@@ -1191,7 +1209,7 @@ function renderTrain(cfg, hass, hostEl) {
           <!-- Vier Waggons, unterschiedlich beladen -->
           ${wagon(WAGON_X[0], cargo0)}
           ${wagon(WAGON_X[1], cargo1)}
-          ${wagon(WAGON_X[2], "presents")}
+          ${wagon(WAGON_X[2], cargo2)}
           ${wagon(WAGON_X[3], cargo3)}
 
           <!-- Kupplungen zwischen allen Waggons und zur Lok -->
