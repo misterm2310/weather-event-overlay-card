@@ -151,12 +151,16 @@ function moonPhasePath(cx, cy, r, phase) {
   // Mindestbreite der Sichel sichern: astronomisch korrekt wird sie kurz
   // nach Neu-/vor Vollmond hauchdünn (kaum als Sichel erkennbar, eher ein
   // Haarriss) - für eine klar lesbare Deko-Darstellung wird sie auf
-  // mindestens 10% der Mondscheiben-Breite begrenzt, minimal
+  // mindestens 20% der Mondscheiben-Breite begrenzt, minimal
   // unastronomisch, aber immer eindeutig als Sichel erkennbar.
   const minRx = r * 0.8;
   if (rx > minRx) rx = minRx;
-  const sweepOuter = phase < 0.5 ? 0 : 1;
-  const sweepInner = rx > 0 ? 1 : 0;
+  // Diese beiden Flags wurden NICHT aus einer Formel geraten, sondern für
+  // alle vier Mondviertel einzeln durchgemessen (tatsächlich gerenderte
+  // beleuchtete Fläche mit der astronomisch erwarteten verglichen) - beide
+  // Flags zusammen sind nötig, eine einzelne Flag allein reicht nicht aus.
+  const sweepOuter = phase < 0.5 ? 1 : 0;
+  const sweepInner = (phase < 0.5) === (rx > 0) ? 0 : 1;
   return `M${cx},${(cy - r).toFixed(2)} A${r},${r} 0 0,${sweepOuter} ${cx},${(cy + r).toFixed(2)} A${Math.abs(rx).toFixed(2)},${r} 0 0,${sweepInner} ${cx},${(cy - r).toFixed(2)} Z`;
 }
 
@@ -1609,6 +1613,18 @@ function renderMoon(cfg, hass, hostEl) {
     }
   `;
 
+  // Fünf Krater über die ganze Mondscheibe verteilt - werden per
+  // clipPath auf den jeweils beleuchteten Bereich begrenzt, damit sie
+  // bei jeder Phase (nicht nur Vollmond) nur dort auftauchen, wo gerade
+  // wirklich Licht drauf fällt.
+  const cratersSvg = `
+    <circle cx="21" cy="30" r="3.5" fill="#e0d4ae" opacity="0.6"/>
+    <circle cx="35" cy="42" r="2.5" fill="#e0d4ae" opacity="0.6"/>
+    <circle cx="24" cy="48" r="2" fill="#e0d4ae" opacity="0.6"/>
+    <circle cx="38" cy="28" r="1.8" fill="#e0d4ae" opacity="0.5"/>
+    <circle cx="16" cy="40" r="1.6" fill="#e0d4ae" opacity="0.5"/>
+  `;
+
   let moonSvg;
   if (lightPath === null) {
     // Neumond: fast nichts zu sehen, nur der dunkle Umriss - realistisch.
@@ -1616,14 +1632,20 @@ function renderMoon(cfg, hass, hostEl) {
   } else if (lightPath === "full") {
     moonSvg = `
       <circle cx="29" cy="39" r="24" fill="#f0e6c8"/>
-      <circle cx="21" cy="30" r="3.5" fill="#e0d4ae" opacity="0.6"/>
-      <circle cx="35" cy="42" r="2.5" fill="#e0d4ae" opacity="0.6"/>
-      <circle cx="24" cy="48" r="2" fill="#e0d4ae" opacity="0.6"/>
+      ${cratersSvg}
     `;
   } else {
     moonSvg = `
+      <defs>
+        <clipPath id="moon-light-clip">
+          <path d="${lightPath}"/>
+        </clipPath>
+      </defs>
       <circle cx="29" cy="39" r="24" fill="${unlitFill}" stroke="${unlitStroke}" stroke-width="1"/>
       <path d="${lightPath}" fill="#f0e6c8"/>
+      <g clip-path="url(#moon-light-clip)">
+        ${cratersSvg}
+      </g>
     `;
   }
 
