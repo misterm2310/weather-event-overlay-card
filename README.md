@@ -6,7 +6,7 @@ Eine benutzerdefinierte Lovelace-Karte für Home Assistant, die dynamische Anima
 
 ## 🎨 Features
 
-* **23 einzeln wählbare Effekte** (plus Sternenhimmel automatisch über die Wetter-Automatik bei klarer Nacht, siehe unten) – siehe Tabelle weiter unten, sinnvoll gruppiert im Editor-Dropdown (Wetter → Himmel/Nacht → Deko/Anlass → Tiere).
+* **23 einzeln wählbare Effekte** (plus Sternenhimmel, Mond und Sonne automatisch über die Wetter-Automatik, siehe unten) – siehe Tabelle weiter unten, sinnvoll gruppiert im Editor-Dropdown (Wetter → Himmel/Nacht → Deko/Anlass → Tiere).
 * **🚂 Dampflok mit vier Waggons:** Fährt am unteren Bildschirmrand entlang - erkennbare Lok-Silhouette mit Kessel, Schornstein, Kabine mit Fähnchen, Kuhfänger und Rädern, dazu sichtbarer Dampf, der aus dem Schornstein aufsteigt. Die vier Waggons sind im Alltag mit Obst, Bauklötzen, Geschenken und Holzscheiten beladen. Drei kleine Überraschungen: gelegentlich sitzt ein genervt guckendes Schaf oben auf einem Waggon, bei jeder Durchfahrt hupt die Lok kurz ("TUUT"-Sprechblase), und ganz selten formt sich einer der Dampf-Puffs kurz zu einem Herz.
 * **🎅 Sensor-gesteuerte Festtags-Beladung:** Optional einen `input_boolean`/`binary_sensor` auswählen (z. B. für die Weihnachtszeit) - ist der Sensor "an", werden drei Waggons stattdessen festlich und reichlich beladen: mehrere Schneemänner, ein Weihnachtsmann umgeben von Geschenken, und ein großer Weihnachtsmann-Sack mit Zuckerstange und zweitem kleinen Sack.
 * **🧝🚪 Wichteltür-Szene:** Freistehende Rundbogen-Holztür (mit Kranz, Herz-Scharnieren und leuchtendem Fenster) unten rechts, dazu ein Weihnachtsbaum mit blinkender Lichterkette, ein sechseckiges Laternenhaus, ein Briefkasten mit Namen und ein Weg, der zur Tür hinaufführt.
@@ -20,11 +20,13 @@ Eine benutzerdefinierte Lovelace-Karte für Home Assistant, die dynamische Anima
 * **🕷️ Spinne mit Netz:** Mathematisch berechnetes, symmetrisches Netz oben rechts, eine Spinne mit blinkenden roten Augen seilt sich daran auf und ab - verliert dabei mitten im Abstieg kurz den Halt, seilt sich hektisch wieder hoch, und tut dann so, als wäre nichts gewesen.
 * **🐕 Goldener Labrador:** Läuft mit echter Beinbewegung (diagonale Beinpaare schwingen gegenläufig wie im echten Trab), dazu Schwanzwedeln, Kopfnicken, eine kurze Schnüffel-Pause mitten im Lauf und verblassende Pfotenabdrücke. Optional schüttelt er sich kurz, wenn eine angegebene Wetter-Entity gerade Regen meldet.
 * **🦇 Fledermäuse:** Mehrere flatternde Silhouetten über den kompletten Bildschirm verteilt, theme-abhängig eingefärbt, damit sie auf **jedem** Theme sichtbar bleiben.
-* **🦉 Eule:** Sitzt auf einem Ast in der oberen linken Ecke, vor einem kleinen Halbmond - mit Federstruktur, Ohrbüscheln, Glanzpunkten in den Augen sowie **abwechselndem Blinzeln**.
+* **🦉 Eule:** Sitzt auf einem Ast in der oberen linken Ecke - mit Federstruktur, Ohrbüscheln, Glanzpunkten in den Augen sowie **abwechselndem Blinzeln**.
 * **🐝 Bienenschwarm:** 5-8 Bienen gleichzeitig, jede mit eigenem Zickzack-Pfad über den kompletten Bildschirm.
 * **🌤️ Wolken-Drift:** Mehrere weiche, zart verschwommene Wolken ziehen über den kompletten Bildschirm - theme-abhängig eingefärbt und mit gleichmäßig verteiltem Zeitversatz, damit möglichst durchgehend mindestens eine Wolke zu sehen ist.
 * **⭐ Wunschstern-Funkeln:** Ein einzelner Stern mit weichem Strahlenkranz-Glanz leuchtet einmal auf, verschwindet komplett und blitzt an einer neuen zufälligen Position wieder auf.
 * **✨ Sternenhimmel mit Teleport-Effekt:** Jeder einzelne Stern springt zwischen mehreren zufälligen Positionen hin und her - läuft komplett über CSS, ressourcenschonend auch auf schwächeren Geräten. Läuft ausschließlich über die Wetter-Automatik (bei klarer Nacht), nicht mehr als eigenständig wählbarer Effekt - das vermeidet doppelte Sterne, falls man zusätzlich noch eine eigene Sternenhimmel-Karte hätte.
+* **🌙 Mond mit echter Mondphase:** Erscheint oben rechts (Spiegelbild der Eulen-/Vogelhäuschen-Position), sobald die Sonne untergegangen ist - unabhängig vom Wetter, läuft also z. B. auch zusammen mit Regen oder Schnee bei Nacht. Die Mondphase (Neumond bis Vollmond) wird direkt aus dem aktuellen Datum berechnet, kein zusätzlicher Sensor nötig. Nur über die Wetter-Automatik, nicht einzeln wählbar.
+* **☀️ Sonne bei "sonnig":** Teilt sich denselben Platz wie der Mond (Tag und Nacht schließen sich ja gegenseitig aus), mit sanft rotierenden Strahlen. Nur über die Wetter-Automatik, nicht einzeln wählbar.
 * **🌗 Auto-Theme-Modus mit View-Theme-Unterstützung:** Erkennt automatisch Hell-/Dunkelmodus – auch wenn das Theme nur auf einer einzelnen Dashboard-Seite gesetzt ist.
 * **✨ Echtes "Kräftig":** Bei maximaler Deckkraft wird jeder Effekt spürbar kräftiger dargestellt.
 * **GUI-Editor mit Kontext:** Der Editor blendet nur die Regler ein, die für den aktuell gewählten Effekt auch wirklich etwas tun.
@@ -97,7 +99,10 @@ Ist "Automatisch" aktiv, schaut die Karte sich den aktuellen Zustand deiner gew�
 | `windy`, `windy-variant` | 💨 Sturm |
 | `cloudy`, `partlycloudy` | 🌤️ Wolken-Drift |
 | `clear-night` | ✨ Sternenhimmel |
-| alles andere (sonnig, klar, ...) | Aus |
+| `sunny` | ☀️ Sonne |
+| alles andere | Aus |
+
+**Zusätzlich, unabhängig vom Wetter-Zustand:** Sobald die Sonne untergegangen ist (`sun.sun` = `below_horizon`), erscheint automatisch der **🌙 Mond** oben rechts – zusätzlich zu einem eventuell laufenden Wetter-Effekt (z. B. Regen + Mond gleichzeitig bei nächtlichem Regen). Die Mondphase wird direkt aus dem aktuellen Datum berechnet, kein zusätzlicher Sensor nötig.
 
 **Wichtig:** Anzahl, Deckkraft und Farbmodus gelten bei aktiver Automatik als **ein gemeinsamer Wert für alle möglichen Wetter-Effekte**. Alle Tier-, Deko- und Anlass-Effekte (Weihnachtsmann, Hund, Dampflok, Fledermäuse, Eule, Bienen, Wunschstern, Spinne, Wichteltür, Vogelhäuschen, Geburtstags-Modus) laufen NICHT über die Wetter-Automatik. Wechselt die Wetter-Automatik den Effekt, blendet der alte Effekt sanft aus statt abrupt zu verschwinden - bei einem manuellen Wechsel im Editor passiert das dagegen sofort.
 
@@ -256,7 +261,7 @@ leaf_colors:
 | `dog` | 🐕 Goldener Labrador mit echter Lauf-Beinbewegung, Schnüffel-Pause und Pfotenabdrücken (optional Schütteln bei Regen) |
 | `train` | 🚂 Dampflok mit vier Waggons (Obst/Bauklötze/Geschenke/Holz, optional festliche Sensor-Beladung), Dampf aus dem Schornstein, gelegentlich Schaf auf dem Waggon, Hupen und ganz selten herzförmiger Dampf |
 | `bats` | 🦇 Fledermausschwarm, theme-abhängig eingefärbt |
-| `owl` | 🦉 Eule auf einem Ast, vor dem Mond, mit abwechselndem Blinzeln |
+| `owl` | 🦉 Eule auf einem Ast, mit abwechselndem Blinzeln |
 | `bee` | 🐝 Bienenschwarm (5-8 Stück) im Zickzack-Flug |
 | `birdhouse` | 🐦🏠 Vogelhäuschen auf einem Ast oben links, Vogel fliegt periodisch vorbei |
 

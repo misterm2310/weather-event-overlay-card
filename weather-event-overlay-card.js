@@ -127,6 +127,32 @@ function getOpacityValue(preset) {
   }
 }
 
+// Mondphase rein aus dem Datum berechnet (kein Home-Assistant-Sensor
+// nötig). Referenz: bekannter Neumond am 6. Januar 2000, 18:14 UTC.
+// Rückgabe: 0 = Neumond, 0.25 = zunehmender Halbmond, 0.5 = Vollmond,
+// 0.75 = abnehmender Halbmond, dann wieder Richtung 1 = Neumond.
+function getMoonPhase(date) {
+  const knownNewMoon = Date.UTC(2000, 0, 6, 18, 14, 0);
+  const synodicMonthDays = 29.530588853;
+  const diffDays = (date.getTime() - knownNewMoon) / 86400000;
+  const phase = ((diffDays % synodicMonthDays) + synodicMonthDays) % synodicMonthDays;
+  return phase / synodicMonthDays;
+}
+
+// Erzeugt den SVG-Pfad für die beleuchtete Mondfläche bei einer gegebenen
+// Phase (0-1). Zunehmend wächst von rechts, abnehmend schrumpft nach
+// links (deutsche Konvention). Für Neumond/Vollmond gibt's Sonderfälle,
+// da die normale Kreisbogen-Formel dort mathematisch entartet (Radius 0).
+function moonPhasePath(cx, cy, r, phase) {
+  if (phase < 0.01 || phase > 0.99) return null; // Neumond: keine beleuchtete Fläche
+  if (Math.abs(phase - 0.5) < 0.01) return "full"; // Vollmond: komplett beleuchtet
+  const theta = phase * 2 * Math.PI;
+  const rx = r * Math.cos(theta);
+  const sweepOuter = phase < 0.5 ? 0 : 1;
+  const sweepInner = rx > 0 ? 1 : 0;
+  return `M${cx},${(cy - r).toFixed(2)} A${r},${r} 0 0,${sweepOuter} ${cx},${(cy + r).toFixed(2)} A${Math.abs(rx).toFixed(2)},${r} 0 0,${sweepInner} ${cx},${(cy - r).toFixed(2)} Z`;
+}
+
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, "&amp;")
@@ -281,6 +307,7 @@ const WEATHER_STATE_MAP = {
   "clear-night": ["stars"],
   "cloudy": ["clouds"],
   "partlycloudy": ["clouds"],
+  "sunny": ["sun"],
 };
 
 function mapWeatherStateToEvents(state) {
@@ -1511,6 +1538,102 @@ function renderBirdhouse(cfg, hass, hostEl) {
   return { css, html };
 }
 
+function renderMoon(cfg, hass, hostEl) {
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+  const finalOpacity = isHigh ? 1 : opacity;
+
+  const phase = getMoonPhase(new Date());
+  const lightPath = moonPhasePath(29, 39, 24, phase);
+
+  const css = `
+    .moon-container {
+      position: fixed; top: 2vh; right: 1vw; width: 58px; height: 78px;
+      pointer-events: none; z-index: 999998;
+    }
+    .moon-glow {
+      animation: moon-glow-pulse 6s ease-in-out infinite;
+    }
+    @keyframes moon-glow-pulse {
+      0%, 100% { opacity: 0.75; }
+      50% { opacity: 1; }
+    }
+  `;
+
+  let moonSvg;
+  if (lightPath === null) {
+    // Neumond: fast nichts zu sehen, nur der dunkle Umriss - realistisch.
+    moonSvg = `<circle cx="29" cy="39" r="24" fill="#2a3a4a" stroke="#3a4a5a" stroke-width="1"/>`;
+  } else if (lightPath === "full") {
+    moonSvg = `
+      <circle cx="29" cy="39" r="24" fill="#f0e6c8"/>
+      <circle cx="21" cy="30" r="3.5" fill="#e0d4ae" opacity="0.6"/>
+      <circle cx="35" cy="42" r="2.5" fill="#e0d4ae" opacity="0.6"/>
+      <circle cx="24" cy="48" r="2" fill="#e0d4ae" opacity="0.6"/>
+    `;
+  } else {
+    moonSvg = `
+      <circle cx="29" cy="39" r="24" fill="#2a3a4a"/>
+      <path d="${lightPath}" fill="#f0e6c8"/>
+    `;
+  }
+
+  const html = `
+    <div class="moon-container" style="opacity:${finalOpacity};" aria-hidden="true">
+      <svg viewBox="0 0 58 78" style="width:100%; height:100%;">
+        <g class="moon-glow" style="filter: drop-shadow(0 0 6px rgba(240,230,200,0.55));">
+          ${moonSvg}
+        </g>
+      </svg>
+    </div>
+  `;
+  return { css, html };
+}
+
+function renderSun(cfg, hass, hostEl) {
+  const opacity = getOpacityValue(cfg.opacity_preset || "medium");
+  const isHigh = (cfg.opacity_preset || "medium") === "high";
+  const finalOpacity = isHigh ? 1 : opacity;
+
+  const css = `
+    .sun-container {
+      position: fixed; top: 2vh; right: 1vw; width: 58px; height: 78px;
+      pointer-events: none; z-index: 999998;
+    }
+    .sun-rays {
+      animation: sun-rotate 40s linear infinite;
+      transform-box: fill-box; transform-origin: center;
+    }
+    .sun-core {
+      animation: sun-pulse 4s ease-in-out infinite;
+      transform-box: fill-box; transform-origin: center;
+    }
+    @keyframes sun-rotate {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes sun-pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.06); }
+    }
+  `;
+
+  const rays = Array.from({ length: 8 }, (_, i) => {
+    const angle = i * 45;
+    return `<line x1="29" y1="39" x2="29" y2="9" stroke="#ffd93d" stroke-width="3.5" stroke-linecap="round" transform="rotate(${angle} 29 39)"/>`;
+  }).join("");
+
+  const html = `
+    <div class="sun-container" style="opacity:${finalOpacity};" aria-hidden="true">
+      <svg viewBox="0 0 58 78" style="width:100%; height:100%;">
+        <g class="sun-rays">${rays}</g>
+        <circle class="sun-core" cx="29" cy="39" r="16" fill="#ffcb3d" stroke="#e8a92a" stroke-width="1.5"/>
+      </svg>
+    </div>
+  `;
+  return { css, html };
+}
+
 function renderOwl(cfg, hass, hostEl) {
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
@@ -2111,6 +2234,8 @@ const RENDERERS = {
   comet: renderComet,
   bats: renderBats,
   owl: renderOwl,
+  moon: renderMoon,
+  sun: renderSun,
   bee: renderBee,
   clouds: renderClouds,
 
@@ -2307,13 +2432,24 @@ class WeatherEventOverlayCard extends HTMLElement {
   _resolveEvents() {
     const cfg = this._config || {};
     if (cfg.event === "weather_auto") {
+      let events;
       if (cfg.weather_entity && this._hass) {
         const entityState = this._hass.states?.[cfg.weather_entity];
-        if (entityState) {
-          return mapWeatherStateToEvents(entityState.state);
-        }
+        events = entityState ? mapWeatherStateToEvents(entityState.state) : ["off"];
+      } else {
+        events = ["off"];
       }
-      return ["off"];
+      // Mond zusätzlich einblenden, sobald die Sonne untergegangen ist -
+      // unabhängig vom eigentlichen Wetter-Zustand (also auch bei
+      // bewölkter Nacht, nicht nur bei "clear-night"). Nutzt die in jeder
+      // Home-Assistant-Installation vorhandene eingebaute sun.sun-Entity,
+      // kein zusätzlicher Sensor oder Konfiguration nötig.
+      const sunState = this._hass?.states?.["sun.sun"]?.state;
+      if (sunState === "below_horizon" && !events.includes("moon")) {
+        events = events.filter((e) => e !== "off");
+        events.push("moon");
+      }
+      return events.length > 0 ? events : ["off"];
     }
     return [cfg.event || "off"];
   }
