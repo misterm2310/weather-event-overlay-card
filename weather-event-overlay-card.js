@@ -1586,6 +1586,15 @@ function renderMoon(cfg, hass, hostEl) {
   const phase = getMoonPhase(new Date());
   const lightPath = moonPhasePath(29, 39, 24, phase);
 
+  // Der unbeleuchtete Mondteil braucht auf hellem und dunklem Hintergrund
+  // unterschiedliche Farben: auf Dunkel darf er kräftig dunkel sein (wirkt
+  // wie ein echter Nachthimmel-Mond), auf Hell würde dieselbe Farbe wie
+  // ein unpassender dunkler Fleck wirken - dort lieber ein dezentes,
+  // helles Grau mit dunklerem Rand zur Abgrenzung.
+  const dark = isDarkModeActive(hass, hostEl);
+  const unlitFill = dark ? "#2a3a4a" : "#d8dce0";
+  const unlitStroke = dark ? "#5a6a7a" : "#a8b0b8";
+
   const css = `
     .moon-container {
       position: fixed; top: 2vh; right: 1vw; width: 58px; height: 78px;
@@ -1603,7 +1612,7 @@ function renderMoon(cfg, hass, hostEl) {
   let moonSvg;
   if (lightPath === null) {
     // Neumond: fast nichts zu sehen, nur der dunkle Umriss - realistisch.
-    moonSvg = `<circle cx="29" cy="39" r="24" fill="#2a3a4a" stroke="#5a6a7a" stroke-width="1"/>`;
+    moonSvg = `<circle cx="29" cy="39" r="24" fill="${unlitFill}" stroke="${unlitStroke}" stroke-width="1"/>`;
   } else if (lightPath === "full") {
     moonSvg = `
       <circle cx="29" cy="39" r="24" fill="#f0e6c8"/>
@@ -1613,7 +1622,7 @@ function renderMoon(cfg, hass, hostEl) {
     `;
   } else {
     moonSvg = `
-      <circle cx="29" cy="39" r="24" fill="#2a3a4a" stroke="#5a6a7a" stroke-width="1"/>
+      <circle cx="29" cy="39" r="24" fill="${unlitFill}" stroke="${unlitStroke}" stroke-width="1"/>
       <path d="${lightPath}" fill="#f0e6c8"/>
     `;
   }
