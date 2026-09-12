@@ -715,14 +715,14 @@ function renderSanta(cfg, hass, hostEl) {
   const finalOpacity = isHigh ? 1 : opacity;
   const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
   const flightPct = Math.min(30, (18 / interval) * 100);
-  const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
-  const delaySec = (-(elapsedSec % interval)).toFixed(2);
+  const nowSec = Date.now() / 1000;
+  const delaySec = (-(nowSec % interval)).toFixed(2);
 
   // Gelegentlich (etwa jeder 3. Durchflug) verliert der Schlitten ein
   // Geschenk, das runterfällt - deterministisch nach Durchflug-Nummer
   // bestimmt, damit ein Neu-Rendern mitten im Flug nicht plötzlich das
   // Geschenk verschwinden/auftauchen lässt.
-  const flightNumber = Math.floor(elapsedSec / interval);
+  const flightNumber = Math.floor(nowSec / interval);
   const dropsGift = flightNumber % 3 === 0;
   const giftStartPct = (flightPct * 0.35).toFixed(2);
   const giftEndPct = (flightPct * 0.85).toFixed(2);
@@ -922,8 +922,8 @@ function renderTrain(cfg, hass, hostEl) {
   const finalOpacity = isHigh ? 1 : opacity;
   const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
   const walkPct = Math.min(30, (30 / interval) * 100).toFixed(2);
-  const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
-  const delaySec = (-(elapsedSec % interval)).toFixed(2);
+  const nowSec = Date.now() / 1000;
+  const delaySec = (-(nowSec % interval)).toFixed(2);
 
   // Vier Waggon-Startpositionen (93 Einheiten Abstand) + Lok-Versatz danach.
   const WAGON_X = [4, 97, 190, 283];
@@ -940,7 +940,7 @@ function renderTrain(cfg, hass, hostEl) {
   // Gelegentliche Gags, deterministisch nach Durchfahrt-Nummer bestimmt
   // (kein Zufall bei jedem Rendern, damit ein Neu-Rendern mitten in der
   // Fahrt nicht plötzlich was verschwinden/auftauchen lässt).
-  const flightNumber = Math.floor(elapsedSec / interval);
+  const flightNumber = Math.floor(nowSec / interval);
   const hasSheep = flightNumber % 3 === 1;
   const hasHeartSmoke = flightNumber % 6 === 0;
   const hootPct = (parseFloat(walkPct) * 0.62).toFixed(2);
@@ -1195,8 +1195,7 @@ function renderDog(cfg, hass, hostEl) {
   const walkPct = Math.min(30, (20 / interval) * 100);
   const startHeight = typeof cfg._startHeight === "number" ? cfg._startHeight : Math.random() * 70 + 10;
   const drift = typeof cfg._drift === "number" ? cfg._drift : (Math.random() * 16 - 8);
-  const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
-  const delaySec = (-(elapsedSec % interval)).toFixed(2);
+  const delaySec = (-((Date.now() / 1000) % interval)).toFixed(2);
 
   // Schnüffel-Pause: kurzes Anhalten + Kopf senken, bei ca. 40% der Laufstrecke.
   const sniffFrac = 0.4;
@@ -1359,8 +1358,7 @@ function renderComet(cfg, hass, hostEl) {
   const flightSeconds = 3.5;
   const flightPct = Math.min(30, (flightSeconds / interval) * 100).toFixed(2);
   const fadePct = (parseFloat(flightPct) + 0.5).toFixed(2);
-  const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
-  const delaySec = (-(elapsedSec % interval)).toFixed(2);
+  const delaySec = (-((Date.now() / 1000) % interval)).toFixed(2);
 
   const css = `
     .comet-container {
@@ -1473,8 +1471,7 @@ function renderBirdhouse(cfg, hass, hostEl) {
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
   const interval = { low: 100, medium: 60, high: 30 }[cfg.count_preset || "medium"] || 60;
-  const elapsedSec = cfg._startTime ? (Date.now() - cfg._startTime) / 1000 : 0;
-  const delaySec = (-(elapsedSec % interval)).toFixed(2);
+  const delaySec = (-((Date.now() / 1000) % interval)).toFixed(2);
   // Anteil des Zyklus für den kompletten Anflug+Vorbeiflug (Rest ist Pause,
   // in der der Vogel unsichtbar wartet).
   const flightPct = Math.min(35, (9 / interval) * 100).toFixed(2);
