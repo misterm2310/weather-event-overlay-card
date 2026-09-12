@@ -147,7 +147,14 @@ function moonPhasePath(cx, cy, r, phase) {
   if (phase < 0.01 || phase > 0.99) return null; // Neumond: keine beleuchtete Fläche
   if (Math.abs(phase - 0.5) < 0.01) return "full"; // Vollmond: komplett beleuchtet
   const theta = phase * 2 * Math.PI;
-  const rx = r * Math.cos(theta);
+  let rx = r * Math.cos(theta);
+  // Mindestbreite der Sichel sichern: astronomisch korrekt wird sie kurz
+  // nach Neu-/vor Vollmond hauchdünn (kaum als Sichel erkennbar, eher ein
+  // Haarriss) - für eine klar lesbare Deko-Darstellung wird sie auf
+  // mindestens 10% der Mondscheiben-Breite begrenzt, minimal
+  // unastronomisch, aber immer eindeutig als Sichel erkennbar.
+  const minRx = r * 0.8;
+  if (rx > minRx) rx = minRx;
   const sweepOuter = phase < 0.5 ? 0 : 1;
   const sweepInner = rx > 0 ? 1 : 0;
   return `M${cx},${(cy - r).toFixed(2)} A${r},${r} 0 0,${sweepOuter} ${cx},${(cy + r).toFixed(2)} A${Math.abs(rx).toFixed(2)},${r} 0 0,${sweepInner} ${cx},${(cy - r).toFixed(2)} Z`;
@@ -1596,7 +1603,7 @@ function renderMoon(cfg, hass, hostEl) {
   let moonSvg;
   if (lightPath === null) {
     // Neumond: fast nichts zu sehen, nur der dunkle Umriss - realistisch.
-    moonSvg = `<circle cx="29" cy="39" r="24" fill="#2a3a4a" stroke="#3a4a5a" stroke-width="1"/>`;
+    moonSvg = `<circle cx="29" cy="39" r="24" fill="#2a3a4a" stroke="#5a6a7a" stroke-width="1"/>`;
   } else if (lightPath === "full") {
     moonSvg = `
       <circle cx="29" cy="39" r="24" fill="#f0e6c8"/>
@@ -1606,7 +1613,7 @@ function renderMoon(cfg, hass, hostEl) {
     `;
   } else {
     moonSvg = `
-      <circle cx="29" cy="39" r="24" fill="#2a3a4a"/>
+      <circle cx="29" cy="39" r="24" fill="#2a3a4a" stroke="#5a6a7a" stroke-width="1"/>
       <path d="${lightPath}" fill="#f0e6c8"/>
     `;
   }
@@ -2458,14 +2465,21 @@ class WeatherEventOverlayCard extends HTMLElement {
     const oldSantaState = santaEntity ? this._hass?.states?.[santaEntity]?.state : undefined;
     const dinnerEntity = this._config?.dinner_sensor;
     const oldDinnerState = dinnerEntity ? this._hass?.states?.[dinnerEntity]?.state : undefined;
+    // Zusätzlich auf sun.sun prüfen - sonst erscheint der Mond (bzw. die
+    // Sonne) nicht direkt bei Sonnenauf-/untergang, sondern erst beim
+    // nächsten Neu-Rendern aus einem ganz anderen Grund (z. B. der
+    // nächsten Wetter-Aktualisierung) - man müsste sonst manuell die
+    // Seite neu laden, damit es rechtzeitig auftaucht.
+    const oldSunState = this._hass?.states?.["sun.sun"]?.state;
 
     this._hass = hass;
     const newWeatherState = weatherEntity ? hass?.states?.[weatherEntity]?.state : undefined;
     const newSantaState = santaEntity ? hass?.states?.[santaEntity]?.state : undefined;
     const newDinnerState = dinnerEntity ? hass?.states?.[dinnerEntity]?.state : undefined;
+    const newSunState = hass?.states?.["sun.sun"]?.state;
 
     const weatherChanged = oldWeatherState !== newWeatherState;
-    const sensorChanged = oldSantaState !== newSantaState || oldDinnerState !== newDinnerState;
+    const sensorChanged = oldSantaState !== newSantaState || oldDinnerState !== newDinnerState || oldSunState !== newSunState;
 
     // Sanftes Ausblenden nur bei einer ECHTEN automatischen Wetteränderung
     // (nicht beim allerersten Rendern - da gibt's ja noch nichts, von dem
