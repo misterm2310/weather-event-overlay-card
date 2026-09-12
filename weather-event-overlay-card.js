@@ -2170,7 +2170,43 @@ class WeatherEventOverlayCard extends HTMLElement {
 
   _syncPortalVisibility() {
     if (!this._portalHost) return;
-    const isVisible = this.isConnected && this.offsetParent !== null;
+
+    const checkIsVisible = () => {
+      if (!this.isConnected) return false;
+
+      // Traversierung durch das Root-Dom sowie durch alle Shadow DOM Grenzen hinweg
+      let node = this;
+      while (node) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const style = window.getComputedStyle(node);
+          if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
+            return false;
+          }
+        }
+        if (node.parentElement) {
+          node = node.parentElement;
+        } else if (node.parentNode && node.parentNode.host) {
+          node = node.parentNode.host;
+        } else {
+          node = null;
+        }
+      }
+
+      // Prüfen, ob die Karte eine echte Position im Layout hat
+      const rect = this.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0 && this.offsetParent === null) {
+        // Falls die Karte durch HA als Container ausgeblendet wird
+        const parent = this.parentElement || (this.getRootNode() && this.getRootNode().host);
+        if (parent) {
+          const pStyle = window.getComputedStyle(parent);
+          if (pStyle.display === "none" || pStyle.visibility === "hidden") return false;
+        }
+      }
+
+      return true;
+    };
+
+    const isVisible = checkIsVisible() && !document.hidden;
     this._portalHost.style.display = isVisible ? "" : "none";
   }
 
@@ -2265,6 +2301,7 @@ class WeatherEventOverlayCard extends HTMLElement {
       this._render(isRealWeatherChange);
       this._hasRenderedOnce = true;
     }
+    this._syncPortalVisibility();
   }
 
   _resolveEvents() {
