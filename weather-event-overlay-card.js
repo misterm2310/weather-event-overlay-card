@@ -2449,14 +2449,30 @@ class WeatherEventOverlayCard extends HTMLElement {
   set hass(hass) {
     const weatherEntity = this._config?.weather_entity;
     const oldWeatherState = weatherEntity ? this._hass?.states?.[weatherEntity]?.state : undefined;
+
+    // Zusätzlich auf Änderungen bei santa_sensor/dinner_sensor prüfen -
+    // sonst würde die Karte nie neu rendern, wenn sich NUR einer von
+    // diesen beiden ändert (z. B. Abendessen-Schalter an/aus), ohne dass
+    // sich gleichzeitig auch der Wetter-Zustand ändert.
+    const santaEntity = this._config?.santa_sensor;
+    const oldSantaState = santaEntity ? this._hass?.states?.[santaEntity]?.state : undefined;
+    const dinnerEntity = this._config?.dinner_sensor;
+    const oldDinnerState = dinnerEntity ? this._hass?.states?.[dinnerEntity]?.state : undefined;
+
     this._hass = hass;
     const newWeatherState = weatherEntity ? hass?.states?.[weatherEntity]?.state : undefined;
+    const newSantaState = santaEntity ? hass?.states?.[santaEntity]?.state : undefined;
+    const newDinnerState = dinnerEntity ? hass?.states?.[dinnerEntity]?.state : undefined;
+
+    const weatherChanged = oldWeatherState !== newWeatherState;
+    const sensorChanged = oldSantaState !== newSantaState || oldDinnerState !== newDinnerState;
+
     // Sanftes Ausblenden nur bei einer ECHTEN automatischen Wetteränderung
     // (nicht beim allerersten Rendern - da gibt's ja noch nichts, von dem
     // aus geblendet werden könnte).
-    const isRealWeatherChange = this._hasRenderedOnce && oldWeatherState !== newWeatherState;
+    const isRealWeatherChange = this._hasRenderedOnce && weatherChanged;
 
-    if (!this._hasRenderedOnce || oldWeatherState !== newWeatherState) {
+    if (!this._hasRenderedOnce || weatherChanged || sensorChanged) {
       this._render(isRealWeatherChange);
       this._hasRenderedOnce = true;
     }
