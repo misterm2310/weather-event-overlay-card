@@ -2610,14 +2610,25 @@ class WeatherEventOverlayCard extends HTMLElement {
     // Seite neu laden, damit es rechtzeitig auftaucht.
     const oldSunState = this._hass?.states?.["sun.sun"]?.state;
 
+    // Zusätzlich auf Änderungen bei ALLEN konfigurierten person_entities
+    // prüfen - sonst würde der Zug nicht mitbekommen, wenn jemand nach
+    // Hause kommt oder geht, solange nicht zufällig gleichzeitig auch
+    // Wetter/Sensoren sich ändern.
+    const personEntitiesForWatch = typeof this._config?.person_entities === "string"
+      ? this._config.person_entities.split(",").map((s) => s.trim()).filter(Boolean)
+      : [];
+    const oldPersonStates = personEntitiesForWatch.map((eid) => this._hass?.states?.[eid]?.state);
+
     this._hass = hass;
     const newWeatherState = weatherEntity ? hass?.states?.[weatherEntity]?.state : undefined;
     const newSantaState = santaEntity ? hass?.states?.[santaEntity]?.state : undefined;
     const newDinnerState = dinnerEntity ? hass?.states?.[dinnerEntity]?.state : undefined;
     const newSunState = hass?.states?.["sun.sun"]?.state;
+    const newPersonStates = personEntitiesForWatch.map((eid) => hass?.states?.[eid]?.state);
+    const personsChanged = oldPersonStates.some((s, i) => s !== newPersonStates[i]);
 
     const weatherChanged = oldWeatherState !== newWeatherState;
-    const sensorChanged = oldSantaState !== newSantaState || oldDinnerState !== newDinnerState || oldSunState !== newSunState;
+    const sensorChanged = oldSantaState !== newSantaState || oldDinnerState !== newDinnerState || oldSunState !== newSunState || personsChanged;
 
     // Sanftes Ausblenden nur bei einer ECHTEN automatischen Wetteränderung
     // (nicht beim allerersten Rendern - da gibt's ja noch nichts, von dem
