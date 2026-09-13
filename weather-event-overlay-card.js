@@ -1009,19 +1009,21 @@ function renderTrain(cfg, hass, hostEl) {
       const picture = st.attributes?.entity_picture;
       const name = st.attributes?.friendly_name || st.entity_id || "?";
       const initial = name.trim().charAt(0).toUpperCase() || "?";
-      const safeName = escapeHtml(name.length > 12 ? name.slice(0, 11) + "…" : name);
-      const windowContent = `<text x="43.5" y="46" font-size="6.5" text-anchor="middle" fill="#1a1a1a" font-weight="bold">${safeName}</text>`;
+      // Kreis bewusst DEUTLICH größer als die übrige Ladung und wächst
+      // dafür über den normalen Ladebereich nach oben hinaus (dort ist
+      // reichlich Platz, siehe z. B. der Weihnachtsmann-Hut) - kein
+      // Name mehr, der stattdessen Platz gekostet hätte.
       const cargoContent = picture
         ? `
-          <circle cx="43" cy="16" r="15" fill="#e8e0d0" stroke="#1a1a1a" stroke-width="1.3"/>
-          <clipPath id="person-clip-${escapeHtml(st.entity_id)}"><circle cx="43" cy="16" r="13.5"/></clipPath>
-          <image x="29.5" y="2.5" width="27" height="27" href="${picture}" preserveAspectRatio="xMidYMid slice" clip-path="url(#person-clip-${escapeHtml(st.entity_id)})"/>
+          <circle cx="43" cy="5" r="25" fill="#e8e0d0" stroke="#1a1a1a" stroke-width="1.5"/>
+          <clipPath id="person-clip-${escapeHtml(st.entity_id)}"><circle cx="43" cy="5" r="23"/></clipPath>
+          <image x="20" y="-18" width="46" height="46" href="${picture}" preserveAspectRatio="xMidYMid slice" clip-path="url(#person-clip-${escapeHtml(st.entity_id)})"/>
         `
         : `
-          <circle cx="43" cy="16" r="15" fill="#8a9bb0" stroke="#1a1a1a" stroke-width="1.3"/>
-          <text x="43" y="21.5" font-size="16" text-anchor="middle" fill="#ffffff" font-weight="bold">${escapeHtml(initial)}</text>
+          <circle cx="43" cy="5" r="25" fill="#8a9bb0" stroke="#1a1a1a" stroke-width="1.5"/>
+          <text x="43" y="13" font-size="26" text-anchor="middle" fill="#ffffff" font-weight="bold">${escapeHtml(initial)}</text>
         `;
-      return { cargo: cargoContent, window: windowContent };
+      return { cargo: cargoContent, window: "" };
     });
 
   // Ein zusätzlicher, frei beschriftbarer Waggon (z. B. für Gäste, ein
