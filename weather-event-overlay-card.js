@@ -491,6 +491,18 @@ function renderLeaves(cfg, hass, hostEl) {
   const leafShape = sanitizeLeafShape(cfg.leaf_shape) || DEFAULT_LEAF_SHAPE;
   const leaves = spreadSample(FLAKES_DATA, count);
 
+  // Periodischer Windstoß statt Dauer-Fall: "Anzahl/Frequenz" steuert jetzt
+  // wie oft ein kurzer Schwung Blätter durchs Bild weht, statt wie viele
+  // Blätter durchgehend gleichzeitig fallen. Läuft nicht mehr den ganzen
+  // Tag ununterbrochen, sondern stoßweise - fühlt sich eher nach
+  // "gelegentlicher Herbstwind" an statt nach Dauerregen.
+  const interval = { low: 340, medium: 210, high: 100 }[cfg.count_preset || "medium"] || 210;
+  const gustPct = Math.min(35, (25 / interval) * 100);
+  const nowSec = Date.now() / 1000;
+  const baseDelay = -(nowSec % interval);
+  const fadeInPct = (gustPct * 0.06).toFixed(2);
+  const fadeOutPct = (gustPct * 0.94).toFixed(2);
+
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const leafHTML = leaves.map((f, i) => {
     const op = isHigh
@@ -498,13 +510,22 @@ function renderLeaves(cfg, hass, hostEl) {
       : (f.op * opacity).toFixed(2);
     const color = gradientColor(leafColors, i / leaves.length);
     const px = `${f.s * 1.6}px`;
-    return `<i class="leaf" style="left:${f.l}vw; width:${px}; height:${px}; animation-duration:${f.dur}s; animation-delay:calc(-20s * ${f.d}); opacity:${op}; color:${color};"><svg viewBox="0 0 100 100" width="100%" height="100%">${leafShape}</svg></i>`;
+    // Jedes Blatt startet leicht zeitversetzt INNERHALB desselben
+    // Windstoß-Fensters (nicht über den ganzen Tag verteilt wie vorher).
+    const staggerSec = f.d * (gustPct / 100) * interval * 0.7;
+    const thisDelay = (baseDelay - staggerSec).toFixed(2);
+    return `<i class="leaf" style="left:${f.l}vw; width:${px}; height:${px}; --leaf-op:${op}; animation-delay:${thisDelay}s; color:${color};"><svg viewBox="0 0 100 100" width="100%" height="100%">${leafShape}</svg></i>`;
   }).join("\n");
 
   const css = `
     ${overlayBaseCss("leaves")}
-    .leaf { position:absolute; top:-10%; animation:leaf-fall linear infinite; will-change: transform; }
-    @keyframes leaf-fall { 0% { transform: translateY(0) rotate(0deg); } 100% { transform: translateY(120vh) rotate(360deg); } }
+    .leaf { position:absolute; top:-10%; animation:leaf-fall-gust ${interval}s linear infinite; will-change: transform, opacity; }
+    @keyframes leaf-fall-gust {
+      0%, ${fadeInPct}% { transform: translateY(0) rotate(0deg); opacity: 0; }
+      ${(parseFloat(fadeInPct) + 1).toFixed(2)}% { opacity: var(--leaf-op); }
+      ${fadeOutPct}% { opacity: var(--leaf-op); }
+      ${gustPct.toFixed(2)}%, 100% { transform: translateY(120vh) rotate(360deg); opacity: 0; }
+    }
   `;
   return { css, html: `<div class="leaves" aria-hidden="true">${leafHTML}</div>` };
 }
@@ -923,11 +944,12 @@ function renderSpider(cfg, hass, hostEl) {
 
 
 function renderTrain(cfg, hass, hostEl) {
-  // Dampflok mit VIER Waggons statt zwei, jeder mit einer eigenen Ladung
-  // (Obst, Bauklötze, Geschenke, Holzscheite) statt überall der gleichen
-  // Kohle. Die Lok selbst sitzt in einer eigenen <g transform="translate">-
-  // Gruppe mit lokalen Koordinaten, lässt sich also einfach über LOCO_X
-  // weiter nach hinten schieben, wenn noch mehr Waggons dazukommen sollen.
+  // Dampflok mit variabler Waggon-Anzahl: vier feste Alltags-/Fest-Waggons,
+  // dazu optional ein Waggon pro zuhause befindlicher Person (aus
+  // person_entities) und ein frei beschriftbarer Waggon. Die Lok selbst
+  // sitzt in einer eigenen <g transform="translate">-Gruppe mit lokalen
+  // Koordinaten, lässt sich also einfach an die tatsächliche Zug-Länge
+  // anpassen.
   const opacity = getOpacityValue(cfg.opacity_preset || "medium");
   const isHigh = (cfg.opacity_preset || "medium") === "high";
   const finalOpacity = isHigh ? 1 : opacity;
@@ -935,10 +957,6 @@ function renderTrain(cfg, hass, hostEl) {
   const walkPct = Math.min(30, (30 / interval) * 100).toFixed(2);
   const nowSec = Date.now() / 1000;
   const delaySec = (-(nowSec % interval)).toFixed(2);
-
-  // Vier Waggon-Startpositionen (93 Einheiten Abstand) + Lok-Versatz danach.
-  const WAGON_X = [4, 97, 190, 283];
-  const LOCO_X = 384;
 
   // 5. mögliche Ladung "Weihnachtsmann-Sack": ersetzt die Holzscheite im
   // letzten Waggon, aber NUR wenn der konfigurierte Sensor (z. B. ein
@@ -977,19 +995,77 @@ function renderTrain(cfg, hass, hostEl) {
   `;
   }).join("");
 
+  // Zusätzliche Waggons für Personen, die gerade zuhause sind - werden
+  // hinten an die vier festen Waggons angehängt. Reihenfolge richtet sich
+  // einfach danach, wie die Entities in der Konfiguration aufgeführt sind
+  // (kein besonderer Sortier-Aufwand nötig, die Reihenfolge ist nicht wichtig).
+  const personEntities = typeof cfg.person_entities === "string"
+    ? cfg.person_entities.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+  const personCargoList = personEntities
+    .map((eid) => hass?.states?.[eid])
+    .filter((st) => st && st.state === "home")
+    .map((st) => {
+      const picture = st.attributes?.entity_picture;
+      const name = st.attributes?.friendly_name || st.entity_id || "?";
+      const initial = name.trim().charAt(0).toUpperCase() || "?";
+      const safeName = escapeHtml(name.length > 9 ? name.slice(0, 8) + "…" : name);
+      return picture
+        ? `
+          <circle cx="43" cy="13" r="11" fill="#e8e0d0" stroke="#1a1a1a" stroke-width="1.3"/>
+          <clipPath id="person-clip-${escapeHtml(st.entity_id)}"><circle cx="43" cy="13" r="9.8"/></clipPath>
+          <image x="33.2" y="3.2" width="19.6" height="19.6" href="${picture}" preserveAspectRatio="xMidYMid slice" clip-path="url(#person-clip-${escapeHtml(st.entity_id)})"/>
+          <text x="43" y="29.5" font-size="6.5" text-anchor="middle" fill="#1a1a1a" font-weight="bold">${safeName}</text>
+        `
+        : `
+          <circle cx="43" cy="13" r="11" fill="#8a9bb0" stroke="#1a1a1a" stroke-width="1.3"/>
+          <text x="43" y="16.8" font-size="11" text-anchor="middle" fill="#ffffff" font-weight="bold">${escapeHtml(initial)}</text>
+          <text x="43" y="29.5" font-size="6.5" text-anchor="middle" fill="#1a1a1a" font-weight="bold">${safeName}</text>
+        `;
+    });
+
+  // Ein zusätzlicher, frei beschriftbarer Waggon (z. B. für Gäste, ein
+  // Haustier oder was auch immer nicht über eine person-Entity abgebildet ist).
+  const customWagonText = (cfg.custom_wagon_text || "").trim();
+  const customCargo = customWagonText
+    ? `
+      <rect x="10" y="6" width="66" height="26" rx="3" fill="#f5f0e6" stroke="#1a1a1a" stroke-width="1.3"/>
+      <text x="43" y="22" font-size="9" text-anchor="middle" fill="#1a1a1a" font-weight="bold">${escapeHtml(customWagonText.length > 12 ? customWagonText.slice(0, 11) + "…" : customWagonText)}</text>
+    `
+    : null;
+
+  // Gesamt-Waggon-Anzahl: vier feste + Personen + optional Freitext. Nur
+  // die ANZAHL wird hier gebraucht (für Positionen/Breite) - welche
+  // konkrete Ladung in den ersten vier Waggons steckt, kommt erst weiter
+  // unten dazu (CARGO-Objekt ist an dieser Stelle noch nicht definiert).
+  const wagonCount = 4 + personCargoList.length + (customCargo ? 1 : 0);
+  const WAGON_GAP = 93;
+  const WAGON_X = Array.from({ length: wagonCount }, (_, i) => 4 + i * WAGON_GAP);
+  const LOCO_X = 4 + wagonCount * WAGON_GAP + 8;
+
+  // SVG-Breite und die außen sichtbare Box wachsen mit der tatsächlichen
+  // Zug-Länge mit - beide im selben Verhältnis, damit jeder Waggon immer
+  // gleich groß bleibt (der Zug wird bei mehr Waggons länger, nicht
+  // gestaucht) und "preserveAspectRatio" nichts verzerrt oder abschneidet.
+  const svgWidth = LOCO_X + 132;
+  const svgHeight = 90;
+  const scale = 37 / svgHeight;
+  const boxWidth = Math.round(svgWidth * scale);
+  const boxHeight = 37;
+
   const css = `
     .train-container {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       pointer-events: none; z-index: 9999; overflow: hidden;
     }
     .train-box {
-      position: absolute; bottom: 1vh; left: -240px; width: 216px; height: 37px;
+      position: absolute; bottom: 1vh;
       animation: train-drive ${interval}s linear infinite; animation-delay: ${delaySec}s; will-change: transform;
     }
     @keyframes train-drive {
       0% { transform: translateX(0); }
-      ${walkPct}% { transform: translateX(calc(100vw + 256px)); }
-      100% { transform: translateX(calc(100vw + 256px)); }
+      ${walkPct}% { transform: translateX(calc(100vw + ${boxWidth + 40}px)); }
+      100% { transform: translateX(calc(100vw + ${boxWidth + 40}px)); }
     }
     .train-wheel {
       /* Rotation entfernt (Ressourcen-Ersparnis) - Räder stehen jetzt fest */
@@ -1157,9 +1233,13 @@ function renderTrain(cfg, hass, hostEl) {
     `,
   };
 
-  const wagon = (x, cargoKey) => `
+  // Gesamte Waggon-Inhalts-Liste: vier feste + Personen + optional
+  // Freitext (Anzahl/Positionen wurden weiter oben schon berechnet).
+  const allCargo = [CARGO[cargo0], CARGO[cargo1], CARGO[cargo2], CARGO[cargo3], ...personCargoList, ...(customCargo ? [customCargo] : [])];
+
+  const wagon = (x, cargoContent) => `
     <g transform="translate(${x},0)">
-      ${CARGO[cargoKey]}
+      ${cargoContent}
       <path d="M0,32 L83,32 Q87,32 87,38 L87,48 Q87,52 83,52 L4,52 Q0,52 0,48 Z" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2.5"/>
       <rect x="8" y="39" width="71" height="9" fill="#ffffff"/>
       ${wheel(15, 58, 6.5)}
@@ -1168,12 +1248,13 @@ function renderTrain(cfg, hass, hostEl) {
     </g>
   `;
 
-  const couplingsHtml = [
-    `M${WAGON_X[0] + 87},50 L${WAGON_X[1]},50`,
-    `M${WAGON_X[1] + 87},50 L${WAGON_X[2]},50`,
-    `M${WAGON_X[2] + 87},50 L${WAGON_X[3]},50`,
-    `M${WAGON_X[3] + 87},50 L${LOCO_X},50`,
-  ].map((d) => `<path d="${d}" stroke="#1a1a1a" stroke-width="2"/>`).join("");
+  const couplingsHtml = WAGON_X
+    .map((x, i) => {
+      const nextX = i < WAGON_X.length - 1 ? WAGON_X[i + 1] : LOCO_X;
+      return `M${x + 87},50 L${nextX},50`;
+    })
+    .map((d) => `<path d="${d}" stroke="#1a1a1a" stroke-width="2"/>`)
+    .join("");
 
   // Die komplette Lok in lokalen Koordinaten (0 = eigener Anfang), wird
   // per translate(LOCO_X,0) an die richtige Stelle geschoben.
@@ -1212,16 +1293,13 @@ function renderTrain(cfg, hass, hostEl) {
 
   const html = `
     <div class="train-container" style="opacity:${finalOpacity};" aria-hidden="true">
-      <div class="train-box">
-        <svg viewBox="0 -24 520 90" preserveAspectRatio="xMidYMid meet">
+      <div class="train-box" style="width:${boxWidth}px; height:${boxHeight}px; left:-${boxWidth + 24}px;">
+        <svg viewBox="0 -24 ${svgWidth} ${svgHeight}" preserveAspectRatio="xMidYMid meet">
           <!-- Boden-/Gleislinie -->
-          <path d="M2,58 L516,58" stroke="#1a1a1a" stroke-width="2"/>
+          <path d="M2,58 L${svgWidth - 4},58" stroke="#1a1a1a" stroke-width="2"/>
 
-          <!-- Vier Waggons, unterschiedlich beladen -->
-          ${wagon(WAGON_X[0], cargo0)}
-          ${wagon(WAGON_X[1], cargo1)}
-          ${wagon(WAGON_X[2], cargo2)}
-          ${wagon(WAGON_X[3], cargo3)}
+          <!-- Alle Waggons: vier feste plus optional Personen- und Freitext-Waggons -->
+          ${allCargo.map((content, i) => wagon(WAGON_X[i], content)).join("\n")}
 
           <!-- Kupplungen zwischen allen Waggons und zur Lok -->
           ${couplingsHtml}
@@ -2479,6 +2557,8 @@ class WeatherEventOverlayCard extends HTMLElement {
       birthday_text: "Happy Birthday!",
       santa_sensor: "",
       dinner_sensor: "",
+      person_entities: "",
+      custom_wagon_text: "",
       ...config,
     };
     this._render();
@@ -2751,6 +2831,8 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
       birthday_text: "Happy Birthday!",
       santa_sensor: "",
       dinner_sensor: "",
+      person_entities: "",
+      custom_wagon_text: "",
       ...config,
     };
     if (this._suppressNextRender) {
@@ -2881,6 +2963,18 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
             : this._row("Abendessen-Sensor (optional)", `<input id="dinner_sensor" type="text" placeholder="input_boolean.schalter_abendessen" value="${c.dinner_sensor || ""}" style="width:100%; padding:6px; box-sizing:border-box;" />`, "Optional: ist dieser Schalter/Sensor 'an', tragen drei Waggons Geschirr, ein Braten und Getränke statt Obst, Bauklötzen und Holzscheiten.")
         ) : ""}
 
+        ${isTrain ? this._row(
+          "Personen-Waggons (optional)",
+          `<input id="person_entities" type="text" placeholder="person.marco, person.sandra" value="${(c.person_entities || "").replace(/"/g, "&quot;")}" style="width:100%; padding:6px; box-sizing:border-box;" />`,
+          "Optional: Komma-getrennte Liste von person.-Entities. Für jede Person, die gerade zuhause ist, wird hinten ein eigener Waggon mit Profilbild (falls vorhanden) oder Namens-Initiale angehängt."
+        ) : ""}
+
+        ${isTrain ? this._row(
+          "Freitext-Waggon (optional)",
+          `<input id="custom_wagon_text" type="text" placeholder="z. B. Oma" value="${(c.custom_wagon_text || "").replace(/"/g, "&quot;")}" style="width:100%; padding:6px; box-sizing:border-box;" maxlength="20" />`,
+          "Optional: ein zusätzlicher Waggon mit selbst gewähltem Text (z. B. für Gäste oder ein Haustier), wird ganz hinten angehängt."
+        ) : ""}
+
         ${isWeatherAuto ? (
           weatherEntities.length > 0
             ? this._row("Wetter-Sensor", `
@@ -2969,6 +3063,16 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     const dinnerSensorSel = this.querySelector("#dinner_sensor");
     if (dinnerSensorSel) {
       dinnerSensorSel.addEventListener("change", (e) => this._update("dinner_sensor", e.target.value.trim(), false));
+    }
+
+    const personEntitiesInput = this.querySelector("#person_entities");
+    if (personEntitiesInput) {
+      personEntitiesInput.addEventListener("change", (e) => this._update("person_entities", e.target.value.trim(), false));
+    }
+
+    const customWagonInput = this.querySelector("#custom_wagon_text");
+    if (customWagonInput) {
+      customWagonInput.addEventListener("change", (e) => this._update("custom_wagon_text", e.target.value.trim(), false));
     }
 
     const countSel = this.querySelector("#count_preset");

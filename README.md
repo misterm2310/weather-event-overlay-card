@@ -7,7 +7,7 @@ Eine benutzerdefinierte Lovelace-Karte für Home Assistant, die dynamische Anima
 ## 🎨 Features
 
 * **23 einzeln wählbare Effekte** (plus Sternenhimmel, Mond und Sonne automatisch über die Wetter-Automatik, siehe unten) – siehe Tabelle weiter unten, sinnvoll gruppiert im Editor-Dropdown (Wetter → Himmel/Nacht → Deko/Anlass → Tiere).
-* **🚂 Dampflok mit vier Waggons:** Fährt am unteren Bildschirmrand entlang - erkennbare Lok-Silhouette mit Kessel, Schornstein, Kabine mit Fähnchen, Kuhfänger und Rädern, dazu sichtbarer Dampf, der aus dem Schornstein aufsteigt. Die vier Waggons sind im Alltag mit Obst, Bauklötzen, Postsäcken und Holzscheiten beladen - optional mit zwei Sensoren umschaltbar auf festliche Weihnachts-Ladung (Schneemann, Weihnachtsmann, Geschenke, Geschenke-Sack) oder Abendessen-Ladung (Geschirr, Braten, Nachtisch, Getränke). Zwei kleine Überraschungen: bei jeder Durchfahrt hupt die Lok kurz ("TUUT"-Sprechblase), und ganz selten formt sich einer der Dampf-Puffs kurz zu einem Herz.
+* **🚂 Dampflok mit variabler Waggon-Anzahl:** Fährt am unteren Bildschirmrand entlang - erkennbare Lok-Silhouette mit Kessel, Schornstein, Kabine mit Fähnchen, Kuhfänger und Rädern, dazu sichtbarer Dampf, der aus dem Schornstein aufsteigt. Die vier festen Waggons sind im Alltag mit Obst, Bauklötzen, Postsäcken und Holzscheiten beladen - optional mit zwei Sensoren umschaltbar auf festliche Weihnachts-Ladung (Schneemann, Weihnachtsmann, Geschenke, Geschenke-Sack) oder Abendessen-Ladung (Geschirr, Braten, Nachtisch, Getränke). Zusätzlich hinten anhängbar: ein eigener Waggon für jede Person, die laut `person.`-Entity gerade zuhause ist (mit Profilbild oder Namens-Initiale), sowie ein frei beschriftbarer Waggon für alles andere (Gäste, Haustier, ...). Der Zug wird dabei automatisch länger, nicht gestaucht. Zwei kleine Überraschungen: bei jeder Durchfahrt hupt die Lok kurz ("TUUT"-Sprechblase), und ganz selten formt sich einer der Dampf-Puffs kurz zu einem Herz.
 * **🎅 Sensor-gesteuerte Festtags-Beladung:** Optional einen `input_boolean`/`binary_sensor` auswählen (z. B. für die Weihnachtszeit) - ist der Sensor "an", werden drei Waggons stattdessen festlich und reichlich beladen: mehrere Schneemänner, ein Weihnachtsmann umgeben von Geschenken, und ein großer Weihnachtsmann-Sack mit Zuckerstange und zweitem kleinen Sack.
 * **🧝🚪 Wichteltür-Szene:** Freistehende Rundbogen-Holztür (mit Kranz, Herz-Scharnieren und leuchtendem Fenster) unten rechts, dazu ein Weihnachtsbaum mit blinkender Lichterkette, ein sechseckiges Laternenhaus, ein Briefkasten mit Namen und ein Weg, der zur Tür hinaufführt.
 * **🌫️ Sanftes Ausblenden statt abruptem Verschwinden:** Ändert sich das Wetter bei aktiver Wetter-Automatik von selbst, verblasst der alte Effekt sanft, während ein manueller Wechsel im Editor weiterhin sofort umschaltet.
@@ -79,7 +79,7 @@ Karte zum Dashboard hinzufügen → **Weather & Event Overlay Card** auswählen 
 Der Editor blendet dabei automatisch nur die Regler ein, die für den gewählten Effekt auch etwas bewirken:
 * Bei **Blitz, Weihnachtsmann, Hund, Dampflok, Eule, Wichteltür, Vogelhäuschen und Geburtstags-Modus** gibt's keinen Farbmodus (feste Farben).
 * Bei der **Spinne, Eule und Wunschstern** gibt's keine Anzahl (es gibt jeweils nur die eine).
-* Bei **Weihnachtsmann, Hund, Komet, Dampflok und Vogelhäuschen** steuert "Anzahl/Frequenz" NICHT eine Partikelmenge, sondern wie oft etwas passiert (Vorbeiziehen, Vorbeifliegen).
+* Bei **Weihnachtsmann, Hund, Komet, Dampflok, Vogelhäuschen und Blätter** steuert "Anzahl/Frequenz" NICHT eine Partikelmenge, sondern wie oft etwas passiert (Vorbeiziehen, Vorbeifliegen, Windstoß).
 * Bei **Wichteltür** steuert "Anzahl/Frequenz" stattdessen, wie oft das Fenster aufleuchtet.
 * Bei **Fledermäuse, Bienen, Wolken-Drift und Geburtstags-Modus** ist "Anzahl" eine ganz normale Partikelmenge.
 
@@ -128,6 +128,8 @@ count_preset: medium
 opacity_preset: high
 santa_sensor: input_boolean.weihnachtszeit
 dinner_sensor: input_boolean.schalter_abendessen
+person_entities: person.marco, person.sandra
+custom_wagon_text: Oma
 ```
 
 ### Goldener Labrador mit Regen-Schütteln (optional)
@@ -252,7 +254,7 @@ leaf_colors:
 | `shooting_stars` | 🌠 Sternschnuppen |
 | `wishstar` | ⭐ Ein Stern mit weichem Strahlenkranz, blitzt an wechselnden Positionen auf |
 | `comet` | ☄️ Seltener, dramatischer Komet mit langem Schweif |
-| `leaves` | 🍂 Herbstlaub mit 3-Farben-Verlauf |
+| `leaves` | 🍂 Periodischer Herbstwind-Stoß mit 3-Farben-Verlauf (kein Dauer-Fall mehr) |
 | `balloons` | 🎈 Aufsteigende Luftballons |
 | `lights` | 💡 Blinkende Lichterkette am oberen Rand |
 | `birthday` | 🎂 Geburtstags-Modus: Ballons + Konfetti + Banner mit eigenem Text |
@@ -277,6 +279,8 @@ leaf_colors:
 | `birthday_text` | string | `"Happy Birthday!"` | Text im Banner (nur relevant bei `event: birthday`) - wird automatisch gegen Schadcode abgesichert |
 | `santa_sensor` | string | `""` | HA-Entity-ID eines `input_boolean`/`binary_sensor` (nur relevant bei `event: train`) - ist er "an", tragen drei Waggons festliche Fracht statt der normalen Alltags-Ladung |
 | `dinner_sensor` | string | `""` | HA-Entity-ID eines `input_boolean`/`binary_sensor` (nur relevant bei `event: train`) - ist er "an", tragen drei Waggons Geschirr, Braten und Getränke statt der normalen Alltags-Ladung. `santa_sensor` hat Vorrang, falls beide gleichzeitig an wären. |
+| `person_entities` | string | `""` | Komma-getrennte Liste von `person.`-Entities (nur relevant bei `event: train`) - für jede Person, die gerade zuhause ist, wird hinten ein Waggon mit Profilbild (falls vorhanden) oder Namens-Initiale angehängt. |
+| `custom_wagon_text` | string | `""` | Freitext für einen zusätzlichen, selbst beschrifteten Waggon (nur relevant bei `event: train`), wird ganz hinten angehängt, z. B. für Gäste oder ein Haustier. |
 | `count_preset` | `low` \| `medium` \| `high` | `medium` | Anzahl bzw. Frequenz – Bedeutung hängt vom Effekt ab (siehe Editor-Hinweistexte oben) |
 | `opacity_preset` | `low` \| `medium` \| `high` | `medium` | Deckkraft/Helligkeit des Effekts |
 | `color_mode` | `auto` \| `custom` | `auto` | Automatische Theme-Erkennung oder feste Farbe (nur bei Effekten mit Farbmodus) |
