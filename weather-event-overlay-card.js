@@ -1045,7 +1045,7 @@ function renderTrain(cfg, hass, hostEl) {
   // die ANZAHL wird hier gebraucht (für Positionen/Breite) - welche
   // konkrete Ladung in den ersten vier Waggons steckt, kommt erst weiter
   // unten dazu (CARGO-Objekt ist an dieser Stelle noch nicht definiert).
-  const wagonCount = 4 + personCargoList.length + (customCargo ? 1 : 0);
+  const wagonCount = 4 + personCargoList.length + (customCargo ? 1 : 0) + 1;
   const WAGON_GAP = 93;
   const WAGON_X = Array.from({ length: wagonCount }, (_, i) => 4 + i * WAGON_GAP);
   const LOCO_X = 4 + wagonCount * WAGON_GAP + 8;
@@ -1244,26 +1244,36 @@ function renderTrain(cfg, hass, hostEl) {
 
   // Gesamte Waggon-Inhalts-Liste: vier feste + Personen + optional
   // Freitext (Anzahl/Positionen wurden weiter oben schon berechnet).
+  const endMarkerCargo = `
+    <rect x="15" y="10" width="53" height="20" rx="3" fill="#3a3a3a" stroke="#1a1a1a" stroke-width="1.5"/>
+    <circle cx="28" cy="20" r="7" fill="#ff2222" stroke="#8a0000" stroke-width="1.5"/>
+    <circle cx="55" cy="20" r="7" fill="#ff2222" stroke="#8a0000" stroke-width="1.5"/>
+    <circle cx="28" cy="20" r="3" fill="#ffaaaa" opacity="0.7"/>
+    <circle cx="55" cy="20" r="3" fill="#ffaaaa" opacity="0.7"/>
+  `;
+
   const allCargo = [
+    { cargo: endMarkerCargo, window: "", wheels: 2 },
     ...(customCargo ? [customCargo] : []),
-    ...personCargoList,
+    ...[...personCargoList].reverse(),
     { cargo: CARGO[cargo0], window: "" },
     { cargo: CARGO[cargo1], window: "" },
     { cargo: CARGO[cargo2], window: "" },
     { cargo: CARGO[cargo3], window: "" },
   ];
 
-  const wagon = (x, cargoContent, windowContent = "") => `
+  const wagon = (x, cargoContent, windowContent = "", wheelCount = 3) => {
+    const wheelXs = wheelCount === 2 ? [22, 65] : [15, 43, 71];
+    return `
     <g transform="translate(${x},0)">
       ${cargoContent}
       <path d="M0,32 L83,32 Q87,32 87,38 L87,48 Q87,52 83,52 L4,52 Q0,52 0,48 Z" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2.5"/>
       <rect x="8" y="39" width="71" height="9" fill="#ffffff"/>
       ${windowContent}
-      ${wheel(15, 58, 6.5)}
-      ${wheel(43, 58, 6.5)}
-      ${wheel(71, 58, 6.5)}
+      ${wheelXs.map((wx) => wheel(wx, 58, 6.5)).join("")}
     </g>
   `;
+  };
 
   const couplingsHtml = WAGON_X
     .map((x, i) => {
@@ -1316,7 +1326,7 @@ function renderTrain(cfg, hass, hostEl) {
           <path d="M2,58 L${svgWidth - 4},58" stroke="#1a1a1a" stroke-width="2"/>
 
           <!-- Alle Waggons: vier feste plus optional Personen- und Freitext-Waggons -->
-          ${allCargo.map((item, i) => wagon(WAGON_X[i], item.cargo, item.window)).join("\n")}
+          ${allCargo.map((item, i) => wagon(WAGON_X[i], item.cargo, item.window, item.wheels || 3)).join("\n")}
 
           <!-- Kupplungen zwischen allen Waggons und zur Lok -->
           ${couplingsHtml}
@@ -3104,10 +3114,14 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     if (personCheckboxes.length > 0) {
       personCheckboxes.forEach((box) => {
         box.addEventListener("change", () => {
-          const selected = Array.from(this.querySelectorAll(".person-entity-checkbox"))
-            .filter((b) => b.checked)
-            .map((b) => b.value);
-          this._update("person_entities", selected.join(", "), false);
+          const current = (this._config.person_entities || "").split(",").map((s) => s.trim()).filter(Boolean);
+          if (box.checked) {
+            if (!current.includes(box.value)) current.push(box.value);
+          } else {
+            const idx = current.indexOf(box.value);
+            if (idx !== -1) current.splice(idx, 1);
+          }
+          this._update("person_entities", current.join(", "), false);
         });
       });
     }
