@@ -1015,13 +1015,13 @@ function renderTrain(cfg, hass, hostEl) {
       // Name mehr, der stattdessen Platz gekostet hätte.
       const cargoContent = picture
         ? `
-          <circle cx="43" cy="5" r="25" fill="#e8e0d0" stroke="#1a1a1a" stroke-width="1.5"/>
-          <clipPath id="person-clip-${escapeHtml(st.entity_id)}"><circle cx="43" cy="5" r="23"/></clipPath>
-          <image x="20" y="-18" width="46" height="46" href="${picture}" preserveAspectRatio="xMidYMid slice" clip-path="url(#person-clip-${escapeHtml(st.entity_id)})"/>
+          <circle cx="43" cy="-6" r="36" fill="#e8e0d0" stroke="#1a1a1a" stroke-width="1.8"/>
+          <clipPath id="person-clip-${escapeHtml(st.entity_id)}"><circle cx="43" cy="-6" r="33.5"/></clipPath>
+          <image x="9.5" y="-39.5" width="67" height="67" href="${picture}" preserveAspectRatio="xMidYMid slice" clip-path="url(#person-clip-${escapeHtml(st.entity_id)})"/>
         `
         : `
-          <circle cx="43" cy="5" r="25" fill="#8a9bb0" stroke="#1a1a1a" stroke-width="1.5"/>
-          <text x="43" y="13" font-size="26" text-anchor="middle" fill="#ffffff" font-weight="bold">${escapeHtml(initial)}</text>
+          <circle cx="43" cy="-6" r="36" fill="#8a9bb0" stroke="#1a1a1a" stroke-width="1.8"/>
+          <text x="43" y="5" font-size="38" text-anchor="middle" fill="#ffffff" font-weight="bold">${escapeHtml(initial)}</text>
         `;
       return { cargo: cargoContent, window: "" };
     });
@@ -1029,11 +1029,13 @@ function renderTrain(cfg, hass, hostEl) {
   // Ein zusätzlicher, frei beschriftbarer Waggon (z. B. für Gäste, ein
   // Haustier oder was auch immer nicht über eine person-Entity abgebildet ist).
   const customWagonText = (cfg.custom_wagon_text || "").trim();
+  const customFontSize = customWagonText.length <= 4 ? 22 : customWagonText.length <= 7 ? 16 : customWagonText.length <= 10 ? 12 : 9;
+  const customSafeText = escapeHtml(customWagonText.length > 14 ? customWagonText.slice(0, 13) + "…" : customWagonText);
   const customCargo = customWagonText
     ? {
         cargo: `
-          <rect x="10" y="6" width="66" height="26" rx="3" fill="#f5f0e6" stroke="#1a1a1a" stroke-width="1.3"/>
-          <text x="43" y="22" font-size="9" text-anchor="middle" fill="#1a1a1a" font-weight="bold">${escapeHtml(customWagonText.length > 12 ? customWagonText.slice(0, 11) + "…" : customWagonText)}</text>
+          <circle cx="43" cy="-6" r="36" fill="#f5f0e6" stroke="#1a1a1a" stroke-width="1.8"/>
+          <text x="43" y="0" font-size="${customFontSize}" text-anchor="middle" fill="#1a1a1a" font-weight="bold">${customSafeText}</text>
         `,
         window: "",
       }
@@ -1053,10 +1055,12 @@ function renderTrain(cfg, hass, hostEl) {
   // gleich groß bleibt (der Zug wird bei mehr Waggons länger, nicht
   // gestaucht) und "preserveAspectRatio" nichts verzerrt oder abschneidet.
   const svgWidth = LOCO_X + 132;
-  const svgHeight = 90;
-  const scale = 37 / svgHeight;
+  const svgTop = -60;
+  const svgHeight = 66 - svgTop;
+  const baseScale = 37 / 90;
+  const scale = baseScale;
   const boxWidth = Math.round(svgWidth * scale);
-  const boxHeight = 37;
+  const boxHeight = Math.round(svgHeight * scale);
 
   const css = `
     .train-container {
@@ -1307,7 +1311,7 @@ function renderTrain(cfg, hass, hostEl) {
   const html = `
     <div class="train-container" style="opacity:${finalOpacity};" aria-hidden="true">
       <div class="train-box" style="width:${boxWidth}px; height:${boxHeight}px; left:-${boxWidth + 24}px;">
-        <svg viewBox="0 -24 ${svgWidth} ${svgHeight}" preserveAspectRatio="xMidYMid meet">
+        <svg viewBox="0 ${svgTop} ${svgWidth} ${svgHeight}" preserveAspectRatio="xMidYMid meet">
           <!-- Boden-/Gleislinie -->
           <path d="M2,58 L${svgWidth - 4},58" stroke="#1a1a1a" stroke-width="2"/>
 
