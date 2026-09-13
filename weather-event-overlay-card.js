@@ -1245,12 +1245,12 @@ function renderTrain(cfg, hass, hostEl) {
   // Gesamte Waggon-Inhalts-Liste: vier feste + Personen + optional
   // Freitext (Anzahl/Positionen wurden weiter oben schon berechnet).
   const allCargo = [
+    ...(customCargo ? [customCargo] : []),
+    ...personCargoList,
     { cargo: CARGO[cargo0], window: "" },
     { cargo: CARGO[cargo1], window: "" },
     { cargo: CARGO[cargo2], window: "" },
     { cargo: CARGO[cargo3], window: "" },
-    ...personCargoList,
-    ...(customCargo ? [customCargo] : []),
   ];
 
   const wagon = (x, cargoContent, windowContent = "") => `
