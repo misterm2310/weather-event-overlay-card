@@ -1009,29 +1009,32 @@ function renderTrain(cfg, hass, hostEl) {
       const picture = st.attributes?.entity_picture;
       const name = st.attributes?.friendly_name || st.entity_id || "?";
       const initial = name.trim().charAt(0).toUpperCase() || "?";
-      const safeName = escapeHtml(name.length > 9 ? name.slice(0, 8) + "…" : name);
-      return picture
+      const safeName = escapeHtml(name.length > 12 ? name.slice(0, 11) + "…" : name);
+      const windowContent = `<text x="43.5" y="46" font-size="6.5" text-anchor="middle" fill="#1a1a1a" font-weight="bold">${safeName}</text>`;
+      const cargoContent = picture
         ? `
-          <circle cx="43" cy="13" r="11" fill="#e8e0d0" stroke="#1a1a1a" stroke-width="1.3"/>
-          <clipPath id="person-clip-${escapeHtml(st.entity_id)}"><circle cx="43" cy="13" r="9.8"/></clipPath>
-          <image x="33.2" y="3.2" width="19.6" height="19.6" href="${picture}" preserveAspectRatio="xMidYMid slice" clip-path="url(#person-clip-${escapeHtml(st.entity_id)})"/>
-          <text x="43" y="29.5" font-size="6.5" text-anchor="middle" fill="#1a1a1a" font-weight="bold">${safeName}</text>
+          <circle cx="43" cy="16" r="15" fill="#e8e0d0" stroke="#1a1a1a" stroke-width="1.3"/>
+          <clipPath id="person-clip-${escapeHtml(st.entity_id)}"><circle cx="43" cy="16" r="13.5"/></clipPath>
+          <image x="29.5" y="2.5" width="27" height="27" href="${picture}" preserveAspectRatio="xMidYMid slice" clip-path="url(#person-clip-${escapeHtml(st.entity_id)})"/>
         `
         : `
-          <circle cx="43" cy="13" r="11" fill="#8a9bb0" stroke="#1a1a1a" stroke-width="1.3"/>
-          <text x="43" y="16.8" font-size="11" text-anchor="middle" fill="#ffffff" font-weight="bold">${escapeHtml(initial)}</text>
-          <text x="43" y="29.5" font-size="6.5" text-anchor="middle" fill="#1a1a1a" font-weight="bold">${safeName}</text>
+          <circle cx="43" cy="16" r="15" fill="#8a9bb0" stroke="#1a1a1a" stroke-width="1.3"/>
+          <text x="43" y="21.5" font-size="16" text-anchor="middle" fill="#ffffff" font-weight="bold">${escapeHtml(initial)}</text>
         `;
+      return { cargo: cargoContent, window: windowContent };
     });
 
   // Ein zusätzlicher, frei beschriftbarer Waggon (z. B. für Gäste, ein
   // Haustier oder was auch immer nicht über eine person-Entity abgebildet ist).
   const customWagonText = (cfg.custom_wagon_text || "").trim();
   const customCargo = customWagonText
-    ? `
-      <rect x="10" y="6" width="66" height="26" rx="3" fill="#f5f0e6" stroke="#1a1a1a" stroke-width="1.3"/>
-      <text x="43" y="22" font-size="9" text-anchor="middle" fill="#1a1a1a" font-weight="bold">${escapeHtml(customWagonText.length > 12 ? customWagonText.slice(0, 11) + "…" : customWagonText)}</text>
-    `
+    ? {
+        cargo: `
+          <rect x="10" y="6" width="66" height="26" rx="3" fill="#f5f0e6" stroke="#1a1a1a" stroke-width="1.3"/>
+          <text x="43" y="22" font-size="9" text-anchor="middle" fill="#1a1a1a" font-weight="bold">${escapeHtml(customWagonText.length > 12 ? customWagonText.slice(0, 11) + "…" : customWagonText)}</text>
+        `,
+        window: "",
+      }
     : null;
 
   // Gesamt-Waggon-Anzahl: vier feste + Personen + optional Freitext. Nur
@@ -1235,13 +1238,21 @@ function renderTrain(cfg, hass, hostEl) {
 
   // Gesamte Waggon-Inhalts-Liste: vier feste + Personen + optional
   // Freitext (Anzahl/Positionen wurden weiter oben schon berechnet).
-  const allCargo = [CARGO[cargo0], CARGO[cargo1], CARGO[cargo2], CARGO[cargo3], ...personCargoList, ...(customCargo ? [customCargo] : [])];
+  const allCargo = [
+    { cargo: CARGO[cargo0], window: "" },
+    { cargo: CARGO[cargo1], window: "" },
+    { cargo: CARGO[cargo2], window: "" },
+    { cargo: CARGO[cargo3], window: "" },
+    ...personCargoList,
+    ...(customCargo ? [customCargo] : []),
+  ];
 
-  const wagon = (x, cargoContent) => `
+  const wagon = (x, cargoContent, windowContent = "") => `
     <g transform="translate(${x},0)">
       ${cargoContent}
       <path d="M0,32 L83,32 Q87,32 87,38 L87,48 Q87,52 83,52 L4,52 Q0,52 0,48 Z" fill="#ee1c1c" stroke="#1a1a1a" stroke-width="2.5"/>
       <rect x="8" y="39" width="71" height="9" fill="#ffffff"/>
+      ${windowContent}
       ${wheel(15, 58, 6.5)}
       ${wheel(43, 58, 6.5)}
       ${wheel(71, 58, 6.5)}
@@ -1299,7 +1310,7 @@ function renderTrain(cfg, hass, hostEl) {
           <path d="M2,58 L${svgWidth - 4},58" stroke="#1a1a1a" stroke-width="2"/>
 
           <!-- Alle Waggons: vier feste plus optional Personen- und Freitext-Waggons -->
-          ${allCargo.map((content, i) => wagon(WAGON_X[i], content)).join("\n")}
+          ${allCargo.map((item, i) => wagon(WAGON_X[i], item.cargo, item.window)).join("\n")}
 
           <!-- Kupplungen zwischen allen Waggons und zur Lok -->
           ${couplingsHtml}
@@ -2888,6 +2899,10 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
       ? Object.keys(this._hass.states).filter((eid) => eid.startsWith("input_boolean.") || eid.startsWith("binary_sensor."))
       : [];
 
+    const personEntitiesAvailable = this._hass && this._hass.states
+      ? Object.keys(this._hass.states).filter((eid) => eid.startsWith("person."))
+      : [];
+
     this.innerHTML = `
       <div style="padding:8px 16px;">
         <div id="live-preview" style="position:relative; width:100%; height:150px; overflow:hidden; border-radius:10px; margin-bottom:10px; background:linear-gradient(180deg, #16202e, #2c3e50); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);">
@@ -2965,8 +2980,18 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
 
         ${isTrain ? this._row(
           "Personen-Waggons (optional)",
-          `<input id="person_entities" type="text" placeholder="person.marco, person.sandra" value="${(c.person_entities || "").replace(/"/g, "&quot;")}" style="width:100%; padding:6px; box-sizing:border-box;" />`,
-          "Optional: Komma-getrennte Liste von person.-Entities. Für jede Person, die gerade zuhause ist, wird hinten ein eigener Waggon mit Profilbild (falls vorhanden) oder Namens-Initiale angehängt."
+          personEntitiesAvailable.length > 0
+            ? `
+              <div id="person_entities_group" style="border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:8px; max-height:140px; overflow-y:auto;">
+                ${personEntitiesAvailable.map((eid) => {
+                  const friendly = this._hass.states[eid]?.attributes?.friendly_name || eid;
+                  const selected = (c.person_entities || "").split(",").map((s) => s.trim()).includes(eid);
+                  return `<label style="display:flex; align-items:center; gap:6px; padding:3px 0; cursor:pointer;"><input type="checkbox" class="person-entity-checkbox" value="${eid}" ${selected ? "checked" : ""} /> ${friendly}</label>`;
+                }).join("")}
+              </div>
+            `
+            : `<input id="person_entities" type="text" placeholder="person.marco, person.sandra" value="${(c.person_entities || "").replace(/"/g, "&quot;")}" style="width:100%; padding:6px; box-sizing:border-box;" />`,
+          "Optional: für jede angehakte Person, die gerade zuhause ist, wird hinten ein eigener Waggon mit Profilbild (falls vorhanden) oder Namens-Initiale angehängt."
         ) : ""}
 
         ${isTrain ? this._row(
@@ -3068,6 +3093,17 @@ class WeatherEventOverlayCardEditor extends HTMLElement {
     const personEntitiesInput = this.querySelector("#person_entities");
     if (personEntitiesInput) {
       personEntitiesInput.addEventListener("change", (e) => this._update("person_entities", e.target.value.trim(), false));
+    }
+    const personCheckboxes = this.querySelectorAll(".person-entity-checkbox");
+    if (personCheckboxes.length > 0) {
+      personCheckboxes.forEach((box) => {
+        box.addEventListener("change", () => {
+          const selected = Array.from(this.querySelectorAll(".person-entity-checkbox"))
+            .filter((b) => b.checked)
+            .map((b) => b.value);
+          this._update("person_entities", selected.join(", "), false);
+        });
+      });
     }
 
     const customWagonInput = this.querySelector("#custom_wagon_text");

@@ -279,7 +279,7 @@ leaf_colors:
 | `birthday_text` | string | `"Happy Birthday!"` | Text im Banner (nur relevant bei `event: birthday`) - wird automatisch gegen Schadcode abgesichert |
 | `santa_sensor` | string | `""` | HA-Entity-ID eines `input_boolean`/`binary_sensor` (nur relevant bei `event: train`) - ist er "an", tragen drei Waggons festliche Fracht statt der normalen Alltags-Ladung |
 | `dinner_sensor` | string | `""` | HA-Entity-ID eines `input_boolean`/`binary_sensor` (nur relevant bei `event: train`) - ist er "an", tragen drei Waggons Geschirr, Braten und Getränke statt der normalen Alltags-Ladung. `santa_sensor` hat Vorrang, falls beide gleichzeitig an wären. |
-| `person_entities` | string | `""` | Komma-getrennte Liste von `person.`-Entities (nur relevant bei `event: train`) - für jede Person, die gerade zuhause ist, wird hinten ein Waggon mit Profilbild (falls vorhanden) oder Namens-Initiale angehängt. |
+| `person_entities` | string | `""` | Komma-getrennte Liste von `person.`-Entities (nur relevant bei `event: train`) - für jede Person, die gerade zuhause ist, wird hinten ein Waggon mit Profilbild (falls vorhanden) oder Namens-Initiale angehängt. Im Editor als Checkbox-Liste auswählbar, dieses Feld ist nur für direktes YAML-Schreiben. |
 | `custom_wagon_text` | string | `""` | Freitext für einen zusätzlichen, selbst beschrifteten Waggon (nur relevant bei `event: train`), wird ganz hinten angehängt, z. B. für Gäste oder ein Haustier. |
 | `count_preset` | `low` \| `medium` \| `high` | `medium` | Anzahl bzw. Frequenz – Bedeutung hängt vom Effekt ab (siehe Editor-Hinweistexte oben) |
 | `opacity_preset` | `low` \| `medium` \| `high` | `medium` | Deckkraft/Helligkeit des Effekts |
